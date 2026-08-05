@@ -84,6 +84,7 @@ body.zen #app,body.sb-closed #app{grid-template-columns:0 1fr}
 .btn.primary:hover{filter:brightness(1.07)}
 .btn.danger{color:var(--danger);border-color:color-mix(in srgb,var(--danger) 45%,transparent)}
 .btn.sm{height:27px;padding:0 10px;font-size:12px;border-radius:var(--r-sm)}
+a.btn{color:var(--ink);text-decoration:none}
 .btn:disabled{opacity:.45;cursor:not-allowed}
 .ibtn{
   width:28px;height:28px;border-radius:var(--r-sm);display:grid;place-items:center;
@@ -356,6 +357,86 @@ select.tsel{vertical-align:middle;align-self:center}
 }
 #zenExit:hover{opacity:1;color:var(--ink)}
 body.zen #zenExit{display:grid}
+/* ================= tooltips (custom, replaces native title=) ================= */
+#tip{
+  position:fixed;top:0;left:0;z-index:900;pointer-events:none;
+  width:max-content;max-width:min(300px,calc(100vw - 16px));padding:5px 9px;
+  background:var(--panel);color:var(--ink);
+  border:1px solid var(--line);border-radius:var(--r-sm);box-shadow:var(--shadow);
+  font-family:var(--font-ui);font-size:12px;font-weight:500;line-height:1.4;
+  visibility:hidden;opacity:0;
+  transition:opacity .13s ease,transform .13s ease;
+}
+#tip.dn{transform:translateY(-4px)}
+#tip.up{transform:translateY(4px)}
+#tip.show{visibility:visible;opacity:1;transform:none}
+#tip .tip-l{color:var(--ink)}
+#tip .tip-k{
+  display:inline-block;margin-left:7px;padding:0 5px;
+  font-family:var(--font-mono);font-size:10.5px;font-weight:500;line-height:16px;
+  color:var(--muted);background:var(--panel-2);
+  border:1px solid var(--line);border-radius:5px;white-space:nowrap;
+}
+#tip .tip-a{
+  position:absolute;width:7px;height:7px;background:var(--panel);
+  border-left:1px solid var(--line);border-top:1px solid var(--line);
+}
+#tip.dn .tip-a{top:-4.5px;transform:rotate(45deg)}
+#tip.up .tip-a{bottom:-4.5px;transform:rotate(225deg)}
+@media (prefers-reduced-motion:reduce){
+  #tip{transition:none}
+  #tip.dn,#tip.up{transform:none}
+}
+@media print{#tip{display:none!important}}
+/* ================= table editing chrome =================
+   Every element below lives in <body>, NEVER inside #editor,
+   so it is never captured by n.html=editor.innerHTML and never
+   walked by htmlToMd()/doExport().                            */
+
+#tblUI{position:fixed;inset:0;z-index:52;pointer-events:none;display:none}
+#tblUI.on{display:block}
+
+#tblUI .tbl-bar{
+  position:absolute;pointer-events:auto;display:flex;align-items:center;gap:1px;
+  background:var(--panel);border:1px solid var(--line);border-radius:10px;
+  padding:3px 4px 3px;box-shadow:var(--shadow);animation:pop .12s ease;
+}
+/* invisible skirt so the pointer can cross the gap to the table without flicker */
+#tblUI .tbl-bar::after{content:"";position:absolute;left:0;right:0;top:100%;height:14px}
+#tblUI .tbl-bar .ibtn{width:26px;height:26px}
+#tblUI .tbl-bar .ibtn svg{width:15px;height:15px}
+#tblUI .tbl-bar .ibtn.warn:hover{color:var(--danger);background:color-mix(in srgb,var(--danger) 14%,transparent)}
+#tblUI .tbl-sep{width:1px;height:17px;background:var(--line-soft);margin:0 4px;flex:none}
+#tblUI .tbl-dim{font-family:var(--font-mono);font-size:10.5px;color:var(--faint);padding:0 6px 0 3px;white-space:nowrap}
+
+/* row / column grips hugging the table edges */
+#tblUI>*{margin:0}                       /* .row/.col etc must never leak in */
+#tblUI .tbl-grip{
+  position:absolute;margin:0;pointer-events:auto;background:var(--line);
+  border-radius:3px;cursor:pointer;transition:background .12s;
+}
+#tblUI .tbl-grip:hover{background:var(--accent)}
+#tblUI .tbl-grip.on{background:color-mix(in srgb,var(--accent) 70%,transparent)}
+
+/* translucent wash over the row/column a grip points at */
+#tblUI .tbl-hl{
+  position:absolute;pointer-events:none;background:var(--accent-soft);
+  border:1px solid color-mix(in srgb,var(--accent) 45%,transparent);border-radius:3px;
+}
+
+/* ---- insert-table size picker ---- */
+#tblPick{
+  position:fixed;z-index:70;display:none;background:var(--panel);
+  border:1px solid var(--line);border-radius:11px;box-shadow:var(--shadow);
+  padding:9px;animation:pop .13s ease;
+}
+#tblPick.open{display:block}
+#tblPick .tp-g{display:grid;grid-template-columns:repeat(8,15px);gap:3px}
+#tblPick .tp-c{width:15px;height:15px;border:1px solid var(--line);border-radius:3px;background:var(--bg);transition:background .08s}
+#tblPick .tp-c.on{background:var(--accent);border-color:var(--accent)}
+#tblPick .tp-l{margin-top:8px;text-align:center;font-family:var(--font-mono);font-size:11px;color:var(--muted)}
+
+@media print{#tblUI,#tblPick{display:none!important}}
 </style>
 </head>
 <body>
@@ -368,7 +449,7 @@ body.zen #zenExit{display:grid}
       <div class="brand">Inkpad<small>your notes · your browser · your Drive</small></div>
     </div>
     <div class="sb-actions">
-      <button class="btn primary" id="newNoteBtn" style="flex:1"><svg class="ic" data-i="plus"></svg>New note</button>
+      <button class="btn primary" id="newNoteBtn" title="New note  Ctrl+Alt+N" style="flex:1"><svg class="ic" data-i="plus"></svg>New note</button>
       <button class="btn" id="importBtn" title="Import .md / .txt / .html" style="width:36px;padding:0"><svg class="ic" data-i="import"></svg></button>
     </div>
     <div class="sb-search">
@@ -376,12 +457,12 @@ body.zen #zenExit{display:grid}
       <input id="searchInput" type="text" placeholder="Search notes">
     </div>
     <div class="sb-tabs">
-      <button class="sb-tab active" id="tabNotes">Notes</button>
-      <button class="sb-tab" id="tabTrash">Trash</button>
+      <button class="sb-tab active" id="tabNotes" title="Your notes">Notes</button>
+      <button class="sb-tab" id="tabTrash" title="Trash  (restore or delete forever)">Trash</button>
     </div>
     <div id="noteList"></div>
     <div class="sb-foot" id="sbFoot">
-      <button class="btn sm" id="connectDriveSm"><svg class="ic" data-i="cloud"></svg>Connect Drive</button>
+      <button class="btn sm" id="connectDriveSm" title="Connect Google Drive  (backup only)"><svg class="ic" data-i="cloud"></svg>Connect Drive</button>
     </div>
   </aside>
 
@@ -405,16 +486,16 @@ body.zen #zenExit{display:grid}
       <button class="tb" id="redoBtn" title="Redo  Ctrl+Shift+Z"><svg class="ic" data-i="redo"></svg></button>
       <div class="tb-sep"></div>
       <button class="tsel" id="fontSelect" title="Font"><span class="lbl">JetBrains Mono</span><svg class="ic" data-i="chevDown"></svg></button>
-      <button class="tsel" id="blockSelect" title="Paragraph style"><span class="lbl">Text</span><svg class="ic" data-i="chevDown"></svg></button>
+      <button class="tsel" id="blockSelect" title="Paragraph style  Ctrl+Alt+0-3"><span class="lbl">Text</span><svg class="ic" data-i="chevDown"></svg></button>
       <div class="size-ctl" title="Font size">
-        <button id="sizeDown">−</button><span id="sizeVal">14</span><button id="sizeUp">+</button>
+        <button id="sizeDown" title="Smaller">−</button><span id="sizeVal">14</span><button id="sizeUp" title="Larger">+</button>
       </div>
       <div class="tb-sep"></div>
       <button class="tb" data-cmd="bold" title="Bold  Ctrl+B"><b>B</b></button>
       <button class="tb" data-cmd="italic" title="Italic  Ctrl+I"><i>I</i></button>
       <button class="tb" data-cmd="underline" title="Underline  Ctrl+U"><u>U</u></button>
-      <button class="tb" data-cmd="strikeThrough" title="Strikethrough"><s>S</s></button>
-      <button class="tb" id="inlineCodeBtn" title="Inline code"><svg class="ic" data-i="code"></svg></button>
+      <button class="tb" data-cmd="strikeThrough" title="Strikethrough  Ctrl+Shift+X"><s>S</s></button>
+      <button class="tb" id="inlineCodeBtn" title="Inline code  Ctrl+E"><svg class="ic" data-i="code"></svg></button>
       <button class="tb" id="linkBtn" title="Link  Ctrl+K  (Ctrl+click a link to open it)"><svg class="ic" data-i="link"></svg></button>
       <div class="tb-sep"></div>
       <label class="swatch" title="Text color"><span style="font-weight:700;font-size:13px">A</span>
@@ -424,14 +505,14 @@ body.zen #zenExit{display:grid}
         <span class="bar" id="hiliteBar" style="background:#F5E6A8"></span>
         <input type="color" id="hiliteColor" value="#F5E6A8"></label>
       <div class="tb-sep"></div>
-      <button class="tb" data-cmd="insertUnorderedList" title="Bullet list  (type - )"><svg class="ic" data-i="ul"></svg></button>
-      <button class="tb" data-cmd="insertOrderedList" title="Numbered list  (type 1. )"><svg class="ic" data-i="ol"></svg></button>
-      <button class="tb" id="taskBtn" title="Task list  (type [] )  Ctrl+Shift+T"><svg class="ic" data-i="task"></svg></button>
+      <button class="tb" data-cmd="insertUnorderedList" title="Bullet list  Ctrl+Shift+8"><svg class="ic" data-i="ul"></svg></button>
+      <button class="tb" data-cmd="insertOrderedList" title="Numbered list  Ctrl+Shift+7"><svg class="ic" data-i="ol"></svg></button>
+      <button class="tb" id="taskBtn" title="Task list  Ctrl+Shift+9"><svg class="ic" data-i="task"></svg></button>
       <div class="tb-sep"></div>
-      <button class="tb" id="tableBtn" title="Insert table"><svg class="ic" data-i="table"></svg></button>
+      <button class="tb" id="tableBtn" title="Table  (pick a size)"><svg class="ic" data-i="table"></svg></button>
       <button class="tb" id="imageBtn" title="Insert image"><svg class="ic" data-i="image"></svg></button>
       <button class="tb" id="hrBtn" title="Divider  (type --- )"><svg class="ic" data-i="hr"></svg></button>
-      <button class="tb" id="clearFmtBtn" title="Clear formatting"><svg class="ic" data-i="clear"></svg></button>
+      <button class="tb" id="clearFmtBtn" title="Clear formatting  Ctrl+\"><svg class="ic" data-i="clear"></svg></button>
       <div class="tb-sep"></div>
       <button class="tb" id="findBtn" title="Find & replace  Ctrl+F"><svg class="ic" data-i="search"></svg></button>
       <button class="tb" id="exportBtn" title="Export"><svg class="ic" data-i="download"></svg></button>
@@ -440,11 +521,11 @@ body.zen #zenExit{display:grid}
     <div id="findbar">
       <input id="findInput" placeholder="Find">
       <span class="count" id="findCount">0 / 0</span>
-      <button class="ibtn" id="findPrev" title="Previous"><svg class="ic" data-i="chevUp"></svg></button>
-      <button class="ibtn" id="findNext" title="Next"><svg class="ic" data-i="chevDown"></svg></button>
+      <button class="ibtn" id="findPrev" title="Previous match"><svg class="ic" data-i="chevUp"></svg></button>
+      <button class="ibtn" id="findNext" title="Next match  Enter"><svg class="ic" data-i="chevDown"></svg></button>
       <input id="replaceInput" placeholder="Replace with">
-      <button class="btn sm" id="replaceBtn">Replace</button>
-      <button class="btn sm" id="replaceAllBtn">All</button>
+      <button class="btn sm" id="replaceBtn" title="Replace this match">Replace</button>
+      <button class="btn sm" id="replaceAllBtn" title="Replace every match">All</button>
       <button class="ibtn" id="findClose" title="Close"><svg class="ic" data-i="x"></svg></button>
     </div>
 
@@ -454,11 +535,11 @@ body.zen #zenExit{display:grid}
     </div></div>
 
     <div id="statusbar">
-      <span class="st" id="wcount">0 words</span>
-      <span class="st" id="ccount">0 chars</span>
-      <span class="st" id="rtime">~0 min</span>
+      <span class="st" id="wcount" title="Words in this note">0 words</span>
+      <span class="st" id="ccount" title="Characters in this note">0 chars</span>
+      <span class="st" id="rtime" title="Estimated reading time  (~200 wpm)">~0 min</span>
       <span class="grow"></span>
-      <span class="st" id="editStamp"></span>
+      <span class="st" id="editStamp" title="Last edited"></span>
       <span class="st"><span class="beacon local" id="beacon2"></span><span id="syncLabel2">local</span></span>
     </div>
   </div>
@@ -466,24 +547,24 @@ body.zen #zenExit{display:grid}
 
 <!-- export menu -->
 <div class="menu" id="exportMenu">
-  <button data-x="md"><svg class="ic" data-i="download"></svg>Markdown (.md)</button>
-  <button data-x="html"><svg class="ic" data-i="download"></svg>HTML (.html)</button>
-  <button data-x="txt"><svg class="ic" data-i="download"></svg>Plain text (.txt)</button>
-  <button data-x="pdf"><svg class="ic" data-i="print"></svg>Print / PDF</button>
+  <button data-x="md" title="Markdown  (.md)"><svg class="ic" data-i="download"></svg>Markdown (.md)</button>
+  <button data-x="html" title="Styled standalone page  (.html)"><svg class="ic" data-i="download"></svg>HTML (.html)</button>
+  <button data-x="txt" title="Plain text  (.txt)"><svg class="ic" data-i="download"></svg>Plain text (.txt)</button>
+  <button data-x="pdf" title="Print or save as PDF"><svg class="ic" data-i="print"></svg>Print / PDF</button>
   <div class="msep"></div>
-  <button data-x="json"><svg class="ic" data-i="shield"></svg>Full backup (.json)</button>
+  <button data-x="json" title="Every note plus settings  (.json)"><svg class="ic" data-i="shield"></svg>Full backup (.json)</button>
 </div>
 
 <!-- ============ SETTINGS ============ -->
 <div class="overlay" id="settingsOverlay">
   <div class="modal">
     <div class="m-head"><h2>Settings</h2>
-      <button class="ibtn" data-close="settingsOverlay"><svg class="ic" data-i="x"></svg></button></div>
+      <button class="ibtn" data-close="settingsOverlay" title="Close  Esc"><svg class="ic" data-i="x"></svg></button></div>
     <div class="m-body">
 
       <div class="row">
         <label>Theme</label>
-        <div class="theme-dots" id="themeDots2" style="padding:0">
+        <div class="theme-dots" id="themeDots2" title="Theme" style="padding:0">
           <button class="tdot" data-theme="paper" title="Paper"></button>
           <button class="tdot" data-theme="dark" title="Dark"></button>
           <button class="tdot" data-theme="navy" title="Navy"></button>
@@ -492,7 +573,7 @@ body.zen #zenExit{display:grid}
 
       <div class="row">
         <label>Default editor font</label>
-        <button class="btn dd-wide" id="defaultFontSelect"><span class="lbl">JetBrains Mono</span><svg class="ic" data-i="chevDown"></svg></button>
+        <button class="btn dd-wide" id="defaultFontSelect" title="Editor font"><span class="lbl">JetBrains Mono</span><svg class="ic" data-i="chevDown"></svg></button>
       </div>
 
       <div class="section">
@@ -504,12 +585,12 @@ body.zen #zenExit{display:grid}
           <span id="driveCfgHint"></span>
         </div>
         <div class="btn-row">
-          <button class="btn primary" id="driveConnectBtn"><svg class="ic" data-i="cloud"></svg>Connect</button>
-          <button class="btn" id="driveBackupBtn" disabled>Back up now</button>
-          <button class="btn" id="driveRestoreBtn" disabled>Restore</button>
-          <button class="btn" id="driveDisconnectBtn" disabled>Disconnect</button>
+          <button class="btn primary" id="driveConnectBtn" title="Connect Google Drive  (drive.file scope only)"><svg class="ic" data-i="cloud"></svg>Connect</button>
+          <button class="btn" id="driveBackupBtn" title="Back up to Drive now  Ctrl+S" disabled>Back up now</button>
+          <button class="btn" id="driveRestoreBtn" title="Replace local notes with the Drive backup" disabled>Restore</button>
+          <button class="btn" id="driveDisconnectBtn" title="Disconnect  (notes stay in this browser)" disabled>Disconnect</button>
         </div>
-        <label class="chk" style="margin-top:11px"><input type="checkbox" id="autoBackupChk"> Auto-back up ~45 s after I stop typing</label>
+        <label class="chk" title="Back up automatically after you stop typing" style="margin-top:11px"><input type="checkbox" id="autoBackupChk"> Auto-back up ~45 s after I stop typing</label>
       </div>
 
       <div class="section">
@@ -519,17 +600,17 @@ body.zen #zenExit{display:grid}
           Stored in this browser only.</div>
         <div class="row" style="margin-bottom:0"><input type="password" id="ghToken" placeholder="ghp_…"></div>
         <div class="btn-row">
-          <button class="btn" id="gistBackupBtn">Back up</button>
-          <button class="btn" id="gistRestoreBtn">Restore</button>
+          <button class="btn" id="gistBackupBtn" title="Back up to a secret Gist  Ctrl+S">Back up</button>
+          <button class="btn" id="gistRestoreBtn" title="Replace local notes with the Gist backup">Restore</button>
         </div>
       </div>
 
       <div class="section">
         <h3>Data</h3>
         <div class="btn-row">
-          <button class="btn" id="exportAllBtn">Export all (.json)</button>
-          <button class="btn" id="importAllBtn">Import backup</button>
-          <button class="btn danger" id="wipeBtn">Erase everything</button>
+          <button class="btn" id="exportAllBtn" title="Download every note  (.json)">Export all (.json)</button>
+          <button class="btn" id="importAllBtn" title="Load notes from a backup file">Import backup</button>
+          <button class="btn danger" id="wipeBtn" title="Erase every note and setting  (cannot be undone)">Erase everything</button>
         </div>
         <div class="hint" id="storageInfo"></div>
       </div>
@@ -542,10 +623,32 @@ body.zen #zenExit{display:grid}
           <span>Back up now</span><span><kbd>Ctrl</kbd><kbd>S</kbd></span>
           <span>Find &amp; replace</span><span><kbd>Ctrl</kbd><kbd>F</kbd></span>
           <span>Link</span><span><kbd>Ctrl</kbd><kbd>K</kbd></span>
-          <span>Task list</span><span><kbd>Ctrl</kbd><kbd>Shift</kbd><kbd>T</kbd></span>
+          <span>Strikethrough</span><span><kbd>Ctrl</kbd><kbd>Shift</kbd><kbd>X</kbd></span>
+          <span>Inline code</span><span><kbd>Ctrl</kbd><kbd>E</kbd></span>
+          <span>Numbered list</span><span><kbd>Ctrl</kbd><kbd>Shift</kbd><kbd>7</kbd></span>
+          <span>Bullet list</span><span><kbd>Ctrl</kbd><kbd>Shift</kbd><kbd>8</kbd></span>
+          <span>Task list</span><span><kbd>Ctrl</kbd><kbd>Shift</kbd><kbd>9</kbd></span>
+          <span>Paragraph / Heading 1-3</span><span><kbd>Ctrl</kbd><kbd>Alt</kbd><kbd>0</kbd>–<kbd>3</kbd></span>
+          <span>Clear formatting</span><span><kbd>Ctrl</kbd><kbd>\</kbd></span>
           <span>Zen mode</span><span><kbd>Ctrl</kbd><kbd>Shift</kbd><kbd>F</kbd></span>
           <span>Exit code/quote block</span><span><kbd>Ctrl</kbd><kbd>Enter</kbd></span>
           <span>Search notes</span><span><kbd>/</kbd></span>
+        </div>
+      </div>
+
+      <div class="section">
+        <h3>About Inkpad</h3>
+        <div class="hint">
+          A single HTML file — no build step, no server, no tracking. Your notes stay in this
+          browser unless <i>you</i> back them up.
+        </div>
+        <div class="btn-row">
+          <a class="btn" href="https://inkpad.js.org" target="_blank" rel="noopener"
+             title="Website  inkpad.js.org"><svg class="ic" data-i="globe"></svg>Website</a>
+          <a class="btn" href="https://github.com/inkpad-js/inkpad-js.github.io" target="_blank" rel="noopener"
+             title="Source code on GitHub"><svg class="ic" data-i="github"></svg>GitHub</a>
+          <a class="btn" href="https://github.com/inkpad-js/inkpad-js.github.io/issues/new" target="_blank" rel="noopener"
+             title="Report a bug or request a feature"><svg class="ic" data-i="issue"></svg>Report an issue</a>
         </div>
       </div>
 
@@ -561,8 +664,8 @@ body.zen #zenExit{display:grid}
       <p id="dlgMsg"></p>
       <input type="text" id="dlgInput" style="display:none">
       <div class="btn-row">
-        <button class="btn" id="dlgCancel">Cancel</button>
-        <button class="btn primary" id="dlgOk">OK</button>
+        <button class="btn" id="dlgCancel" title="Cancel">Cancel</button>
+        <button class="btn primary" id="dlgOk" title="Confirm">OK</button>
       </div>
     </div>
   </div>
@@ -634,6 +737,9 @@ const ICONS={
  copy:'<rect x="9" y="9" width="11" height="11" rx="2.5"/><path d="M5.5 14.5V6a2 2 0 0 1 2-2h8.5"/>',
  trash:'<path d="M4.5 7h15"/><path d="M9.5 7V5.2c0-.7.5-1.2 1.2-1.2h2.6c.7 0 1.2.5 1.2 1.2V7"/><path d="m6.5 7 .8 12.3c0 .4.4.7.8.7h7.8c.4 0 .8-.3.8-.7L17.5 7"/><path d="M10 11v5.5M14 11v5.5"/>',
  restore:'<path d="M4.5 10a8 8 0 1 1 1.8 6.5"/><path d="M4.5 10V5m0 5H10"/>',
+ github:'<path d="M9 19c-4.3 1.4-4.3-2.5-6-3m12 5v-3.4c0-1 .1-1.4-.5-2 2.8-.3 5.5-1.4 5.5-6A4.6 4.6 0 0 0 18.7 6a4.3 4.3 0 0 0-.1-3.2s-1.1-.3-3.6 1.3a12 12 0 0 0-6.2 0C6.4 2.5 5.3 2.8 5.3 2.8A4.3 4.3 0 0 0 5.2 6 4.6 4.6 0 0 0 4 9.6c0 4.6 2.7 5.7 5.5 6-.6.6-.6 1.2-.5 2V21"/>',
+ issue:'<circle cx="12" cy="12" r="8.5"/><path d="M12 7.8v4.6"/><circle cx="12" cy="16" r="1" fill="currentColor" stroke="none"/>',
+ globe:'<circle cx="12" cy="12" r="8.5"/><path d="M3.5 12h17"/><path d="M12 3.5a13 13 0 0 1 0 17 13 13 0 0 1 0-17"/>',
 };
 const I=n=>`<svg class="ic" viewBox="0 0 24 24">${ICONS[n]||""}</svg>`;
 $$("svg[data-i]").forEach(el=>{el.setAttribute("viewBox","0 0 24 24");el.innerHTML=ICONS[el.dataset.i]||"";});
@@ -701,7 +807,7 @@ function renderFoot(){
       <button class="ibtn" id="footBackup" title="Back up now  Ctrl+S">${I("cloudUp")}</button>`;
     $("#footBackup").onclick=()=>doDriveBackup();
   }else{
-    f.innerHTML=`<button class="btn sm" id="connectDriveSm">${I("cloud")}Connect Drive</button>
+    f.innerHTML=`<button class="btn sm" id="connectDriveSm" title="Connect Google Drive  (backup only)">${I("cloud")}Connect Drive</button>
       <span class="grow" style="text-align:right">local only</span>`;
     $("#connectDriveSm").onclick=connectDriveFlow;
   }
@@ -966,8 +1072,7 @@ function applySize(px){
 $("#sizeUp").addEventListener("mousedown",e=>{e.preventDefault();applySize(curSize+1)});
 $("#sizeDown").addEventListener("mousedown",e=>{e.preventDefault();applySize(curSize-1)});
 
-$("#inlineCodeBtn").addEventListener("mousedown",e=>{
-  e.preventDefault();
+function toggleInlineCode(){
   const sel=window.getSelection();if(!sel.rangeCount)return;
   const anc=sel.anchorNode&&(sel.anchorNode.nodeType===1?sel.anchorNode:sel.anchorNode.parentElement);
   const c=anc&&anc.closest("code");
@@ -977,7 +1082,8 @@ $("#inlineCodeBtn").addEventListener("mousedown",e=>{
   const r=sel.getRangeAt(0),code=document.createElement("code");
   try{r.surroundContents(code)}catch(_){code.textContent=r.toString();r.deleteContents();r.insertNode(code);}
   scheduleSave();
-});
+}
+$("#inlineCodeBtn").addEventListener("mousedown",e=>{e.preventDefault();toggleInlineCode();});
 
 async function insertLink(){
   const sel=window.getSelection();
@@ -1054,19 +1160,8 @@ linkPop.addEventListener("click",e=>{
   lpHide();
 });
 
-$("#tableBtn").addEventListener("mousedown",async e=>{
-  e.preventDefault();
-  const sel=window.getSelection();const saved=sel.rangeCount?sel.getRangeAt(0).cloneRange():null;
-  const dims=await dialog({title:"Insert table",input:true,value:"3x3",placeholder:"rows x cols",ok:"Insert"});
-  if(!dims)return;
-  const m=dims.match(/(\d+)\s*[x×]\s*(\d+)/);if(!m)return;
-  if(saved){const s=window.getSelection();s.removeAllRanges();s.addRange(saved);}
-  editor.focus();
-  histPush();
-  const R=Math.min(20,+m[1]),C=Math.min(10,+m[2]);
-  let h="<table><tr>"+"<th><br></th>".repeat(C)+"</tr>";
-  for(let r=1;r<R;r++)h+="<tr>"+"<td><br></td>".repeat(C)+"</tr>";
-  document.execCommand("insertHTML",false,h+"</table><p><br></p>");scheduleSave();
+$("#tableBtn").addEventListener("mousedown",e=>{
+  e.preventDefault();toggleTablePicker(e.currentTarget);
 });
 
 $("#imageBtn").addEventListener("mousedown",e=>{e.preventDefault();$("#imgInput").click();});
@@ -1469,6 +1564,16 @@ function htmlToMd(root){
             out+="| "+cells.join(" | ")+" |\n";
             if(ri===0)out+="|"+cells.map(()=>" --- ").join("|")+"|\n";
           });out+="\n";break;}
+        case "span":{
+          /* notes saved before styleWithCSS was disabled hold CSS spans */
+          const st=ch.style,dec=st.textDecorationLine||st.textDecoration||"";
+          let s=inner();
+          if(/line-through/.test(dec))s="~~"+s+"~~";
+          if(/underline/.test(dec))s="<u>"+s+"</u>";
+          if(/italic|oblique/.test(st.fontStyle))s="*"+s+"*";
+          const w=st.fontWeight;
+          if(w==="bold"||w==="bolder"||(+w>=600))s="**"+s+"**";
+          out+=s;break;}
         default:out+=inner();
       }
     }
@@ -1832,6 +1937,10 @@ document.addEventListener("keyup",e=>{if(!e.ctrlKey&&!e.metaKey)document.body.cl
 window.addEventListener("blur",()=>document.body.classList.remove("mod-down"));
 
 /* ---------- boot ---------- */
+/* emit semantic <b>/<i>/<u>/<strike> instead of styled <span>s — without this
+   execCommand produces CSS spans that htmlToMd can't see, so bold/italic/
+   underline/strikethrough silently vanish from Markdown export */
+try{document.execCommand("styleWithCSS",false,false);}catch(_){}
 loadState();
 setTheme(settings.theme||DEFAULT_THEME);
 fontDD.set(settings.defaultFont);
@@ -1842,6 +1951,423 @@ editor.focus();
 /* resume Drive silently if it was granted before */
 if(GOOGLE_CLIENT_ID&&settings.driveGranted)drive.connect(false).catch(()=>{});
 console.log("%cInkpad","font-weight:bold;font-size:15px","single file · localStorage first · your Drive/Gist as backup");
+
+/* ---------- tooltips: one floating chip, delegated, works for injected nodes ----------
+   Convention: title="Label  Shortcut" — 2+ spaces split label from keycap chunks. */
+const TIP_DELAY=450,TIP_GRACE=320,TIP_M=8,TIP_GAP=7;
+const TIP_SKIP="input,textarea,select,[contenteditable=true]";
+const tipEl=document.createElement("div");
+tipEl.id="tip";tipEl.setAttribute("role","tooltip");
+tipEl.innerHTML='<span class="tip-c"></span><i class="tip-a"></i>';
+document.body.appendChild(tipEl);
+const tipC=tipEl.firstElementChild,tipA=tipEl.lastElementChild;
+let tipAnchor=null,tipTimer=null,tipObs=null,tipLast=0;
+
+function tipFind(t){
+  const el=t&&t.closest&&t.closest("[data-tip],[title]");
+  if(!el||el===tipEl||el.matches(TIP_SKIP))return null;
+  const a=el.getAttribute("title");
+  if(a!==null){
+    if(!el.dataset.tip)el.dataset.tip=a;
+    el.removeAttribute("title");
+    if(!el.getAttribute("aria-label"))el.setAttribute("aria-label",el.dataset.tip);
+  }
+  return el.dataset.tip?el:null;
+}
+function tipPlace(el){
+  const r=el.getBoundingClientRect(),w=tipEl.offsetWidth,h=tipEl.offsetHeight;
+  const up=r.bottom+TIP_GAP+h+TIP_M>innerHeight&&r.top-TIP_GAP-h>=TIP_M;
+  const top=up?r.top-TIP_GAP-h:r.bottom+TIP_GAP;
+  const left=Math.max(TIP_M,Math.min(r.left+r.width/2-w/2,innerWidth-w-TIP_M));
+  tipEl.style.left=left+"px";
+  tipEl.style.top=Math.max(TIP_M,Math.min(top,innerHeight-h-TIP_M))+"px";
+  tipEl.classList.toggle("up",up);tipEl.classList.toggle("dn",!up);
+  tipA.style.left=(Math.max(11,Math.min(r.left+r.width/2-left,w-11))-3.5)+"px";
+}
+function tipPaint(el){
+  if(!el.isConnected||el!==tipAnchor)return tipHide();
+  const txt=el.dataset.tip,p=txt.split(/\s{2,}/).filter(Boolean);
+  if(!p.length)return;
+  tipC.innerHTML=`<span class="tip-l">${esc(p[0])}</span>`+
+    p.slice(1).map(s=>`<span class="tip-k">${esc(s)}</span>`).join("");
+  tipPlace(el);
+  tipEl.classList.add("show");
+  if(tipObs)tipObs.disconnect();
+  tipObs=new MutationObserver(()=>{if(tipAnchor&&!tipAnchor.isConnected)tipHide()});
+  tipObs.observe(document.body,{childList:true,subtree:true});
+}
+function tipShow(el){
+  if(el===tipAnchor)return;
+  clearTimeout(tipTimer);tipAnchor=el;
+  if(performance.now()-tipLast<TIP_GRACE)tipPaint(el);
+  else tipTimer=setTimeout(()=>tipPaint(el),TIP_DELAY);
+}
+function tipHide(){
+  clearTimeout(tipTimer);
+  if(tipEl.classList.contains("show"))tipLast=performance.now();
+  tipEl.classList.remove("show");tipAnchor=null;
+  if(tipObs){tipObs.disconnect();tipObs=null}
+}
+document.addEventListener("mouseover",e=>{
+  const el=tipFind(e.target);
+  if(el)tipShow(el);else if(tipAnchor)tipHide();
+});
+document.addEventListener("mouseout",e=>{
+  if(!tipAnchor)return;
+  const to=e.relatedTarget;
+  if(!to||!(tipAnchor===to||tipAnchor.contains(to)))tipHide();
+});
+document.addEventListener("focusin",e=>{
+  const el=tipFind(e.target);if(!el)return;
+  let kb=true;try{kb=el.matches(":focus-visible")}catch(_){}
+  if(kb)tipShow(el);
+});
+document.addEventListener("focusout",e=>{
+  if(tipAnchor&&(tipAnchor===e.target||tipAnchor.contains(e.target)))tipHide();
+});
+document.addEventListener("scroll",tipHide,{capture:true,passive:true});
+document.addEventListener("mousedown",tipHide,true);
+document.addEventListener("touchstart",tipHide,{capture:true,passive:true});
+document.addEventListener("keydown",e=>{if(e.key==="Escape")tipHide()},true);
+window.addEventListener("blur",tipHide);
+window.addEventListener("resize",tipHide,{passive:true});
+
+/* ═══════════════════════ table editing ═══════════════════════
+   Row / column / whole-table ops, grips, floating bar, Tab nav.
+   ALL chrome lives in <body> (#tblUI, #tblPick) — never inside
+   #editor — so it can never leak into n.html or htmlToMd().     */
+
+/* ---------- icons (local map; the shared ICONS object is untouched) ---------- */
+const TBL_ICONS={
+ rowAbove:'<rect x="3" y="11" width="18" height="9" rx="1.6"/><path d="M3 15.5h18"/><path d="M12 3.2v5"/><path d="m9.6 5.6 2.4-2.4 2.4 2.4"/>',
+ rowBelow:'<rect x="3" y="4" width="18" height="9" rx="1.6"/><path d="M3 8.5h18"/><path d="M12 20.8v-5"/><path d="m9.6 18.4 2.4 2.4 2.4-2.4"/>',
+ colLeft :'<rect x="11" y="3" width="9" height="18" rx="1.6"/><path d="M15.5 3v18"/><path d="M3.2 12h5"/><path d="m5.6 9.6-2.4 2.4 2.4 2.4"/>',
+ colRight:'<rect x="4" y="3" width="9" height="18" rx="1.6"/><path d="M8.5 3v18"/><path d="M20.8 12h-5"/><path d="m18.4 9.6 2.4 2.4-2.4 2.4"/>',
+ rowDel  :'<rect x="3" y="9" width="18" height="6" rx="1.6"/><path d="M8.5 12h7"/>',
+ colDel  :'<rect x="9" y="3" width="6" height="18" rx="1.6"/><path d="M12 9.6v4.8"/><path d="M9.7 12h4.6"/>',
+};
+const TIC=n=>`<svg class="ic" viewBox="0 0 24 24">${TBL_ICONS[n]||""}</svg>`;
+
+/* ---------- overlay chrome ---------- */
+const tblUI=document.createElement("div");
+tblUI.id="tblUI";tblUI.setAttribute("contenteditable","false");
+tblUI.innerHTML=
+  '<div class="tbl-hl" hidden></div>'+
+  '<div class="tbl-bar">'+
+    '<span class="tbl-dim"></span>'+
+    `<button class="ibtn" data-tb="rowAbove" title="Insert row above">${TIC("rowAbove")}</button>`+
+    `<button class="ibtn" data-tb="rowBelow" title="Insert row below">${TIC("rowBelow")}</button>`+
+    `<button class="ibtn warn" data-tb="rowDel" title="Delete row">${TIC("rowDel")}</button>`+
+    '<span class="tbl-sep"></span>'+
+    `<button class="ibtn" data-tb="colLeft" title="Insert column left">${TIC("colLeft")}</button>`+
+    `<button class="ibtn" data-tb="colRight" title="Insert column right">${TIC("colRight")}</button>`+
+    `<button class="ibtn warn" data-tb="colDel" title="Delete column">${TIC("colDel")}</button>`+
+    '<span class="tbl-sep"></span>'+
+    `<button class="ibtn warn" data-tb="tableDel" title="Delete table">${I("trash")}</button>`+
+  '</div>';
+document.body.appendChild(tblUI);
+const tblBar=tblUI.querySelector(".tbl-bar"),tblHl=tblUI.querySelector(".tbl-hl");
+
+/* ---------- state + helpers ---------- */
+const TBL={table:null,cell:null,hover:null,overUI:false};
+const tblCellOf=n=>{
+  if(!n)return null;if(n.nodeType===3)n=n.parentElement;
+  const c=n&&n.closest?n.closest("td,th"):null;
+  return c&&editor.contains(c)?c:null;
+};
+function tblCaretCell(){
+  const s=window.getSelection();
+  return s&&s.rangeCount?tblCellOf(s.anchorNode):null;
+}
+const tblRows=t=>[...t.rows];
+const tblIsHead=tr=>tr.rowIndex===0&&!!tr.cells[0]&&tr.cells[0].tagName==="TH";
+function tblNewCell(tag){const c=document.createElement(tag);c.innerHTML="<br>";return c;}
+function tblRetag(cell,tag){                       /* th <-> td, contents kept */
+  const n=document.createElement(tag);n.innerHTML=cell.innerHTML;
+  for(const a of cell.attributes)n.setAttribute(a.name,a.value);
+  cell.replaceWith(n);return n;
+}
+function tblFocusCell(c){                          /* select contents: type to overwrite */
+  if(!c)return;
+  const r=document.createRange();r.selectNodeContents(c);
+  if(!c.textContent.trim())r.collapse(true);
+  const s=window.getSelection();s.removeAllRanges();s.addRange(r);
+}
+
+/* ---------- show / position ---------- */
+let tblRaf=0,tblHideT=null;
+const tblSync=()=>{if(tblRaf)return;tblRaf=requestAnimationFrame(()=>{tblRaf=0;tblCheck();});};
+function tblHide(){clearTimeout(tblHideT);tblHideT=null;tblUI.classList.remove("on");TBL.table=TBL.cell=null;tblHl.hidden=true;}
+function tblSoftHide(){if(!tblHideT&&tblUI.classList.contains("on"))tblHideT=setTimeout(tblHide,150);}
+function tblCheck(){
+  if($("#dlg").classList.contains("open")||$$(".overlay.open").length)return tblSoftHide();
+  let cell=tblCaretCell();
+  if(!cell&&TBL.hover&&editor.contains(TBL.hover))cell=TBL.hover;
+  if(!cell&&TBL.overUI&&TBL.cell&&editor.contains(TBL.cell))cell=TBL.cell;
+  if(!cell)return tblSoftHide();
+  clearTimeout(tblHideT);tblHideT=null;
+  TBL.cell=cell;TBL.table=cell.closest("table");
+  tblLayout();
+}
+function tblLayout(){
+  const t=TBL.table;
+  if(!t||!document.contains(t))return tblHide();
+  const wr=$("#editorWrap").getBoundingClientRect(),tr=t.getBoundingClientRect();
+  if(tr.bottom<wr.top+8||tr.top>wr.bottom-8){tblUI.classList.remove("on");return;}
+  tblUI.classList.add("on");
+  const rows=tblRows(t),cols=rows[0]?rows[0].cells.length:0;
+  tblUI.querySelector(".tbl-dim").textContent=rows.length+"×"+cols;
+  const bw=tblBar.offsetWidth,bh=tblBar.offsetHeight;
+  let top=tr.top-bh-12;
+  if(top<wr.top+4)top=Math.min(tr.bottom+9,wr.bottom-bh-4);
+  tblBar.style.top=Math.max(wr.top+4,top)+"px";
+  tblBar.style.left=Math.max(wr.left+4,Math.min(tr.left,wr.right-bw-4))+"px";
+  tblGrips(t,rows,cols,wr,tr);
+}
+function tblGrips(t,rows,cols,wr,tr){
+  let g=[...tblUI.querySelectorAll(".tbl-grip")];
+  if(g.length!==rows.length+cols){
+    g.forEach(x=>x.remove());
+    let h="";
+    for(let i=0;i<cols;i++)h+=`<div class="tbl-grip tbl-c" data-tc="${i}" title="Column ${i+1}"></div>`;
+    for(let i=0;i<rows.length;i++)h+=`<div class="tbl-grip tbl-r" data-tr="${i}" title="Row ${i+1}"></div>`;
+    tblUI.insertAdjacentHTML("beforeend",h);
+    g=[...tblUI.querySelectorAll(".tbl-grip")];
+  }
+  const cur=TBL.cell;
+  for(const el of g){
+    const ci=el.dataset.tc,ri=el.dataset.tr;
+    let r=null;
+    if(ci!==undefined&&rows[0]&&rows[0].cells[+ci]){
+      r=rows[0].cells[+ci].getBoundingClientRect();
+      el.style.left=r.left+"px";el.style.width=r.width+"px";
+      el.style.top=(tr.top-9)+"px";el.style.height="6px";
+      el.classList.toggle("on",!!cur&&cur.cellIndex===+ci);
+      el.style.display=(tr.top-9<wr.top+2||tr.top>wr.bottom)?"none":"";
+    }else if(ri!==undefined&&rows[+ri]){
+      r=rows[+ri].getBoundingClientRect();
+      el.style.top=r.top+"px";el.style.height=r.height+"px";
+      el.style.left=(tr.left-9)+"px";el.style.width="6px";
+      el.classList.toggle("on",!!cur&&cur.parentElement.rowIndex===+ri);
+      el.style.display=(r.bottom<wr.top+2||r.top>wr.bottom-2)?"none":"";
+    }else el.style.display="none";
+  }
+}
+
+/* ---------- grip hover / click ---------- */
+tblUI.addEventListener("mouseover",e=>{
+  TBL.overUI=true;clearTimeout(tblHideT);tblHideT=null;
+  const g=e.target.closest(".tbl-grip");if(!g||!TBL.table)return;
+  const t=TBL.table,rows=tblRows(t),tr=t.getBoundingClientRect();
+  const wr=$("#editorWrap").getBoundingClientRect();
+  let box;
+  if(g.dataset.tc!==undefined){
+    const c=rows[0]&&rows[0].cells[+g.dataset.tc];if(!c)return;
+    const r=c.getBoundingClientRect();box={left:r.left,width:r.width,top:tr.top,height:tr.height};
+  }else{
+    const rw=rows[+g.dataset.tr];if(!rw)return;
+    const r=rw.getBoundingClientRect();box={left:tr.left,width:tr.width,top:r.top,height:r.height};
+  }
+  const top=Math.max(box.top,wr.top),bot=Math.min(box.top+box.height,wr.bottom);
+  if(bot<=top)return;
+  tblHl.style.left=box.left+"px";tblHl.style.width=box.width+"px";
+  tblHl.style.top=top+"px";tblHl.style.height=(bot-top)+"px";
+  tblHl.hidden=false;
+});
+tblUI.addEventListener("mouseout",e=>{
+  if(e.relatedTarget&&tblUI.contains(e.relatedTarget))return;
+  TBL.overUI=false;tblHl.hidden=true;tblSync();
+});
+tblUI.addEventListener("mousedown",e=>e.preventDefault());   /* never steal the caret */
+tblUI.addEventListener("click",e=>{
+  const g=e.target.closest(".tbl-grip");
+  if(!g||!TBL.table)return;
+  const rows=tblRows(TBL.table);
+  const c=g.dataset.tc!==undefined
+    ?(rows[0]&&rows[0].cells[+g.dataset.tc])
+    :(rows[+g.dataset.tr]&&rows[+g.dataset.tr].cells[0]);
+  if(!c)return;
+  editor.focus();tblFocusCell(c);tblSync();
+});
+
+/* ---------- mutations ---------- */
+function tblRowIns(dir){
+  const cell=TBL.cell,tr=cell.parentElement,n=tr.cells.length,ci=cell.cellIndex;
+  const asHead=dir==="above"&&tblIsHead(tr);
+  const row=document.createElement("tr");
+  for(let i=0;i<n;i++)row.appendChild(tblNewCell(asHead?"th":"td"));
+  if(dir==="above"){
+    tr.before(row);
+    if(asHead)[...tr.cells].forEach(c=>tblRetag(c,"td"));   /* keep exactly one header row */
+  }else tr.after(row);
+  tblFocusCell(row.cells[Math.min(ci,n-1)]);
+}
+function tblColIns(dir){
+  const cell=TBL.cell,tr=cell.parentElement,t=TBL.table;
+  const at=cell.cellIndex+(dir==="right"?1:0);
+  for(const r of tblRows(t)){
+    const tag=tblIsHead(r)?"th":"td";
+    r.insertBefore(tblNewCell(tag),r.cells[Math.min(at,r.cells.length)]||null);
+  }
+  tblFocusCell(tr.cells[Math.min(at,tr.cells.length-1)]);
+}
+function tblRowDel(){
+  const t=TBL.table,tr=TBL.cell.parentElement;
+  if(t.rows.length<=1){toast("That's the last row — use Delete table","err");return false;}
+  const ci=TBL.cell.cellIndex,ri=tr.rowIndex;
+  tr.remove();
+  const nx=t.rows[Math.min(ri,t.rows.length-1)];
+  tblFocusCell(nx&&nx.cells[Math.min(ci,nx.cells.length-1)]);
+}
+function tblColDel(){
+  const t=TBL.table,ri=TBL.cell.parentElement.rowIndex,ci=TBL.cell.cellIndex;
+  if(!t.rows[0]||t.rows[0].cells.length<=1){toast("That's the last column — use Delete table","err");return false;}
+  for(const r of tblRows(t))if(r.cells[ci])r.cells[ci].remove();
+  const nx=t.rows[Math.min(ri,t.rows.length-1)];
+  tblFocusCell(nx&&nx.cells[Math.min(ci,nx.cells.length-1)]);
+}
+async function tblDelete(){
+  const t=TBL.table;if(!t)return;
+  tblHide();
+  const ok=await dialog({title:"Delete table",danger:true,ok:"Delete",
+    message:"Remove this table and everything inside it?"});
+  if(!ok){editor.focus();tblSync();return;}
+  if(!document.contains(t))return;
+  histPush();
+  const p=document.createElement("p");p.innerHTML="<br>";
+  t.replaceWith(p);editor.focus();placeCaret(p,true);
+  scheduleSave();updateCounts();tblHide();
+}
+const TBL_OPS={
+  rowAbove:()=>tblRowIns("above"),rowBelow:()=>tblRowIns("below"),rowDel:tblRowDel,
+  colLeft:()=>tblColIns("left"),colRight:()=>tblColIns("right"),colDel:tblColDel,
+};
+tblBar.addEventListener("click",e=>{
+  const k=e.target.closest("[data-tb]");if(!k)return;
+  const act=k.dataset.tb;
+  if(act==="tableDel")return tblDelete();
+  const op=TBL_OPS[act];
+  if(!op||!TBL.cell||!document.contains(TBL.cell))return;
+  histPush();
+  if(op()===false)return;                      /* guard rail hit — nothing changed */
+  editor.focus();scheduleSave();updateCounts();tblSync();
+});
+
+/* ---------- Tab / Shift+Tab between cells ---------- */
+editor.addEventListener("keydown",e=>{
+  /* the earlier keydown handler owns Tab inside <pre> and inside list items —
+     it preventDefault()s those, so bail out and never fight it */
+  if(e.key!=="Tab"||e.defaultPrevented||e.ctrlKey||e.metaKey||e.altKey)return;
+  const cell=tblCaretCell();if(!cell)return;
+  const tr=cell.parentElement,t=cell.closest("table");
+  if(!t||!editor.contains(t))return;
+  e.preventDefault();
+  const ci=cell.cellIndex,ri=tr.rowIndex;
+  let next=null;
+  if(e.shiftKey){
+    if(ci>0)next=tr.cells[ci-1];
+    else if(ri>0){const p=t.rows[ri-1];next=p.cells[p.cells.length-1];}
+  }else{
+    if(ci<tr.cells.length-1)next=tr.cells[ci+1];
+    else if(ri<t.rows.length-1)next=t.rows[ri+1].cells[0];
+    else{                                       /* Tab out of the last cell → new row */
+      histPush();
+      const row=document.createElement("tr");
+      for(let i=0;i<tr.cells.length;i++)row.appendChild(tblNewCell("td"));
+      tr.after(row);next=row.cells[0];
+      scheduleSave();updateCounts();
+    }
+  }
+  if(next)tblFocusCell(next);
+  tblSync();
+});
+
+/* ---------- keep it glued to the table ---------- */
+document.addEventListener("selectionchange",tblSync);
+$("#editorWrap").addEventListener("scroll",tblSync,{passive:true});
+window.addEventListener("scroll",tblSync,{passive:true});
+window.addEventListener("resize",tblSync);
+editor.addEventListener("mouseover",e=>{TBL.hover=tblCellOf(e.target);tblSync();});
+editor.addEventListener("mouseleave",()=>{TBL.hover=null;tblSync();});
+new MutationObserver(tblSync).observe(editor,{childList:true,subtree:true,characterData:true});
+
+/* ---------- insert-table size picker ---------- */
+const tblPick=document.createElement("div");
+tblPick.id="tblPick";tblPick.setAttribute("contenteditable","false");
+{
+  let h='<div class="tp-g">';
+  for(let r=1;r<=6;r++)for(let c=1;c<=8;c++)h+=`<div class="tp-c" data-r="${r}" data-c="${c}"></div>`;
+  tblPick.innerHTML=h+'</div><div class="tp-l">3 × 3</div>';
+}
+document.body.appendChild(tblPick);
+const tblPickCells=[...tblPick.querySelectorAll(".tp-c")],tblPickLbl=tblPick.querySelector(".tp-l");
+let tblSaved=null;
+function tblPickMark(R,C){
+  tblPickCells.forEach(c=>c.classList.toggle("on",+c.dataset.r<=R&&+c.dataset.c<=C));
+  tblPickLbl.textContent=R+" × "+C;
+}
+function tblPickClose(){tblPick.classList.remove("open");tblPickMark(0,0);}
+function toggleTablePicker(btn){                   /* ← call this from #tableBtn */
+  if(tblPick.classList.contains("open"))tblPickClose();else openTablePicker(btn);
+}
+function openTablePicker(btn){
+  const s=window.getSelection();
+  tblSaved=s.rangeCount&&editor.contains(s.anchorNode)?s.getRangeAt(0).cloneRange():null;
+  const r=btn.getBoundingClientRect();
+  tblPick.classList.add("open");
+  tblPick.style.top=(r.bottom+6)+"px";
+  tblPick.style.left=Math.max(6,Math.min(r.left,innerWidth-tblPick.offsetWidth-6))+"px";
+  tblPickMark(3,3);
+}
+function insertTable(R,C){
+  R=Math.max(1,Math.min(20,R|0));C=Math.max(1,Math.min(10,C|0));
+  editor.focus();
+  if(tblSaved)try{const s=window.getSelection();s.removeAllRanges();s.addRange(tblSaved);}catch(_){}
+  histPush();
+  let h="<table><tr>"+"<th><br></th>".repeat(C)+"</tr>";
+  for(let r=1;r<R;r++)h+="<tr>"+"<td><br></td>".repeat(C)+"</tr>";
+  document.execCommand("insertHTML",false,h+"</table><p><br></p>");
+  scheduleSave();updateCounts();tblSync();
+}
+tblPick.addEventListener("mousedown",e=>e.preventDefault());
+tblPick.addEventListener("mouseover",e=>{
+  const c=e.target.closest(".tp-c");if(c)tblPickMark(+c.dataset.r,+c.dataset.c);
+});
+tblPick.addEventListener("click",e=>{
+  const c=e.target.closest(".tp-c");if(!c)return;
+  tblPickClose();insertTable(+c.dataset.r,+c.dataset.c);
+});
+document.addEventListener("mousedown",e=>{
+  if(tblPick.classList.contains("open")&&!e.target.closest("#tblPick,#tableBtn"))tblPickClose();
+});
+document.addEventListener("keydown",e=>{
+  if(e.key==="Escape"&&tblPick.classList.contains("open")){e.stopPropagation();tblPickClose();}
+},true);
+
+/* ---------- formatting shortcuts ----------
+   Conventions follow the editors people already know: Ctrl+Shift+X strike
+   (Slack/Discord/Notion/GitHub), Ctrl+E inline code (Notion/Obsidian/Discord),
+   Ctrl+Shift+7/8/9 numbered/bullet/checklist and Ctrl+Alt+0..3 paragraph styles
+   (Google Docs/Word), Ctrl+\ clear formatting (Google Docs).
+   Digits use e.code — with Shift held, e.key is "&"/"*"/"(" on a US layout. */
+editor.addEventListener("keydown",e=>{
+  const mod=e.ctrlKey||e.metaKey;
+  if(!mod||e.defaultPrevented)return;
+  const k=e.key.toLowerCase(),run=fn=>{e.preventDefault();e.stopPropagation();fn();};
+
+  if(!e.altKey){
+    if(e.shiftKey&&k==="x")   return run(()=>cmd("strikeThrough"));
+    if(!e.shiftKey&&k==="e")  return run(toggleInlineCode);
+    if(e.shiftKey&&e.code==="Digit7") return run(()=>cmd("insertOrderedList"));
+    if(e.shiftKey&&e.code==="Digit8") return run(()=>cmd("insertUnorderedList"));
+    if(e.shiftKey&&e.code==="Digit9") return run(toggleTaskList);
+    if(!e.shiftKey&&k==="\\") return run(()=>{cmd("removeFormat");cmd("formatBlock","P");});
+  }
+  if(e.altKey&&!e.shiftKey){
+    const H={Digit0:"P",Digit1:"H1",Digit2:"H2",Digit3:"H3"};
+    if(H[e.code]) return run(()=>cmd("formatBlock",H[e.code]));
+  }
+});
 </script>
 </body>
 </html>

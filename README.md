@@ -4,9 +4,21 @@
 
 Inkpad is a complete notes app in **one HTML file**. No build step, no server, no account, no dependencies. Notes live in your browser's local storage first; you can back them up to **your own Google Drive** or a **secret GitHub Gist** with one click. Host it anywhere static files are served — GitHub Pages included — and it's free for everyone who uses it.
 
-![single file](https://img.shields.io/badge/single%20file-~80%20KB-blue)
+![single file](https://img.shields.io/badge/single%20file-index.html-blue)
 ![dependencies](https://img.shields.io/badge/dependencies-0-brightgreen)
 ![license](https://img.shields.io/badge/license-MIT-lightgrey)
+
+---
+
+## Links
+
+| | |
+|---|---|
+| **Live app** | [inkpad.js.org](https://inkpad.js.org) |
+| **Mirror** | [inkpad-js.github.io](https://inkpad-js.github.io) |
+| **Source** | [github.com/inkpad-js/inkpad-js.github.io](https://github.com/inkpad-js/inkpad-js.github.io) |
+| **Report a bug / request a feature** | [open an issue](https://github.com/inkpad-js/inkpad-js.github.io/issues/new) |
+| **License** | [MIT](LICENSE) |
 
 ---
 
@@ -29,7 +41,8 @@ Any other static host (Netlify, Cloudflare Pages, S3, nginx) works the same way 
 ## Features
 
 ### Writing
-- **Rich text editor** — headings, bold/italic/underline/strikethrough, text & highlight colors, font family and size per selection, quotes, dividers, tables, images (paste or insert)
+- **Rich text editor** — headings, bold/italic/underline/strikethrough, text & highlight colors, font family and size per selection, quotes, dividers, images (paste or insert)
+- **Tables** — insert a table at any size, then edit it in place: add or remove rows and columns, or delete the whole table
 - **Markdown as you type** (see table below) — bullets, numbered lists, task lists, headings, quotes, code, dividers, and inline `**bold**` / `*italic*` / `` `code` `` / `~~strike~~`
 - **Task lists** with real checkboxes; checked state persists, Enter/Backspace behave like Notion
 - **Code blocks done right** — Enter stays inside the block, Enter on an empty last line exits, Tab/Shift+Tab indent and dedent, Backspace on an empty block converts back to a paragraph, and pasting into a block is always plain text
@@ -53,11 +66,11 @@ Any other static host (Netlify, Cloudflare Pages, S3, nginx) works the same way 
 - **JetBrains Mono** as the default editor font (changeable per note or as default)
 - **Zen mode** (Ctrl+Shift+F) for distraction-free writing, with a floating exit and Esc
 - Word / character / reading-time counts and a breathing **sync beacon** in the status bar
-- Custom rounded dropdowns, dialogs, and toasts throughout — no native browser popups
+- Custom rounded dropdowns, dialogs, tooltips, and toasts throughout — no native browser popups
 
 ### Data in, data out
 - **Export** a note as Markdown, HTML, plain text, or print-to-PDF; export **everything** as a single JSON backup
-- **Import** `.md`, `.txt`, `.html` files as notes, or merge a JSON backup (newer copy of each note wins)
+- **Import** `.md`, `.txt`, `.html` files as notes (sidebar), or merge a JSON backup via *Settings → Data → Import backup* (newer copy of each note wins)
 - The Markdown converter round-trips task lists, code blocks (with line breaks), tables, quotes, and links
 
 ---
@@ -97,11 +110,11 @@ Backs up the same JSON to a **secret gist**. Paste a token with only the [`gist`
 |---|---|
 | `- ` / `* ` / `+ ` | bullet list |
 | `1. ` / `1) ` | numbered list |
-| `[] ` / `[ ] ` | task list with checkbox |
+| `[] ` / `[ ] ` / `- [] ` | task list with checkbox |
 | `# ` `## ` `### ` | headings 1–3 |
 | `> ` | quote |
 | ` ``` ` + Enter | code block |
-| `---` + Enter | divider |
+| `---` / `***` + Enter | divider |
 | `**text**` `*text*` `` `text` `` `~~text~~` + space | bold / italic / code / strike |
 | any URL + space or Enter | link (trailing `),.` stay plain) |
 
@@ -113,11 +126,15 @@ Triggers work anywhere — including the first line of an empty note and lines t
 |---|---|
 | `Ctrl+Z` / `Ctrl+Shift+Z` (or `Ctrl+Y`) | undo / redo |
 | `Ctrl+B` / `Ctrl+I` / `Ctrl+U` | bold / italic / underline |
+| `Ctrl+Shift+X` | strikethrough |
+| `Ctrl+E` | inline code |
+| `Ctrl+Shift+7` / `Ctrl+Shift+8` / `Ctrl+Shift+9` | numbered / bullet / task list |
+| `Ctrl+Alt+0`–`Ctrl+Alt+3` | paragraph / heading 1–3 |
+| `Ctrl+\` | clear formatting |
 | `Ctrl+K` | insert or edit link |
 | `Ctrl+F` | find & replace |
 | `Ctrl+S` | back up now |
 | `Ctrl+Alt+N` | new note |
-| `Ctrl+Shift+T` | task list |
 | `Ctrl+Shift+F` | zen mode |
 | `Ctrl+Enter` | exit a code block / quote / list |
 | `Tab` / `Shift+Tab` | indent / dedent (lists and code blocks) |
@@ -146,6 +163,18 @@ Triggers work anywhere — including the first line of an empty note and lines t
 - No end-to-end encryption — backups are plain JSON in *your* storage; don't keep secrets in notes
 - No real-time multi-device sync — it's backup/merge, not CRDT collaboration
 - `localStorage` is per-browser-profile; connect Drive if you work across machines
+
+## Built with
+
+[![Built with Claude Code](https://img.shields.io/badge/built%20with-Claude%20Code-D97757)](https://claude.com/claude-code)
+
+Inkpad was designed and written with [Claude](https://claude.com/claude-code) — the editor, the storage layer, the Drive/Gist backup paths, and this README. It's still one hand-readable HTML file: open it and every line is there.
+
+Type design: [JetBrains Mono](https://www.jetbrains.com/lp/mono/) and [Space Grotesk](https://fonts.google.com/specimen/Space+Grotesk), loaded from Google Fonts.
+
+## Contributing
+
+Issues and pull requests are welcome at the [repository](https://github.com/inkpad-js/inkpad-js.github.io). Found a bug or want something added? [Open an issue](https://github.com/inkpad-js/inkpad-js.github.io/issues/new). There's no build step — edit `index.html`, open it in a browser, and you're testing the real thing.
 
 ## License
 
