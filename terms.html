@@ -87,10 +87,10 @@ footer a{color:var(--muted)}
 <header>
   <div class="bar">
     <div class="logo">Ik</div>
-    <a class="brand" href="./">Inkpad</a>
+    <a class="brand" href="index.html">Inkpad</a>
     <nav>
-      <a href="./">App</a>
-      <a href="./privacy.html">Privacy</a>
+      <a href="index.html">App</a>
+      <a href="privacy.html">Privacy</a>
     </nav>
   </div>
 </header>
@@ -147,7 +147,7 @@ service you connect, including Google and GitHub.</p>
 <p>The optional Google Drive and GitHub Gist backups are provided by those companies, not by us.
 Their terms and privacy policies apply to your use of them, we have no control over them, and we
 are not responsible for their availability, behaviour or handling of your data. The
-<a href="./privacy.html">Privacy Policy</a> sets out exactly which third parties are contacted and when.</p>
+<a href="privacy.html">Privacy Policy</a> sets out exactly which third parties are contacted and when.</p>
 
 <h2>7. Limitation of liability</h2>
 <p>To the fullest extent permitted by law, the maintainers and contributors shall not be liable for
@@ -174,19 +174,18 @@ accept the revised terms.</p>
 <a href="https://github.com/inkpad-js/inkpad/issues/new" target="_blank" rel="noopener">the project's issue tracker</a>.</p>
 
 <footer>
-  <p>Adapted from the <a href="https://github.com/basecamp/policies" target="_blank" rel="noopener">Basecamp open-source policies</a>,
-  used under <a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noopener">CC BY 4.0</a>.
-  Inkpad itself is <a href="https://github.com/inkpad-js/inkpad/blob/main/LICENSE" target="_blank" rel="noopener">MIT licensed</a>.</p>
+  <p>Inkpad is free and open source, <a href="https://github.com/inkpad-js/inkpad/blob/main/LICENSE" target="_blank" rel="noopener">MIT licensed</a>.
+  This page lives in the <a href="https://github.com/inkpad-js/inkpad/blob/main/terms.html" target="_blank" rel="noopener">same repository as the app</a>,
+  so every revision to it is public.</p>
 </footer>
 
 </div>
 
 <script>
-/* match the theme the user picked in the app; harmless if absent */
+/* mirror the theme chosen in the app; otherwise keep the default set on <html> */
 try{
   var s=JSON.parse(localStorage.getItem("inkpad.settings.v1")||"{}");
   if(s.theme) document.documentElement.dataset.theme=s.theme;
-  else if(matchMedia("(prefers-color-scheme: dark)").matches) document.documentElement.dataset.theme="dark";
 }catch(e){}
 </script>
 
