@@ -15,9 +15,9 @@ Inkpad is a complete notes app in **one HTML file**. No build step, no server, n
 | | |
 |---|---|
 | **Live app** | [inkpad.js.org](https://inkpad.js.org) |
-| **Mirror** | [inkpad-js.github.io](https://inkpad-js.github.io) |
-| **Source** | [github.com/inkpad-js/inkpad-js.github.io](https://github.com/inkpad-js/inkpad-js.github.io) |
-| **Report a bug / request a feature** | [open an issue](https://github.com/inkpad-js/inkpad-js.github.io/issues/new) |
+| **Mirror** | [inkpad-js.github.io/inkpad](https://inkpad-js.github.io/inkpad/) |
+| **Source** | [github.com/inkpad-js/inkpad](https://github.com/inkpad-js/inkpad) |
+| **Report a bug / request a feature** | [open an issue](https://github.com/inkpad-js/inkpad/issues/new) |
 | **License** | [MIT](LICENSE) |
 
 ---
@@ -207,7 +207,7 @@ Type design: [JetBrains Mono](https://www.jetbrains.com/lp/mono/) and [Space Gro
 
 ## Contributing
 
-Issues and pull requests are welcome at the [repository](https://github.com/inkpad-js/inkpad-js.github.io). Found a bug or want something added? [Open an issue](https://github.com/inkpad-js/inkpad-js.github.io/issues/new). There's no build step — edit `index.html`, open it in a browser, and you're testing the real thing.
+Issues and pull requests are welcome at the [repository](https://github.com/inkpad-js/inkpad). Found a bug or want something added? [Open an issue](https://github.com/inkpad-js/inkpad/issues/new). There's no build step — edit `index.html`, open it in a browser, and you're testing the real thing.
 
 ## License
 
