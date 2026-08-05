@@ -684,9 +684,15 @@ body.zen #zenExit{display:grid}
       APIs & Services → Credentials → OAuth Client ID → Web app.
       Add your site's origin under "Authorized JavaScript origins"
       and enable the Google Drive API. Client IDs are public.
+      Either paste it below, or leave the __PLACEHOLDER__ alone and let
+      .github/workflows/deploy.yml substitute it from the repo variable
+      GOOGLE_CLIENT_ID at deploy time. If it is never substituted — this
+      file opened directly, or served without the workflow — it falls
+      back to "" and Drive just reports "not configured", as before.
    2. DEFAULT_THEME — paper | dark | navy
    ═════════════════════════════════════════════════════════════ */
-const GOOGLE_CLIENT_ID = "";   // ← paste yours, e.g. "1234-abc.apps.googleusercontent.com"
+const GOOGLE_CLIENT_ID_RAW = "__GOOGLE_CLIENT_ID__";   // ← or paste yours here
+const GOOGLE_CLIENT_ID = /^__.+__$/.test(GOOGLE_CLIENT_ID_RAW) ? "" : GOOGLE_CLIENT_ID_RAW;
 const DEFAULT_THEME    = "paper";
 /* ════════════════════════ end config ════════════════════════ */
 

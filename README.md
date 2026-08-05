@@ -92,9 +92,14 @@ Inkpad keeps a single file, `inkpad-backup.json`, in the connected user's own Dr
 
 ```js
 /* ══════════════ CONFIG ══════════════ */
-const GOOGLE_CLIENT_ID = "1234-abc.apps.googleusercontent.com"; // ← yours
-const DEFAULT_THEME    = "paper";  // paper | dark | navy
+const GOOGLE_CLIENT_ID_RAW = "1234-abc.apps.googleusercontent.com"; // ← yours
+const DEFAULT_THEME        = "paper";  // paper | dark | navy
 ```
+
+Or leave the `__GOOGLE_CLIENT_ID__` placeholder in place and let the deploy
+workflow fill it in — see [Deploying](#deploying) below. If it is never
+substituted, it falls back to an empty string and the Drive panel simply reads
+"not configured", so opening `index.html` straight off disk always works.
 
 Client IDs are public by design — shipping one in the file is safe and is exactly how it's meant to work. Until an ID is set, the app runs fine and the Drive section simply shows "not configured."
 
@@ -144,6 +149,34 @@ Triggers work anywhere — including the first line of an empty note and lines t
 *(Cmd on macOS.)*
 
 ---
+
+## Deploying
+
+Any static host works — it is one file. For GitHub Pages there are two options.
+
+**Deploy from a branch (default).** Settings → Pages → Source → *Deploy from a
+branch* → `main` / root. The client ID must be hardcoded in `index.html`.
+
+**GitHub Actions (build-time substitution).** `.github/workflows/deploy.yml`
+replaces the `__GOOGLE_CLIENT_ID__` placeholder from a repository *variable*
+before publishing, so the same source can deploy to staging and production with
+different client IDs.
+
+1. Settings → Secrets and variables → Actions → **Variables** → New repository
+   variable → `GOOGLE_CLIENT_ID`.
+2. Settings → Pages → Source → **GitHub Actions**. Until you do this the
+   workflow runs but the deploy step fails, and the live site keeps serving
+   whatever the branch contains.
+
+A variable, not a secret: an OAuth client ID is public by design and ships to
+every visitor. Build-time substitution hides nothing — a Pages artifact is
+world-readable. What actually constrains the ID is the *Authorized JavaScript
+origins* list in the Google console. Never put a real secret through this.
+
+If you also use a custom domain, set the domain **first**, on branch deploy,
+and wait for the DNS check and HTTPS to go green before switching the source.
+Keep the `CNAME` file committed: Actions deploys ignore it, but a rollback to
+branch deploy needs it.
 
 ## Privacy
 

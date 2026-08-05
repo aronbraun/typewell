@@ -1,0 +1,61 @@
+name: Deploy to GitHub Pages
+
+# Publishes index.html to Pages, substituting the Google OAuth client ID from
+# the repository variable GOOGLE_CLIENT_ID (Settings → Secrets and variables →
+# Actions → Variables). A client ID is public by design, so it is a variable,
+# not a secret — what constrains it is the Authorized JavaScript origins list
+# in the Google Cloud console, not secrecy. Nothing baked into a Pages artifact
+# is private: the published site is world-readable.
+#
+# Requires Settings → Pages → Source = "GitHub Actions". While it is still set
+# to "Deploy from a branch", this workflow runs but the deploy step fails and
+# the live site keeps serving the branch contents.
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read      # actions/checkout needs this; naming any permission sets the rest to none
+  pages: write
+  id-token: write
+
+concurrency:
+  group: "pages"
+  cancel-in-progress: false   # let production deploys finish
+
+jobs:
+  deploy:
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Substitute config placeholders
+        env:
+          # passed via env, not interpolated into the script — ${{ }} is
+          # substituted before the shell sees it, which is an injection vector
+          GOOGLE_CLIENT_ID: ${{ vars.GOOGLE_CLIENT_ID }}
+        run: |
+          if [ -z "$GOOGLE_CLIENT_ID" ]; then
+            echo "::warning::repository variable GOOGLE_CLIENT_ID is not set — Drive backup will show 'not configured'"
+          fi
+          sed -i "s|__GOOGLE_CLIENT_ID__|${GOOGLE_CLIENT_ID}|g" index.html
+          grep -q '__GOOGLE_CLIENT_ID__' index.html \
+            && echo "::warning::placeholder still present after substitution" || true
+
+      - name: Setup Pages
+        uses: actions/configure-pages@v6
+
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v5
+        with:
+          path: '.'   # required; defaults to _site/, which does not exist here
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v5
