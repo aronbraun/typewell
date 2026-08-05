@@ -437,6 +437,32 @@ body.zen #zenExit{display:grid}
 #tblPick .tp-l{margin-top:8px;text-align:center;font-family:var(--font-mono);font-size:11px;color:var(--muted)}
 
 @media print{#tblUI,#tblPick{display:none!important}}
+
+/* ---- gutter drag handle for list lines ---- */
+#rowUI{position:fixed;inset:0;z-index:51;pointer-events:none}
+#rowUI>*{margin:0}
+#rowUI .row-grip{
+  position:absolute;display:none;align-items:center;justify-content:center;
+  width:20px;height:20px;padding:0;border:none;border-radius:5px;
+  background:transparent;color:var(--muted);opacity:.22;cursor:grab;
+  pointer-events:auto;touch-action:none;transition:opacity .12s,background .12s,color .12s;
+}
+#rowUI .row-grip.on{display:flex}
+#rowUI .row-grip svg{width:14px;height:14px}
+#rowUI .row-grip:hover{opacity:1;background:var(--accent-soft);color:var(--accent)}
+body.row-dragging{cursor:grabbing}
+body.row-dragging #rowUI .row-grip{opacity:1;cursor:grabbing;background:var(--accent-soft);color:var(--accent)}
+body.row-dragging #editor{user-select:none}
+/* the line being carried, and the seam it will land on */
+#rowUI .row-lift{position:absolute;display:none;background:var(--accent-soft);border-radius:var(--r-sm)}
+#rowUI .row-lift.on{display:block}
+#rowUI .row-drop{position:absolute;display:none;height:2px;border-radius:2px;background:var(--accent)}
+#rowUI .row-drop.on{display:block}
+#rowUI .row-drop::before{
+  content:"";position:absolute;left:-4px;top:-3px;width:8px;height:8px;
+  border-radius:50%;background:var(--accent);
+}
+@media print{#rowUI{display:none!important}}
 </style>
 </head>
 <body>
@@ -751,6 +777,7 @@ const ICONS={
  issue:'<circle cx="12" cy="12" r="8.5"/><path d="M12 7.8v4.6"/><circle cx="12" cy="16" r="1" fill="currentColor" stroke="none"/>',
  globe:'<circle cx="12" cy="12" r="8.5"/><path d="M3.5 12h17"/><path d="M12 3.5a13 13 0 0 1 0 17 13 13 0 0 1 0-17"/>',
  doc:'<path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/><path d="M9 13h6M9 17h4"/>',
+ grip:'<g fill="currentColor" stroke="none"><circle cx="9" cy="6" r="1.5"/><circle cx="15" cy="6" r="1.5"/><circle cx="9" cy="12" r="1.5"/><circle cx="15" cy="12" r="1.5"/><circle cx="9" cy="18" r="1.5"/><circle cx="15" cy="18" r="1.5"/></g>',
 };
 const I=n=>`<svg class="ic" viewBox="0 0 24 24">${ICONS[n]||""}</svg>`;
 $$("svg[data-i]").forEach(el=>{el.setAttribute("viewBox","0 0 24 24");el.innerHTML=ICONS[el.dataset.i]||"";});
@@ -1221,27 +1248,110 @@ function caretAtEndOf(el){
   const end=document.createRange();end.selectNodeContents(el);end.collapse(false);
   return sel.getRangeAt(0).compareBoundaryPoints(Range.END_TO_END,end)===0;
 }
+const isTaskLi=el=>!!el&&el.tagName==="LI"&&!!el.parentElement&&el.parentElement.classList.contains("tasks");
+/* the writable part of a line — a task hides its text in a span, everything else is the block itself */
+const rowHTML=el=>(el.querySelector?.(":scope > .task-text")||el).innerHTML||"<br>";
+function makeTaskLi(html=""){
+  const li=document.createElement("li");
+  li.innerHTML=`${CHECK}<span class="task-text">${html||"<br>"}</span>`;
+  return li;
+}
 function makeTaskUl(text=""){
   const ul=document.createElement("ul");ul.className="tasks";
-  ul.innerHTML=`<li>${CHECK}<span class="task-text">${text||"<br>"}</span></li>`;
+  ul.appendChild(makeTaskLi(text));
   return ul;
+}
+/* pull an <li> out of its list, splitting the list around it, and hand back
+   the <p> that took its place. Called in document order it keeps that order. */
+function liToBlock(li){
+  const p=document.createElement("p");
+  p.innerHTML=rowHTML(li);
+  const list=li.parentElement;
+  if(!list||!/^(UL|OL)$/.test(list.tagName)){li.replaceWith(p);return p;}
+  const tail=[];for(let s=li.nextElementSibling;s;s=s.nextElementSibling)tail.push(s);
+  list.after(p);
+  if(tail.length){
+    const rest=list.cloneNode(false);
+    tail.forEach(x=>rest.appendChild(x));
+    p.after(rest);
+  }
+  li.remove();
+  if(!list.children.length)list.remove();
+  return p;
+}
+/* housekeeping after any surgery on lists */
+function mergeTaskLists(){
+  for(const ul of editor.querySelectorAll("ul.tasks")){
+    let nx=ul.nextElementSibling;
+    while(nx&&nx.tagName==="UL"&&nx.classList.contains("tasks")){
+      const gone=nx;nx=nx.nextElementSibling;
+      while(gone.firstChild)ul.appendChild(gone.firstChild);
+      gone.remove();
+    }
+  }
+}
+function dropEmptyLists(){
+  editor.querySelectorAll("ul,ol").forEach(l=>{if(!l.querySelector("li"))l.remove();});
+}
+/* every innermost block the selection actually covers, in document order */
+const BLOCK_SEL="p,div,h1,h2,h3,h4,li,blockquote,pre";
+function selectedBlocks(){
+  const sel=window.getSelection();
+  if(!sel.rangeCount||!editor.contains(sel.anchorNode))return[];
+  const r=sel.getRangeAt(0);
+  if(r.collapsed){const b=getBlock();return b?[b]:[];}
+  /* touching a boundary is not covering it — a selection ending at the top of
+     a block must not drag that block in */
+  const hit=[...editor.querySelectorAll(BLOCK_SEL)].filter(el=>{
+    const er=document.createRange();er.selectNodeContents(el);
+    return r.compareBoundaryPoints(Range.START_TO_END,er)>0    /* selection ends after the block starts */
+        && r.compareBoundaryPoints(Range.END_TO_START,er)<0;   /* and starts before the block ends */
+  });
+  return hit.filter(el=>!hit.some(o=>o!==el&&el.contains(o)));
+}
+function selectRows(from,to){
+  if(!from)return;
+  if(from===to)return placeCaret(to);
+  const r=document.createRange();r.setStart(from,0);
+  const e=document.createRange();e.selectNodeContents(to);
+  r.setEnd(e.endContainer,e.endOffset);
+  const s=window.getSelection();s.removeAllRanges();s.addRange(r);
 }
 function toggleTaskList(){
   editor.focus();histPush();
   const sel=window.getSelection();if(!sel.rangeCount)return;
-  let node=sel.anchorNode;if(node&&node.nodeType===3)node=node.parentElement;
-  const li=node&&node.closest("li"),ul=li&&li.closest("ul.tasks");
-  if(ul){
-    const frag=document.createDocumentFragment();
-    ul.querySelectorAll("li").forEach(l=>{const p=document.createElement("p");
-      p.innerHTML=l.querySelector(".task-text")?.innerHTML||l.innerHTML;frag.appendChild(p);});
-    ul.replaceWith(frag);scheduleSave();return;
+  const collapsed=sel.getRangeAt(0).collapsed;
+  const blocks=selectedBlocks();
+  if(!blocks.length){
+    const t=makeTaskUl();editor.appendChild(t);
+    placeCaret(t.querySelector(".task-text"));scheduleSave();return;
   }
-  const b=getBlock();
-  const text=b?b.innerHTML.replace(/^<br>$/,""):"";
-  const t=makeTaskUl(text);
-  if(b)b.replaceWith(t);else editor.appendChild(t);
-  placeCaret(t.querySelector(".task-text"));
+  /* every covered line is already a task → back to paragraphs. With nothing
+     selected that takes the whole list, the way the button has always worked;
+     with a real selection it takes exactly the lines you highlighted. */
+  if(blocks.every(isTaskLi)){
+    const anchor=blocks[0];
+    const rows=collapsed?[...anchor.parentElement.children].filter(x=>x.tagName==="LI"):blocks;
+    let first=null,last=null,at=null;
+    for(const li of rows){const p=liToBlock(li);first=first||p;last=p;if(li===anchor)at=p;}
+    mergeTaskLists();dropEmptyLists();
+    if(collapsed)placeCaret(at||first);else selectRows(first,last);
+    scheduleSave();return;
+  }
+  /* otherwise every covered line becomes a task, contiguous ones sharing a list */
+  let ul=null,first=null,last=null;
+  for(const b of blocks){
+    if(isTaskLi(b)){ul=b.parentElement;first=first||b;last=b;continue;}
+    const host=b.tagName==="LI"?liToBlock(b):b;
+    const li=makeTaskLi(rowHTML(host).replace(/^<br>$/,""));
+    if(ul&&host.previousElementSibling===ul){ul.appendChild(li);host.remove();}
+    else{const n=document.createElement("ul");n.className="tasks";n.appendChild(li);host.replaceWith(n);ul=n;}
+    first=first||li;last=li;
+  }
+  mergeTaskLists();dropEmptyLists();
+  const a=first&&first.querySelector(":scope > .task-text"),
+        z=last&&last.querySelector(":scope > .task-text");
+  if(collapsed)placeCaret(z||a);else selectRows(a,z);
   scheduleSave();
 }
 $("#taskBtn").addEventListener("mousedown",e=>{e.preventDefault();toggleTaskList();});
@@ -2353,6 +2463,163 @@ document.addEventListener("mousedown",e=>{
 });
 document.addEventListener("keydown",e=>{
   if(e.key==="Escape"&&tblPick.classList.contains("open")){e.stopPropagation();tblPickClose();}
+},true);
+
+/* ================= gutter drag handle for list lines =================
+   A faint grip fades in beside a bullet / checkbox when the pointer comes
+   near the start of that line; dragging it moves the line. Same rule as the
+   table chrome: everything lives in <body>, so none of it can ever end up in
+   the saved document. */
+const rowUI=document.createElement("div");
+rowUI.id="rowUI";rowUI.setAttribute("contenteditable","false");
+rowUI.innerHTML=
+  `<button class="row-grip" tabindex="-1" title="Drag to move this line">${I("grip")}</button>`+
+  '<div class="row-lift"></div><div class="row-drop"></div>';
+document.body.appendChild(rowUI);
+const rowGrip=rowUI.querySelector(".row-grip"),
+      rowLift=rowUI.querySelector(".row-lift"),
+      rowSeam=rowUI.querySelector(".row-drop");
+
+const ROW_GUTTER=46, ROW_REACH=170;   /* how far left / right of the line start the grip answers */
+const ROW={li:null,drag:null,spot:null,x:-1,y:-1};
+const rowsIn=()=>[...editor.querySelectorAll("li")];
+
+/* the list line whose start the pointer is near — the most indented one wins,
+   so a nested item beats the ancestor whose box swallows it */
+function rowNear(x,y){
+  let best=null,bestLeft=-1e9;
+  for(const li of rowsIn()){
+    const r=li.getBoundingClientRect();
+    if(!r.height||y<r.top-2||y>r.bottom+2)continue;
+    if(x<r.left-ROW_GUTTER||x>r.left+ROW_REACH)continue;
+    if(r.left>bestLeft){best=li;bestLeft=r.left;}
+  }
+  return best;
+}
+function rowHideGrip(){ROW.li=null;rowGrip.classList.remove("on");}
+function rowShow(li){
+  if(!li||!document.contains(li))return rowHideGrip();
+  const wr=$("#editorWrap").getBoundingClientRect(),r=li.getBoundingClientRect();
+  const lh=parseFloat(getComputedStyle(li).lineHeight)||20;
+  const top=r.top+Math.min(r.height,lh)/2-10;      /* centred on the first line box */
+  if(top<wr.top-4||top>wr.bottom-14)return rowHideGrip();
+  ROW.li=li;
+  rowGrip.style.left=Math.max(4,r.left-26)+"px";
+  rowGrip.style.top=top+"px";
+  rowGrip.classList.add("on");
+}
+let rowRaf=0;
+function rowSync(){
+  if(ROW.drag||rowRaf)return;
+  rowRaf=requestAnimationFrame(()=>{
+    rowRaf=0;if(ROW.drag)return;
+    const wr=$("#editorWrap").getBoundingClientRect();
+    if(ROW.y<wr.top||ROW.y>wr.bottom||$$(".overlay.open").length||$("#dlg").classList.contains("open"))
+      return rowHideGrip();
+    rowShow(rowNear(ROW.x,ROW.y));
+  });
+}
+document.addEventListener("pointermove",e=>{
+  if(e.pointerType==="touch")return;                /* touch has no hover to fade in on */
+  ROW.x=e.clientX;ROW.y=e.clientY;
+  if(ROW.drag||rowGrip.contains(e.target))return;   /* dragging drives itself; on the grip, stay put */
+  rowSync();
+},{passive:true});
+$("#editorWrap").addEventListener("scroll",()=>{ROW.drag?rowDragMove():rowSync();},{passive:true});
+editor.addEventListener("input",()=>{if(!ROW.drag)rowSync();});
+
+/* ---------- drag ---------- */
+function rowLiftShow(li){
+  const wr=$("#editorWrap").getBoundingClientRect(),r=li.getBoundingClientRect();
+  const top=Math.max(r.top,wr.top),bot=Math.min(r.bottom,wr.bottom);
+  if(bot<=top)return rowLift.classList.remove("on");
+  rowLift.style.left=(r.left-6)+"px";rowLift.style.width=(r.width+12)+"px";
+  rowLift.style.top=top+"px";rowLift.style.height=(bot-top)+"px";
+  rowLift.classList.add("on");
+}
+/* nearest line edge to the pointer — where the carried line would land */
+function rowSpot(y){
+  const src=ROW.drag.li;
+  let best=null,bd=Infinity;
+  for(const li of rowsIn()){
+    if(li===src||src.contains(li))continue;
+    const r=li.getBoundingClientRect();if(!r.height)continue;
+    const edge=y<r.top+r.height/2?"before":"after",py=edge==="before"?r.top:r.bottom;
+    const d=Math.abs(y-py);
+    if(d<bd){bd=d;best={li,edge,y:py,left:r.left,width:r.width};}
+  }
+  return best;
+}
+function rowDragMove(){
+  if(!ROW.drag)return;
+  rowLiftShow(ROW.drag.li);
+  rowGrip.style.top=(ROW.y-10)+"px";
+  const spot=ROW.spot=rowSpot(ROW.y);
+  if(!spot)return rowSeam.classList.remove("on");
+  const wr=$("#editorWrap").getBoundingClientRect();
+  rowSeam.style.top=(Math.max(wr.top,Math.min(wr.bottom,spot.y))-1)+"px";
+  rowSeam.style.left=spot.left+"px";
+  rowSeam.style.width=spot.width+"px";
+  rowSeam.classList.add("on");
+}
+function rowAutoScroll(){
+  if(!ROW.drag)return;
+  const w=$("#editorWrap"),r=w.getBoundingClientRect(),EDGE=52;
+  let d=0;
+  if(ROW.y<r.top+EDGE)d=-Math.ceil((r.top+EDGE-ROW.y)/5);
+  else if(ROW.y>r.bottom-EDGE)d=Math.ceil((ROW.y-(r.bottom-EDGE))/5);
+  if(d){w.scrollTop+=d;rowDragMove();}
+  requestAnimationFrame(rowAutoScroll);
+}
+function rowDragEnd(){
+  ROW.drag=null;ROW.spot=null;
+  document.body.classList.remove("row-dragging");
+  rowLift.classList.remove("on");rowSeam.classList.remove("on");
+  rowHideGrip();
+}
+/* an <li> shaped for the list it is being dropped into: a bullet dragged into
+   a checklist grows a checkbox, a task dragged out of one loses it */
+function rowReshape(src,list){
+  const want=list.classList.contains("tasks"),has=src.parentElement.classList.contains("tasks");
+  if(want===has)return src;
+  if(want)return makeTaskLi(src.innerHTML);
+  const li=document.createElement("li");li.innerHTML=rowHTML(src);return li;
+}
+function rowCommit(){
+  const d=ROW.drag,spot=ROW.spot;
+  rowDragEnd();
+  if(!d||!d.moved||!spot)return;
+  const src=d.li,target=spot.li;
+  if(!editor.contains(src)||!editor.contains(target))return;
+  const stays=spot.edge==="before"?target.previousElementSibling===src:target.nextElementSibling===src;
+  if(stays)return;
+  histPush();
+  const node=rowReshape(src,target.parentElement);
+  if(spot.edge==="before")target.before(node);else target.after(node);
+  if(node!==src)src.remove();
+  dropEmptyLists();mergeTaskLists();
+  editor.focus();
+  placeCaret(node.querySelector(":scope > .task-text")||node);
+  scheduleSave();updateCounts();
+}
+rowGrip.addEventListener("pointerdown",e=>{
+  if(e.button!==0||!ROW.li)return;
+  e.preventDefault();
+  ROW.drag={li:ROW.li,moved:false};
+  try{rowGrip.setPointerCapture(e.pointerId);}catch(_){}
+  document.body.classList.add("row-dragging");
+  rowDragMove();requestAnimationFrame(rowAutoScroll);
+});
+rowGrip.addEventListener("pointermove",e=>{
+  if(!ROW.drag)return;
+  ROW.x=e.clientX;ROW.y=e.clientY;ROW.drag.moved=true;
+  rowDragMove();
+});
+rowGrip.addEventListener("pointerup",()=>{if(ROW.drag)rowCommit();});
+rowGrip.addEventListener("pointercancel",()=>{if(ROW.drag)rowDragEnd();});
+rowGrip.addEventListener("click",e=>e.preventDefault());
+document.addEventListener("keydown",e=>{
+  if(e.key==="Escape"&&ROW.drag){e.stopPropagation();rowDragEnd();}
 },true);
 
 /* ---------- formatting shortcuts ----------

@@ -46,7 +46,8 @@ Any other static host (Netlify, Cloudflare Pages, S3, nginx) works the same way 
 - **Rich text editor** — headings, bold/italic/underline/strikethrough, text & highlight colors, font family and size per selection, quotes, dividers, images (paste or insert)
 - **Tables** — insert a table at any size, then edit it in place: add or remove rows and columns, or delete the whole table
 - **Markdown as you type** (see table below) — bullets, numbered lists, task lists, headings, quotes, code, dividers, and inline `**bold**` / `*italic*` / `` `code` `` / `~~strike~~`
-- **Task lists** with real checkboxes; checked state persists, Enter/Backspace behave like Notion
+- **Task lists** with real checkboxes; checked state persists, Enter/Backspace behave like Notion. Select any number of lines — paragraphs, bullets, headings, or a mix — and the checklist button converts all of them at once
+- **Drag handles on list lines** — hover near the start of a bullet or checkbox and a faint grip fades in beside it; drag to move that line anywhere in the document. Drop a bullet into a checklist and it grows a checkbox; drag a task out into a bullet list and it loses one
 - **Code blocks done right** — Enter stays inside the block, Enter on an empty last line exits, Tab/Shift+Tab indent and dedent, Backspace on an empty block converts back to a paragraph, and pasting into a block is always plain text
 - **Inline code** with an escape hatch: Space or → at the end of a code span steps outside it
 - **Smart links** — URLs you type or paste become links automatically (punctuation-aware); pasting a URL over selected text links the selection
