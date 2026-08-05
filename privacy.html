@@ -1,0 +1,258 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="paper">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Privacy Policy — Inkpad</title>
+<meta name="description" content="Inkpad has no server, no accounts and no analytics. What that means in practice, and the few third parties your browser does contact.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --font-ui:"Space Grotesk",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --font-mono:"JetBrains Mono",ui-monospace,"Cascadia Code",Menlo,Consolas,monospace;
+  --r-lg:14px; --r:9px; --r-sm:7px;
+}
+html[data-theme="paper"]{
+  --bg:#F6F0E2; --panel:#FCF8EE; --panel-2:#F0E8D3;
+  --ink:#26323D; --muted:#7D8494; --line:#E5DAC2; --line-soft:#EDE4CF;
+  --accent:#0E9E9E; --accent-soft:#0E9E9E1C; --on-accent:#FFF;
+  --gold:#C98A2D; --warn:#C98A2D; --code-bg:#EFE7D2; --sel:#0E9E9E2E;
+}
+html[data-theme="dark"]{
+  --bg:#0E1012; --panel:#15181C; --panel-2:#1C2127;
+  --ink:#E7EAEE; --muted:#8B94A1; --line:#262C34; --line-soft:#1E242B;
+  --accent:#43C6B7; --accent-soft:#43C6B726; --on-accent:#07211E;
+  --gold:#D9A855; --warn:#D9A855; --code-bg:#11151A; --sel:#43C6B733;
+}
+html[data-theme="navy"]{
+  --bg:#081527; --panel:#0D1E35; --panel-2:#122845;
+  --ink:#DFE9F8; --muted:#8CA3C4; --line:#1C3454; --line-soft:#152A47;
+  --accent:#E5AE4F; --accent-soft:#E5AE4F24; --on-accent:#241A05;
+  --gold:#E5AE4F; --warn:#E5AE4F; --code-bg:#0A1B31; --sel:#E5AE4F33;
+}
+*{box-sizing:border-box}
+body{
+  margin:0;background:var(--bg);color:var(--ink);
+  font-family:var(--font-ui);font-size:15px;line-height:1.62;
+  -webkit-font-smoothing:antialiased;
+}
+::selection{background:var(--sel)}
+a{color:var(--accent)}
+a:hover{text-decoration:none}
+.wrap{max-width:720px;margin:0 auto;padding:0 22px 80px}
+
+header{border-bottom:1px solid var(--line);margin-bottom:38px}
+.bar{max-width:720px;margin:0 auto;padding:18px 22px;display:flex;align-items:center;gap:11px}
+.logo{
+  width:30px;height:30px;border-radius:8px;flex:none;
+  background:linear-gradient(135deg,var(--accent),var(--gold));
+  display:grid;place-items:center;color:var(--on-accent);
+  font-family:var(--font-mono);font-weight:700;font-size:13px;
+}
+.brand{font-weight:700;font-size:15px;letter-spacing:.2px;text-decoration:none;color:var(--ink)}
+.bar nav{margin-left:auto;display:flex;gap:16px;font-size:13px;font-weight:500}
+
+h1{font-size:30px;line-height:1.2;letter-spacing:-.4px;margin:0 0 6px}
+.updated{color:var(--muted);font-size:13px;margin:0 0 30px}
+h2{font-size:18px;letter-spacing:-.2px;margin:38px 0 10px;padding-top:4px}
+h3{font-size:15px;margin:24px 0 6px}
+p,li{color:var(--ink)}
+ul{padding-left:20px}
+li{margin:5px 0}
+code{
+  font-family:var(--font-mono);font-size:.87em;background:var(--code-bg);
+  padding:1px 5px;border-radius:var(--r-sm);
+}
+.tldr{
+  background:var(--panel);border:1px solid var(--line);border-left:3px solid var(--accent);
+  border-radius:var(--r);padding:15px 18px;margin:0 0 34px;
+}
+.tldr p{margin:0}
+.tldr strong{color:var(--ink)}
+.note{
+  background:var(--panel-2);border:1px solid var(--line);border-left:3px solid var(--warn);
+  border-radius:var(--r);padding:13px 16px;margin:16px 0;font-size:14px;
+}
+.note p{margin:0}
+table{border-collapse:collapse;width:100%;margin:14px 0;font-size:14px}
+th,td{text-align:left;padding:9px 12px;border-bottom:1px solid var(--line-soft);vertical-align:top}
+th{font-weight:600;color:var(--muted);font-size:12.5px;text-transform:uppercase;letter-spacing:.4px}
+td:first-child{white-space:nowrap;font-weight:500}
+.scroller{overflow-x:auto}
+footer{
+  margin-top:52px;padding-top:22px;border-top:1px solid var(--line);
+  color:var(--muted);font-size:13px;
+}
+footer a{color:var(--muted)}
+@media (max-width:520px){
+  h1{font-size:25px}
+  td:first-child{white-space:normal}
+}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="bar">
+    <div class="logo">Ik</div>
+    <a class="brand" href="./">Inkpad</a>
+    <nav>
+      <a href="./">App</a>
+      <a href="./terms.html">Terms</a>
+    </nav>
+  </div>
+</header>
+
+<div class="wrap">
+
+<h1>Privacy Policy</h1>
+<p class="updated">Last updated 5 August 2026</p>
+
+<div class="tldr">
+  <p><strong>Inkpad has no server.</strong> There is no account to create, no database holding your
+  notes, and no analytics of any kind. Your notes stay in your own browser until you explicitly
+  connect a backup, and even then they go to <em>your</em> Google Drive or <em>your</em> GitHub
+  account — never to us. We could not read your notes if we wanted to.</p>
+</div>
+
+<h2>1. Who this applies to</h2>
+<p>This policy covers the Inkpad web app published at
+<a href="https://inkpad.js.org">inkpad.js.org</a> and its source repository. Inkpad is a free,
+open-source project maintained by volunteers; there is no company behind it and nothing is sold.</p>
+
+<h2>2. What we collect</h2>
+<p>Nothing. Inkpad is a single static HTML file. It has no backend, so there is nowhere for your
+information to be sent to or stored. Specifically, Inkpad does <strong>not</strong>:</p>
+<ul>
+  <li>ask you to create an account or give an email address;</li>
+  <li>set cookies, or use any tracking, advertising or analytics service;</li>
+  <li>record your IP address, device, location, or how you use the app;</li>
+  <li>transmit the contents of your notes anywhere, unless you turn on a backup yourself.</li>
+</ul>
+
+<h2>3. Where your notes are kept</h2>
+<p>Your notes and preferences are saved in your browser's <code>localStorage</code>, under two keys:</p>
+<div class="scroller">
+<table>
+  <tr><th>Key</th><th>Contents</th></tr>
+  <tr><td><code>inkpad.notes.v1</code></td><td>Your notes: titles, contents and timestamps.</td></tr>
+  <tr><td><code>inkpad.settings.v1</code></td><td>Preferences — theme, default font, auto-backup, plus the backup identifiers described below.</td></tr>
+</table>
+</div>
+<p>This data never leaves your device on its own. It is tied to that one browser on that one
+device: it does not follow you to another computer, and clearing your browser's site data for this
+domain erases it permanently. These policy pages read the theme preference from that same key so
+they match the app's appearance; they store nothing.</p>
+
+<h2>4. Optional backups</h2>
+<p>Both backup destinations are off by default and require you to connect them deliberately.</p>
+
+<h3>Google Drive</h3>
+<p>If you connect Drive, Inkpad requests only the
+<code>drive.file</code> scope. That scope is limited to files the app itself creates — it grants no
+ability to see, open or list anything else in your Drive. Your notes are written to a single backup
+file in your own Drive account. The access token is held in memory for the duration of the session
+and is never written to disk; only the backup file's ID and the fact that you granted access are
+saved locally. Data handled by Google under your own account is governed by
+<a href="https://policies.google.com/privacy" target="_blank" rel="noopener">Google's Privacy Policy</a>.</p>
+
+<h3>GitHub Gist</h3>
+<p>If you supply a GitHub personal access token, Inkpad writes the same backup file to a
+<em>secret</em> gist in your account. The token needs only the <code>gist</code> scope. Data held by
+GitHub is governed by
+<a href="https://docs.github.com/site-policy/privacy-policies/github-general-privacy-statement" target="_blank" rel="noopener">GitHub's Privacy Statement</a>.</p>
+<div class="note">
+  <p><strong>Worth knowing:</strong> the GitHub token you enter is stored in your browser's
+  <code>localStorage</code> alongside your settings, so that backups keep working between visits.
+  Anything with access to that browser profile can read it. Issue the token with the
+  <code>gist</code> scope only, and revoke it from your GitHub settings if the device is shared,
+  lost, or no longer yours. A secret gist is unlisted, not private — anyone given its URL can open it.</p>
+</div>
+
+<h2>5. Third parties your browser contacts</h2>
+<p>Inkpad itself sends nothing, but loading any web page involves requests to whoever serves it.
+For transparency, this is the complete list:</p>
+<div class="scroller">
+<table>
+  <tr><th>Service</th><th>When</th><th>What it necessarily sees</th></tr>
+  <tr>
+    <td>Google Fonts</td>
+    <td>Every visit</td>
+    <td>Your IP address and browser user-agent, as with any file fetched from another domain.</td>
+  </tr>
+  <tr>
+    <td>GitHub Pages</td>
+    <td>Every visit</td>
+    <td>Hosting provider for the site; GitHub may log requests as described in its privacy statement.</td>
+  </tr>
+  <tr>
+    <td>Google Identity Services</td>
+    <td>Only when you connect Drive</td>
+    <td>The sign-in script is not loaded at all unless you start connecting Drive.</td>
+  </tr>
+  <tr>
+    <td>Google Drive API</td>
+    <td>Only while Drive backup is on</td>
+    <td>The backup file you asked it to write.</td>
+  </tr>
+  <tr>
+    <td>GitHub API</td>
+    <td>Only while gist backup is on</td>
+    <td>The backup file you asked it to write.</td>
+  </tr>
+</table>
+</div>
+<p>None of these are analytics or advertising services, and none of them receive your notes except
+the two backup destinations you connect yourself. If you would rather not contact Google Fonts at
+all, download <code>index.html</code> and open it from your own disk — Inkpad runs perfectly from a
+<code>file://</code> URL, and the fonts simply fall back to your system's.</p>
+
+<h2>6. Cookies</h2>
+<p>Inkpad sets no cookies, so there is no cookie banner to dismiss. <code>localStorage</code> is
+used instead, purely to hold your own notes and settings as described above.</p>
+
+<h2>7. Deleting your data</h2>
+<p>Because we hold nothing, there is nothing for us to delete and no request for you to send. You
+are always in full control:</p>
+<ul>
+  <li><strong>Notes and settings:</strong> delete notes in the app, or clear site data for this
+  domain in your browser to remove everything at once.</li>
+  <li><strong>Drive:</strong> delete the backup file in your Drive, and revoke Inkpad's access at
+  <a href="https://myaccount.google.com/permissions" target="_blank" rel="noopener">your Google account permissions</a>.</li>
+  <li><strong>Gist:</strong> delete the gist, and revoke the token in your GitHub developer settings.</li>
+</ul>
+
+<h2>8. Children</h2>
+<p>Inkpad is suitable for general audiences and collects no personal information from anyone,
+children included.</p>
+
+<h2>9. Changes to this policy</h2>
+<p>If this policy changes, the date at the top will change with it, and the edit will be visible in
+the project's public commit history — so you can see exactly what changed and when.</p>
+
+<h2>10. Contact</h2>
+<p>Questions or concerns are best raised as an issue on
+<a href="https://github.com/inkpad-js/inkpad/issues/new" target="_blank" rel="noopener">the project's issue tracker</a>,
+where the answer is public and useful to everyone.</p>
+
+<footer>
+  <p>Adapted from the <a href="https://github.com/basecamp/policies" target="_blank" rel="noopener">Basecamp open-source policies</a>,
+  used under <a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noopener">CC BY 4.0</a>.
+  Inkpad itself is <a href="https://github.com/inkpad-js/inkpad/blob/main/LICENSE" target="_blank" rel="noopener">MIT licensed</a>.</p>
+</footer>
+
+</div>
+
+<script>
+/* match the theme the user picked in the app; harmless if absent */
+try{
+  var s=JSON.parse(localStorage.getItem("inkpad.settings.v1")||"{}");
+  if(s.theme) document.documentElement.dataset.theme=s.theme;
+  else if(matchMedia("(prefers-color-scheme: dark)").matches) document.documentElement.dataset.theme="dark";
+}catch(e){}
+</script>
+
+</body>
+</html>

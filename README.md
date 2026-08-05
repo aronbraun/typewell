@@ -18,6 +18,8 @@ Inkpad is a complete notes app in **one HTML file**. No build step, no server, n
 | **Mirror** | [inkpad-js.github.io/inkpad](https://inkpad-js.github.io/inkpad/) |
 | **Source** | [github.com/inkpad-js/inkpad](https://github.com/inkpad-js/inkpad) |
 | **Report a bug / request a feature** | [open an issue](https://github.com/inkpad-js/inkpad/issues/new) |
+| **Privacy policy** | [privacy.html](https://inkpad.js.org/privacy.html) |
+| **Terms & conditions** | [terms.html](https://inkpad.js.org/terms.html) |
 | **License** | [MIT](LICENSE) |
 
 ---

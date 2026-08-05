@@ -649,6 +649,10 @@ body.zen #zenExit{display:grid}
              title="Source code on GitHub"><svg class="ic" data-i="github"></svg>GitHub</a>
           <a class="btn" href="https://github.com/inkpad-js/inkpad/issues/new" target="_blank" rel="noopener"
              title="Report a bug or request a feature"><svg class="ic" data-i="issue"></svg>Report an issue</a>
+          <a class="btn" href="privacy.html" target="_blank" rel="noopener"
+             title="Privacy policy  What leaves your browser"><svg class="ic" data-i="shield"></svg>Privacy</a>
+          <a class="btn" href="terms.html" target="_blank" rel="noopener"
+             title="Terms &amp; conditions"><svg class="ic" data-i="doc"></svg>Terms</a>
         </div>
       </div>
 
@@ -746,6 +750,7 @@ const ICONS={
  github:'<path d="M9 19c-4.3 1.4-4.3-2.5-6-3m12 5v-3.4c0-1 .1-1.4-.5-2 2.8-.3 5.5-1.4 5.5-6A4.6 4.6 0 0 0 18.7 6a4.3 4.3 0 0 0-.1-3.2s-1.1-.3-3.6 1.3a12 12 0 0 0-6.2 0C6.4 2.5 5.3 2.8 5.3 2.8A4.3 4.3 0 0 0 5.2 6 4.6 4.6 0 0 0 4 9.6c0 4.6 2.7 5.7 5.5 6-.6.6-.6 1.2-.5 2V21"/>',
  issue:'<circle cx="12" cy="12" r="8.5"/><path d="M12 7.8v4.6"/><circle cx="12" cy="16" r="1" fill="currentColor" stroke="none"/>',
  globe:'<circle cx="12" cy="12" r="8.5"/><path d="M3.5 12h17"/><path d="M12 3.5a13 13 0 0 1 0 17 13 13 0 0 1 0-17"/>',
+ doc:'<path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/><path d="M9 13h6M9 17h4"/>',
 };
 const I=n=>`<svg class="ic" viewBox="0 0 24 24">${ICONS[n]||""}</svg>`;
 $$("svg[data-i]").forEach(el=>{el.setAttribute("viewBox","0 0 24 24");el.innerHTML=ICONS[el.dataset.i]||"";});
