@@ -219,6 +219,15 @@ body.zen #topbar,body.zen #toolbar{display:none}
 }
 .tb:hover{background:var(--hover);color:var(--ink)}
 .tb.on{background:var(--accent-soft);color:var(--accent)}
+/* the callout button carries its type's colour while keeping the same tinted
+   "pressed" look every other toolbar toggle has */
+#alertBtn.on{background:color-mix(in srgb,var(--al-c) 16%,transparent);color:var(--al-c)}
+#alertBtn[data-alert="note"]     {--al-c:var(--al-note)}
+#alertBtn[data-alert="tip"]      {--al-c:var(--al-tip)}
+#alertBtn[data-alert="important"]{--al-c:var(--al-important)}
+#alertBtn[data-alert="warning"]  {--al-c:var(--al-warning)}
+#alertBtn[data-alert="caution"]  {--al-c:var(--al-caution)}
+#alertBtn{--al-c:var(--accent)}
 .tb:disabled{opacity:.32;pointer-events:none}
 .tb b{font-weight:800;font-size:13.5px}.tb i{font-style:italic;font-family:Georgia,serif}.tb u{text-decoration:underline}.tb s{text-decoration:line-through}
 .tb-sep{width:1px;height:18px;background:var(--line);margin:0 5px;flex:none}
@@ -392,11 +401,15 @@ kbd{font-family:var(--font-mono);font-size:10.5px;background:var(--panel-2);bord
 
 /* formatting guide */
 #guideOverlay .modal{width:min(600px,100%)}
-.g-grid{display:grid;grid-template-columns:auto 1fr;gap:7px 16px;font-size:12.5px;align-items:baseline}
+/* centre, not baseline: a chip containing "---" or "***" has its glyphs sitting
+   low in the box, so baseline alignment left it visibly riding above its label */
+.g-grid{display:grid;grid-template-columns:auto 1fr;gap:7px 16px;font-size:12.5px;align-items:center}
 .g-grid code{
   font-family:var(--font-mono);font-size:11.5px;background:var(--code-bg);
   padding:2px 6px;border-radius:var(--r-sm);white-space:nowrap;color:var(--ink);
+  display:inline-block;line-height:1.5;
 }
+.g-grid>code{justify-self:start}
 .g-grid span{color:var(--muted)}
 .g-note{
   font-size:12.5px;color:var(--muted);line-height:1.6;margin:10px 0 0;
@@ -554,6 +567,29 @@ body.zen #zenExit{display:grid}
 #tblPick .tp-l{margin-top:8px;text-align:center;font-family:var(--font-mono);font-size:11px;color:var(--muted)}
 
 @media print{#tblUI,#tblPick{display:none!important}}
+
+/* ---------- drag-to-reorder list items ---------- */
+#dragUI{position:fixed;inset:0;z-index:53;pointer-events:none;display:none}
+#dragUI.on{display:block}
+#dragUI .dragh{
+  position:absolute;pointer-events:auto;width:18px;height:20px;border-radius:5px;
+  display:grid;place-items:center;color:var(--faint,var(--muted));cursor:grab;
+  opacity:.32;transition:opacity .12s,background .12s;background:transparent;
+}
+#dragUI .dragh:hover{opacity:1;background:var(--hover)}
+#dragUI.dragging .dragh{opacity:1;cursor:grabbing;background:var(--hover)}
+#dragUI .dragh svg{width:13px;height:13px;pointer-events:none}
+#dragUI .dropline{
+  position:absolute;height:2px;border-radius:2px;background:var(--accent);display:none;
+}
+#dragUI.dragging .dropline{display:block}
+#dragUI .ghost{
+  position:absolute;pointer-events:none;display:none;border-radius:var(--r-sm);
+  background:var(--accent-soft);outline:1px solid color-mix(in srgb,var(--accent) 40%,transparent);
+}
+#dragUI.dragging .ghost{display:block}
+@media print{#dragUI{display:none!important}}
+
 </style>
 </head>
 <body>
@@ -740,8 +776,47 @@ body.zen #zenExit{display:grid}
           which come back as ordinary links.</div>
       </div>
 
-      <div class="btn-row" style="margin-top:16px">
-        <button class="btn" id="guideToShortcuts" title="Keyboard shortcuts live in Settings">Keyboard shortcuts →</button>
+      <div class="row">
+        <label>Keyboard shortcuts</label>
+        <div class="sc-grid">
+          <span>Undo / Redo</span><span><kbd>Ctrl</kbd><kbd>Z</kbd> / <kbd>Ctrl</kbd><kbd>Shift</kbd><kbd>Z</kbd></span>
+          <span>New note</span><span><kbd>Ctrl</kbd><kbd>Alt</kbd><kbd>N</kbd></span>
+          <span>Back up now</span><span><kbd>Ctrl</kbd><kbd>S</kbd></span>
+          <span>Find &amp; replace</span><span><kbd>Ctrl</kbd><kbd>F</kbd></span>
+          <span>Link</span><span><kbd>Ctrl</kbd><kbd>K</kbd></span>
+          <span>Strikethrough</span><span><kbd>Ctrl</kbd><kbd>Shift</kbd><kbd>X</kbd></span>
+          <span>Inline code</span><span><kbd>Ctrl</kbd><kbd>E</kbd></span>
+          <span>Numbered list</span><span><kbd>Ctrl</kbd><kbd>Shift</kbd><kbd>7</kbd></span>
+          <span>Bullet list</span><span><kbd>Ctrl</kbd><kbd>Shift</kbd><kbd>8</kbd></span>
+          <span>Task list</span><span><kbd>Ctrl</kbd><kbd>Shift</kbd><kbd>9</kbd></span>
+          <span>Paragraph / Heading 1-3</span><span><kbd>Ctrl</kbd><kbd>Alt</kbd><kbd>0</kbd>–<kbd>3</kbd></span>
+          <span>Clear formatting</span><span><kbd>Ctrl</kbd><kbd>\</kbd></span>
+          <span>Zen mode</span><span><kbd>Ctrl</kbd><kbd>Shift</kbd><kbd>F</kbd></span>
+          <span>Exit code/quote block</span><span><kbd>Ctrl</kbd><kbd>Enter</kbd></span>
+          <span>Search notes</span><span><kbd>/</kbd></span>
+        </div>
+      </div>
+
+      <div class="row" style="border-top:1px solid var(--line);padding-top:14px">
+        <label>About Typewell</label>
+        <div class="hint">
+          A single HTML file — no build step, no server, no tracking. Your notes stay in this
+          browser unless <i>you</i> back them up: Drive gets a <code>Typewell</code> folder of
+          plain <b>.md</b> files you can open in any editor, and the optional gist keeps one
+          exact <code>.json</code> copy.
+        </div>
+        <div class="btn-row">
+          <a class="btn" href="https://typewell.net" target="_blank" rel="noopener"
+             title="Website  typewell.net"><svg class="ic" data-i="globe"></svg>Website</a>
+          <a class="btn" href="https://github.com/aronbraun/typewell" target="_blank" rel="noopener"
+             title="Source code on GitHub"><svg class="ic" data-i="github"></svg>GitHub</a>
+          <a class="btn" href="https://github.com/aronbraun/typewell/issues/new" target="_blank" rel="noopener"
+             title="Report a bug or request a feature"><svg class="ic" data-i="issue"></svg>Issues</a>
+          <a class="btn" href="privacy.html" target="_blank" rel="noopener"
+             title="Privacy policy  What leaves your browser"><svg class="ic" data-i="shield"></svg>Privacy</a>
+          <a class="btn" href="terms.html" target="_blank" rel="noopener"
+             title="Terms &amp; conditions"><svg class="ic" data-i="doc"></svg>Terms</a>
+        </div>
       </div>
     </div>
   </div>
@@ -810,27 +885,6 @@ body.zen #zenExit{display:grid}
           <button class="btn danger" id="wipeBtn" title="Erase every note and setting  (cannot be undone)">Erase everything</button>
         </div>
         <div class="hint" id="storageInfo"></div>
-      </div>
-
-      <div class="section">
-        <h3>Shortcuts</h3>
-        <div class="sc-grid">
-          <span>Undo / Redo</span><span><kbd>Ctrl</kbd><kbd>Z</kbd> / <kbd>Ctrl</kbd><kbd>Shift</kbd><kbd>Z</kbd></span>
-          <span>New note</span><span><kbd>Ctrl</kbd><kbd>Alt</kbd><kbd>N</kbd></span>
-          <span>Back up now</span><span><kbd>Ctrl</kbd><kbd>S</kbd></span>
-          <span>Find &amp; replace</span><span><kbd>Ctrl</kbd><kbd>F</kbd></span>
-          <span>Link</span><span><kbd>Ctrl</kbd><kbd>K</kbd></span>
-          <span>Strikethrough</span><span><kbd>Ctrl</kbd><kbd>Shift</kbd><kbd>X</kbd></span>
-          <span>Inline code</span><span><kbd>Ctrl</kbd><kbd>E</kbd></span>
-          <span>Numbered list</span><span><kbd>Ctrl</kbd><kbd>Shift</kbd><kbd>7</kbd></span>
-          <span>Bullet list</span><span><kbd>Ctrl</kbd><kbd>Shift</kbd><kbd>8</kbd></span>
-          <span>Task list</span><span><kbd>Ctrl</kbd><kbd>Shift</kbd><kbd>9</kbd></span>
-          <span>Paragraph / Heading 1-3</span><span><kbd>Ctrl</kbd><kbd>Alt</kbd><kbd>0</kbd>–<kbd>3</kbd></span>
-          <span>Clear formatting</span><span><kbd>Ctrl</kbd><kbd>\</kbd></span>
-          <span>Zen mode</span><span><kbd>Ctrl</kbd><kbd>Shift</kbd><kbd>F</kbd></span>
-          <span>Exit code/quote block</span><span><kbd>Ctrl</kbd><kbd>Enter</kbd></span>
-          <span>Search notes</span><span><kbd>/</kbd></span>
-        </div>
       </div>
 
       <div class="section">
@@ -1316,7 +1370,9 @@ function syncToolbar(){
   const abq=n.closest("blockquote[data-alert]");
   const ab=$("#alertBtn");
   ab.classList.toggle("on",!!abq);
-  ab.style.color=abq?`var(--al-${abq.getAttribute("data-alert")})`:"";
+  /* a data attribute, not an inline style: an inline colour outranks .tb.on and
+     left the button looking unselected whenever the var failed to resolve */
+  if(abq)ab.dataset.alert=abq.getAttribute("data-alert");else delete ab.dataset.alert;
   /* keep the menu's tick in step with the caret, the way the font and block
      dropdowns already do — otherwise opening it never shows where you are */
   if(abq)alertDD.set(abq.getAttribute("data-alert"));
@@ -1508,21 +1564,44 @@ function makeTaskUl(text=""){
   ul.innerHTML=`<li>${CHECK}<span class="task-text">${text||"<br>"}</span></li>`;
   return ul;
 }
+/* Every block the selection touches, not just the one holding the caret.
+   execCommand does this for bullet and numbered lists; task lists are ours. */
+function selectedBlocks(){
+  const sel=window.getSelection();if(!sel.rangeCount)return [];
+  const r=sel.getRangeAt(0);
+  if(r.collapsed){const b=getBlock();return b?[b]:[];}
+  const hit=[...editor.children].filter(el=>r.intersectsNode(el));
+  if(!hit.length){const b=getBlock();return b?[b]:[];}
+  return hit;
+}
 function toggleTaskList(){
   editor.focus();histPush();
-  const sel=window.getSelection();if(!sel.rangeCount)return;
-  let node=sel.anchorNode;if(node&&node.nodeType===3)node=node.parentElement;
-  const li=node&&node.closest("li"),ul=li&&li.closest("ul.tasks");
-  if(ul){
-    const frag=document.createDocumentFragment();
-    ul.querySelectorAll("li").forEach(l=>{const p=document.createElement("p");
-      p.innerHTML=l.querySelector(".task-text")?.innerHTML||l.innerHTML;frag.appendChild(p);});
-    ul.replaceWith(frag);scheduleSave();return;
+  const blocks=selectedBlocks();if(!blocks.length)return;
+  /* already task lists anywhere in the selection → unwrap all of them */
+  const uls=[...new Set(blocks.flatMap(b=>
+    b.matches?.("ul.tasks")?[b]:[...b.querySelectorAll?.("ul.tasks")||[]]
+  ))];
+  const anchorUl=(()=>{let n=window.getSelection().anchorNode;
+    if(n&&n.nodeType===3)n=n.parentElement;return n?.closest?.("ul.tasks")||null;})();
+  if(anchorUl&&!uls.includes(anchorUl))uls.push(anchorUl);
+  if(uls.length){
+    for(const ul of uls){
+      const frag=document.createDocumentFragment();
+      ul.querySelectorAll("li").forEach(l=>{const p=document.createElement("p");
+        p.innerHTML=l.querySelector(".task-text")?.innerHTML||l.innerHTML;frag.appendChild(p);});
+      ul.replaceWith(frag);
+    }
+    scheduleSave();return;
   }
-  const b=getBlock();
-  const text=b?b.innerHTML.replace(/^<br>$/,""):"";
-  const t=makeTaskUl(text);
-  if(b)b.replaceWith(t);else editor.appendChild(t);
+  /* one list holding one item per selected block, rather than one list each */
+  const t=makeTaskUl(blocks[0].innerHTML.replace(/^<br>$/,""));
+  for(const b of blocks.slice(1)){
+    const li=document.createElement("li");
+    li.innerHTML=`${CHECK}<span class="task-text">${b.innerHTML.replace(/^<br>$/,"")||"<br>"}</span>`;
+    t.appendChild(li);
+  }
+  blocks[0].replaceWith(t);
+  blocks.slice(1).forEach(b=>b.remove());
   placeCaret(t.querySelector(".task-text"));
   scheduleSave();
 }
@@ -2579,11 +2658,6 @@ document.addEventListener("click",e=>{
 });
 $("#settingsBtn").addEventListener("click",()=>openOverlay("settingsOverlay"));
 $("#guideBtn").addEventListener("click",()=>openOverlay("guideOverlay"));
-$("#guideToShortcuts").addEventListener("click",()=>{
-  $("#guideOverlay").classList.remove("open");
-  openOverlay("settingsOverlay");
-  $("#settingsOverlay .sc-grid")?.scrollIntoView({block:"center",behavior:"smooth"});
-});
 $("#driveConnectBtn").addEventListener("click",connectDriveFlow);
 $("#driveBackupBtn").addEventListener("click",doDriveBackup);
 $("#driveRestoreBtn").addEventListener("click",async()=>{
@@ -3088,6 +3162,124 @@ editor.addEventListener("keydown",e=>{
     if(H[e.code]) return run(()=>cmd("formatBlock",H[e.code]));
   }
 });
+/* ═══════════ drag-to-reorder list items ═══════════
+   A single floating grip, shown only while the pointer is near the start of a
+   list item. Kept out of #editor entirely — anything living inside the editable
+   surface ends up in n.html and gets walked by htmlToMd, which is the same rule
+   the table chrome follows. HTML5 drag-and-drop is unusable inside
+   contenteditable (Chrome starts its own text drag), so this is pointer-driven. */
+const dragUI=document.createElement("div");
+dragUI.id="dragUI";dragUI.setAttribute("contenteditable","false");
+dragUI.innerHTML=
+  '<div class="ghost"></div>'+
+  '<div class="dropline"></div>'+
+  '<button class="dragh" title="Drag to move this item" tabindex="-1">'+
+    '<svg class="ic" viewBox="0 0 24 24" fill="currentColor" stroke="none">'+
+      '<circle cx="9" cy="6" r="1.6"/><circle cx="15" cy="6" r="1.6"/>'+
+      '<circle cx="9" cy="12" r="1.6"/><circle cx="15" cy="12" r="1.6"/>'+
+      '<circle cx="9" cy="18" r="1.6"/><circle cx="15" cy="18" r="1.6"/>'+
+    '</svg></button>';
+document.body.appendChild(dragUI);
+const dragGrip=dragUI.querySelector(".dragh"),
+      dropLine=dragUI.querySelector(".dropline"),
+      dragGhost=dragUI.querySelector(".ghost");
+
+let gripItem=null;        /* the <li> the grip currently belongs to */
+let dragging=null;        /* the <li> being moved */
+let dropAt=null;          /* {parent, before} */
+
+const REACH=34;           /* how far left of the item the grip stays awake */
+
+function gripHide(){
+  if(dragging)return;
+  gripItem=null;dragUI.classList.remove("on");
+}
+function gripShow(li){
+  const r=li.getBoundingClientRect();
+  /* first line only: a wrapped item should not put the grip halfway down it */
+  const first=li.getClientRects()[0]||r;
+  gripItem=li;
+  dragUI.classList.add("on");
+  dragGrip.style.top=Math.round(first.top+(Math.min(first.height,26)-20)/2)+"px";
+  dragGrip.style.left=Math.round(r.left-24)+"px";
+}
+/* the item under the pointer, but only when the pointer is in the gutter to its
+   left or over the item itself — never for a click in the middle of the text */
+function itemNear(x,y){
+  for(const li of editor.querySelectorAll("li")){
+    if(li.querySelector("ul,ol"))continue;            /* a wrapper of a sublist */
+    const r=li.getBoundingClientRect();
+    if(y<r.top-2||y>r.bottom+2)continue;
+    if(x>=r.left-REACH&&x<=r.right)return li;
+  }
+  return null;
+}
+editor.addEventListener("mousemove",e=>{
+  if(dragging)return;
+  const li=itemNear(e.clientX,e.clientY);
+  if(li)gripShow(li);else gripHide();
+});
+document.addEventListener("mousemove",e=>{
+  if(dragging||!gripItem)return;
+  if(e.target===dragGrip||dragGrip.contains(e.target))return;
+  if(!editor.contains(e.target))gripHide();
+},true);
+editor.addEventListener("mouseleave",()=>{if(!dragging)gripHide()});
+$("#editorWrap").addEventListener("scroll",()=>{if(!dragging)gripHide()});
+
+/* ---- the drag itself ---- */
+function siblingsOf(li){return [...li.parentElement.children].filter(c=>c.tagName==="LI")}
+function paintDrop(y){
+  const list=dragging.parentElement;
+  const sibs=siblingsOf(dragging);
+  let before=null;
+  for(const s of sibs){
+    const r=s.getBoundingClientRect();
+    if(y<r.top+r.height/2){before=s;break;}
+  }
+  dropAt={parent:list,before};
+  const lr=list.getBoundingClientRect();
+  let top;
+  if(before)top=before.getBoundingClientRect().top;
+  else{const last=sibs[sibs.length-1];top=last?last.getBoundingClientRect().bottom:lr.top;}
+  dropLine.style.left=Math.round(lr.left)+"px";
+  dropLine.style.width=Math.round(lr.width)+"px";
+  dropLine.style.top=Math.round(top-1)+"px";
+}
+dragGrip.addEventListener("mousedown",e=>{
+  if(!gripItem)return;
+  e.preventDefault();e.stopPropagation();
+  dragging=gripItem;
+  const r=dragging.getBoundingClientRect();
+  dragGhost.style.left=Math.round(r.left)+"px";
+  dragGhost.style.top=Math.round(r.top)+"px";
+  dragGhost.style.width=Math.round(r.width)+"px";
+  dragGhost.style.height=Math.round(r.height)+"px";
+  dragUI.classList.add("dragging");
+  paintDrop(e.clientY);
+  const move=ev=>{
+    ev.preventDefault();
+    paintDrop(ev.clientY);
+    const rr=dragging.getBoundingClientRect();
+    dragGhost.style.top=Math.round(ev.clientY-rr.height/2)+"px";
+  };
+  const up=()=>{
+    document.removeEventListener("mousemove",move,true);
+    document.removeEventListener("mouseup",up,true);
+    dragUI.classList.remove("dragging");
+    const moved=dragging;dragging=null;
+    if(dropAt&&dropAt.before!==moved&&!(dropAt.before===null&&moved===siblingsOf(moved).slice(-1)[0])){
+      histPush();
+      dropAt.parent.insertBefore(moved,dropAt.before);
+      scheduleSave();
+      placeCaret(moved.querySelector(".task-text")||moved,false);
+    }
+    dropAt=null;gripHide();
+  };
+  document.addEventListener("mousemove",move,true);
+  document.addEventListener("mouseup",up,true);
+});
+
 </script>
 </body>
 </html>
