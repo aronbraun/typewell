@@ -1,1 +1,6 @@
+# The deploy workflows assemble the publishable site into these directories on
+# the CI runner. Nothing in a normal checkout produces them — there is no build
+# step — but keep them ignored so that hand-running the build lines from
+# .github/workflows/ to debug something cannot end up committed.
 dist/
+seed/

@@ -4,7 +4,39 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Typewell — your notes, your browser, your Drive</title>
-<meta name="description" content="A free, single-file notepad. Notes live in your browser; back them up to your own Google Drive or a GitHub Gist.">
+<meta name="description" content="Markdown notes that live in your own browser. No account, no server, no tracking, with optional sync to a folder of .md files in your own Google Drive, or a secret Gist.">
+<link rel="canonical" href="https://typewell.net/">
+<meta name="application-name" content="Typewell">
+<meta name="author" content="Typewell contributors">
+<meta name="color-scheme" content="light dark">
+<meta name="theme-color" content="#F6F0E2" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0E1012" media="(prefers-color-scheme: dark)">
+
+<!-- Icons are inline data URIs on purpose. The deploy workflow publishes only the
+     three HTML pages, and the project's whole promise is one self-contained file, so
+     an external .ico/.png would be both a broken link and a regression. Every '#' is
+     escaped as %23: left raw, the browser reads everything after it as a fragment and
+     silently drops the icon, with no console error. -->
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0' y1='0' x2='64' y2='64' gradientUnits='userSpaceOnUse'%3E%3Cstop offset='0' stop-color='%230E9E9E'/%3E%3Cstop offset='1' stop-color='%23C98A2D'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width='64' height='64' rx='17' fill='url(%23g)'/%3E%3Cpath d='M12 17H52V27H37.5V48H26.5V27H12Z' fill='%23fff'/%3E%3C/svg%3E">
+<link rel="alternate icon" type="image/png" sizes="32x32" href="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAACQElEQVR42sWXP0vEMBTAk1xBBek3UAdXB7kbdNBNOHF0cVEHxcXioAh+BJ100DtBRARPnERcBMU/i4vlvEE/gp/AKrg1vpe2Z+wlvbZea+DRl7vX/NLkvZc8SkJt4HDPZIQvM+KW4VkscNcsEJcUCCegE08H4VzSvSdT2zggDZBr+K96bO05Mo/Knf7DyiyAKzCQKQ/8B7hqMtaBtV8LmAUJvgnwbRioKyM4ShfYTY9Olbrtq+e75gr4X34iBsoO7ttxeEfoczsrRzWKe04Jf8tw2VXwYDv6DHQ4mj8cxQSbZcP39rzhgU2Z+aH2H3CUoqGL86XiuIBRXwKdcblPQv0f/afv2dzaF6oJm4buyxdL46ST7cE+V64W0y17p5tuq5huPzs+AY2fMJ3zZDaBEMfQeftp/b7VCbn3nBgaI2ZP7y/A59cHeXx9CDkhab6j4uDvhi7Uzuq32lAbGRxWTuDGvowdnsGkWJo4x68MN6pb5gi40NMkGXXjieG/oiBJhqMKPI0INR28uQVJ02vSUNPBRSJKk9sT+UAEPDIRRR0ssX2gDVyfiNqcajROuo0Bl6Ig2ZFK2m5BPLgYN815ro4Cnhguxpqprr2L61Hyy0SqPZfhoDvMLxr+A472DeZVLPnDvfzjXmMYVv0rcs5w7oBUGdZqWC7lDEeONbn+5IjS7Pmq/oLlEvw4lhN8q7xu77QUp6u7C7NgVPGLhoyW3bUAXlNWx9g2dudFxYJFA97bWyaTJtTQ29HhYM9x2WXeN3T8it8fWrC5AAAAAElFTkSuQmCC">
+<link rel="apple-touch-icon" sizes="180x180" href="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAALQAAAC0CAIAAACyr5FlAAAG6UlEQVR42u3dPY4cRRjG8bdLRgSWRUhCwh0AcQACp1jiJFwBcQSQCJxwBAf2GUxG7DMgISGBSJrZZeeje963P3b7rVE9/S9Z1npm2j1b81NPV9VTVd0nr1+b9Z3dlc76+7/t4ZH+4ufrZ68eOR4y87LhI8efe+fZmQP7FScaPNivf4f98NecOnD47HwdutW+5B1ePdsvq+plVXH4U5CBjKjGCjKQEdVYQQYyohoryECGX2OHrxVkIMOV8f+VAxnI8B8syEBGdPaCDGREZy/IQEZ0YEEGMqIDCzKQER1YkIGM6MCCDGREBxZkICM6sCADGdGBBRnIiA4syEBGdGBBBjIsHltBBjL8ExVkICM6UUEGMqITFWQgIzpRQQYyohMVZCAjOlFBBjLCPAcykBHVZ0EGMty3cXh7BRnIcGWsigkiY18ypgbekLFzGQtjgsjYo4wlMUFk7FTGbEwQGfuVMR0TRMauZUy0VpCxdxnRsk/IQIa5yz4hAxnmLvuEDGSYu+wTMpBh7rJPyEDG9NQEZCDD7yFFBjL8HlJkIMPvIUUGMvweUmQgI4oJIgMZ/vvv7VkFGc8/+vjT5y9OLxi9frre7eo9uG/Mk/HwglHduSe6quXxr7b4RKP/5PJXPj7Vu5/T6EROnRwOPD34519//PPv36kyDj8/q3DN+Pqzz3/45pVRtiu/vvv59w/vU2UM8hyp3yaUrUufLeOc50BGW6XLl/HQQ5p9B3r6SqZsTSRRRjcfE9yibcKn2KKMuZjgdq1WSnMybComuGV/BiXltiNVRhwT3Lqni5LRYEmVEcQEU/pAKVmtlSQZXkwwp3ecjzPpziNPho1jgshAhh8TzBxRozQnw84xwdyxVsrmN6PpMk5hn+xReL5Z6nR1bCnjvrVSK59BaUvG/H4ryGikE2x7GYd/FWQgw4JcXKmR9qNk+UiUYUuWfdogBwqPGtePjWXML/u0VUKYD7I5GTPLPm2YHacktFZyZUy1VpDRyD1HlgyL8hybzzfhs2xOhp/nSJqJRMnvB9tShpPnQEYjJV3GuLWCjIZbK1vLsMs8R968Voi0KOOc50id8UzJvSfNkXH391e//Cg8F/7VFy+//fJl0sfz9rc3b9+/uflc+CwZ46as3CoJN2gyqMiwwcCb5voZfZXLu6CM7nExwXZkpLMQlvGYmKA1tuZOdmeDrIzVMUFrcDWmGk0GRRnrYoLI8H2IylgRE7Q2V3Drclkoy1i5O2SDa/vdYIBDRYat2B2y2VUfq3ZjC8lYvDtkwzLSLx6qMmw4kVpzpdj8fg5NGZcTqZXXEK7Vgy4lw2Z2h0TGjmVM7g4pIqNP/VoRlhHvDqmyIn2XfuWQlRHsDim0V8FtRu0lZJizO6TaLhbZ7VhZGVe7Q8rtb1LlyqEpY9hDKrrzTb08h5aMi3sO1T2RanyzaMo4TqSW3i0LGY+TcX/lQMaT27GSMgY9pJI77OUPr8jKONRh0d57Mf3ioSvDjjs1mfCunLfoBFOQ0dl8TBAZE/ejyjJsLibYtozu2IOZP/AmKKObjAk2L6N696iUjImYoIKMKvccsjIsiAmKyEifmiAtw40J6si4ycCbjAy7aq1IyeiQ8QQZo5ggMp40vCIm4zImKCijRt+5roxgIrWQjLoBdCkZ5vSQqsnokfE4GVcTqZHx1B5SHRkWxQQ1ZHSWvtWLsAw/Jigjo3ZrRUuGExNUknF/YJ1vFkEZ45ignIxaeQ5FGbYkz9GujPypCb2wjHNMUFRG/p2HrgybznMgY21rRUnGVJ4DGTuXEeY5NGTUXIJBT4af55CRUaGTQ1iGk+dQklFnbEVVxjjPISejzm2HpoxBnkNPRvY9h7aMc55DUkatK4emDDtOh9SUUXdqgpqM7mHgTVZG+ow3YRlXMUE1GbUG3hRlDJuyyHjMd4qsjIuYoKKM2vekWjKOVw5RGV1y1qeTlnEK+4jKqLaaoKKMu6e+++l7XRnKK6uky+gX7Q6JjD3KsNXLPiFjNzK6dcs+IWNPMmzFsk/I2JmMxcs+IWN/MmzRsk/I2KWMBcs+IWOvMmxm2Sdk7FjG5LJPyNi3jHjZJ2TsXkaw7BMykGFRDykykOH3kCIDGX4PKTKQ4feQIgMZzrJPyEBG2FpBBjL81goykLF0UhMykHGsw4IMZER1WJCBDLcORwNvyEDGWcblwBsykDGQcR0TRAYyBgNvyECGI+MyJogMZEwPvCEDGfNTE5Cxexnm95AiAxl+TBAZyPBjgshAhh8TRAYy/NYKMpDht1aQgQy/tYIMZCxtrSADGceqKMhARlCHXp4DGcjw8xzIQIaf50AGMvw8BzKQ4ec5kIEMv4cUGcjwe0iRgYzo2f8AcQqxucNqxmMAAAAASUVORK5CYII=">
+
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Typewell">
+<meta property="og:title" content="Typewell — your notes, your browser, your Drive">
+<meta property="og:description" content="Markdown notes that live in your own browser — tables, task lists, code blocks, three themes. No account, no server, no tracking. Optional backup to your own Google Drive or a secret GitHub Gist.">
+<meta property="og:url" content="https://typewell.net/">
+<!-- No og:image. The deploy workflow copies only index.html, privacy.html and
+     terms.html into dist/, so a 1200x630 raster committed here would 404 at
+     https://typewell.net and give every share a broken preview - worse than no image at
+     all. twitter:card=summary renders correctly without one. To add it later:
+     commit og.png (1200x630) at the repo root, add it to the `cp` line in
+     .github/workflows/deploy.yml, then add og:image, og:image:width,
+     og:image:height and og:image:alt here and switch the card to
+     summary_large_image. -->
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="Typewell — your notes, your browser, your Drive">
+<meta name="twitter:description" content="Markdown notes that live in your own browser — tables, task lists, code blocks, three themes. No account, no server, no tracking. Optional backup to your own Google Drive or a secret GitHub Gist.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:ital,wght@0,400;0,500;0,700;1,400&family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
@@ -18,7 +50,25 @@
   --font-mono:"JetBrains Mono",ui-monospace,"Cascadia Code",Menlo,Consolas,monospace;
   --r-lg:14px; --r:9px; --r-sm:7px;
   --shadow:0 12px 40px rgba(0,0,0,.16);
+  /* callout accents. --gold and --warn are byte-identical in every theme and in
+     navy --accent is that same amber, so note/warning would collapse onto one
+     hue; the mix + the navy override below keep all five distinct everywhere. */
+  --al-note:var(--accent);
+  --al-tip:var(--ok);
+  --al-important:var(--ink);
+  --al-warning:color-mix(in oklab,var(--warn) 62%,var(--danger) 38%);
+  --al-caution:var(--danger);
+  /* mask images: only the alpha channel is used, the colour comes from
+     background:var(--al-c), so the %23000 below is never painted */
+  --al-icon-note:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='12' cy='12' r='8.5'/%3E%3Cpath d='M12 11.2v5'/%3E%3Ccircle cx='12' cy='8' r='1' fill='%23000' stroke='none'/%3E%3C/svg%3E");
+  --al-icon-tip:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M12 3.5a5.8 5.8 0 0 0-3.4 10.5c.5.4.9 1 .9 1.7v.3h5v-.3c0-.7.4-1.3.9-1.7A5.8 5.8 0 0 0 12 3.5z'/%3E%3Cpath d='M10 19h4'/%3E%3Cpath d='M10.7 21h2.6'/%3E%3C/svg%3E");
+  --al-icon-important:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M20 4.5H4v11h4.5V20L13 15.5h7z'/%3E%3Cpath d='M12 7.5v4'/%3E%3Ccircle cx='12' cy='13.6' r='.95' fill='%23000' stroke='none'/%3E%3C/svg%3E");
+  --al-icon-warning:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M12 4.2 3.3 19.3h17.4z'/%3E%3Cpath d='M12 10v4.2'/%3E%3Ccircle cx='12' cy='16.9' r='1' fill='%23000' stroke='none'/%3E%3C/svg%3E");
+  --al-icon-caution:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M8.6 3.5h6.8L20.5 8.6v6.8L15.4 20.5H8.6L3.5 15.4V8.6z'/%3E%3Cpath d='M12 8v4.6'/%3E%3Ccircle cx='12' cy='15.9' r='1' fill='%23000' stroke='none'/%3E%3C/svg%3E");
 }
+/* navy's --accent IS the amber of --warn; move Note to the theme's blue-grey so
+   Note and Warning can never collapse onto one hue. */
+html[data-theme="navy"]{ --al-note:var(--muted); }
 html[data-theme="paper"]{
   --bg:#F6F0E2; --panel:#FCF8EE; --panel-2:#F0E8D3; --hover:#EDE4CC;
   --ink:#26323D; --muted:#7D8494; --faint:#ABB1BD;
@@ -158,9 +208,13 @@ a.btn{color:var(--ink);text-decoration:none}
   padding:4px 10px;background:var(--panel);border-bottom:1px solid var(--line);
 }
 body.zen #topbar,body.zen #toolbar{display:none}
+/* Every toolbar control is a fixed size. The block/font labels change as the
+   caret moves, so anything that sizes to its content would shove the icons
+   sideways while you type — the one thing a toolbar must never do. */
 .tb{
-  height:28px;min-width:28px;padding:0 6px;border-radius:var(--r-sm);display:inline-flex;
+  height:28px;width:28px;padding:0;border-radius:var(--r-sm);display:inline-flex;
   align-items:center;justify-content:center;gap:4px;font-size:13px;color:var(--muted);
+  flex:none;
   transition:background .1s,color .1s;
 }
 .tb:hover{background:var(--hover);color:var(--ink)}
@@ -171,21 +225,23 @@ body.zen #topbar,body.zen #toolbar{display:none}
 .tsel{
   height:28px;border-radius:var(--r-sm);border:1px solid transparent;background:transparent;
   font-size:12.5px;padding:0 6px 0 8px;color:var(--muted);cursor:pointer;
-  display:inline-flex;align-items:center;gap:5px;max-width:150px;
+  display:inline-flex;align-items:center;gap:5px;flex:none;
 }
+#fontSelect{width:152px}   /* fits "Times New Roman", the longest label */
+#blockSelect{width:112px}  /* fits "Heading 1" */
 .tsel:hover{background:var(--hover);color:var(--ink)}
-.tsel .lbl{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tsel .lbl{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex:1 1 auto;min-width:0;text-align:left}
 .tsel>svg{width:11px;height:11px;opacity:.65;flex:none}
-.dd-menu{min-width:160px;max-height:56vh;overflow-y:auto}
+.dd-menu{width:210px;max-height:56vh;overflow-y:auto}
 .dd-menu button{justify-content:flex-start}
 .dd-menu button.sel{background:var(--accent-soft);color:var(--accent)}
 .dd-wide{width:100%;justify-content:space-between;font-family:var(--font-mono);font-weight:500}
 .dd-wide>svg{width:12px;height:12px;opacity:.65;flex:none}
-.size-ctl{display:flex;align-items:center;height:28px;border-radius:var(--r-sm)}
-.size-ctl button{width:22px;height:28px;color:var(--muted);font-size:14px;border-radius:var(--r-sm)}
+.size-ctl{display:flex;align-items:center;height:28px;border-radius:var(--r-sm);flex:none}
+.size-ctl button{width:22px;height:28px;color:var(--muted);font-size:14px;border-radius:var(--r-sm);flex:none}
 .size-ctl button:hover{background:var(--hover);color:var(--ink)}
-.size-ctl span{min-width:26px;text-align:center;font-size:11.5px;font-family:var(--font-mono);color:var(--muted)}
-.swatch{position:relative;width:28px;height:28px;border-radius:var(--r-sm);display:grid;place-items:center;color:var(--muted);cursor:pointer}
+.size-ctl span{width:30px;flex:none;text-align:center;font-size:11.5px;font-family:var(--font-mono);color:var(--muted)}
+.swatch{position:relative;width:28px;height:28px;flex:none;border-radius:var(--r-sm);display:grid;place-items:center;color:var(--muted);cursor:pointer}
 .swatch:hover{background:var(--hover);color:var(--ink)}
 .swatch input{position:absolute;inset:0;opacity:0;cursor:pointer}
 .swatch .bar{position:absolute;bottom:5px;left:7px;right:7px;height:3px;border-radius:2px}
@@ -209,10 +265,53 @@ body.zen #page{padding-top:52px}
 #editor h1{font-size:1.65em;line-height:1.25;margin:.85em 0 .3em;font-family:var(--font-ui)}
 #editor h2{font-size:1.35em;line-height:1.3;margin:.85em 0 .28em;font-family:var(--font-ui)}
 #editor h3{font-size:1.15em;margin:.75em 0 .22em;font-family:var(--font-ui)}
+#editor h4{font-size:1.05em;margin:.7em 0 .2em;font-family:var(--font-ui)}
+#editor h5{font-size:1em;margin:.7em 0 .2em;font-family:var(--font-ui)}
+#editor h6{font-size:1em;margin:.7em 0 .2em;font-family:var(--font-ui);color:var(--muted)}
+#editor mark{background:color-mix(in srgb,var(--gold) 30%,transparent);color:inherit;border-radius:3px;padding:.02em .18em}
 #editor p{margin:.32em 0}
 #editor>:first-child{margin-top:0}
 #editor>:last-child{margin-bottom:0}
 #editor blockquote{margin:.55em 0;padding:.28em 1em;border-left:3px solid var(--accent);background:var(--accent-soft);border-radius:0 var(--r-sm) var(--r-sm) 0}
+/* ---------- callouts / GitHub-style alerts ----------
+   The label and the glyph are ::before/::after — never real nodes. Anything
+   inside #editor lands in n.html, is walked by htmlToMd() and becomes a caret
+   trap; pseudo-elements are invisible to innerHTML, innerText, find & replace
+   and the word count. Same rule the table chrome follows. */
+#editor blockquote.alert{
+  position:relative;
+  margin:.7em 0;
+  padding:.5em .95em .55em 1em;
+  border-left:3px solid var(--al-c);
+  border-top:1px solid color-mix(in srgb,var(--al-c) 24%,transparent);
+  border-right:1px solid color-mix(in srgb,var(--al-c) 24%,transparent);
+  border-bottom:1px solid color-mix(in srgb,var(--al-c) 24%,transparent);
+  border-radius:0 var(--r-sm) var(--r-sm) 0;
+  background:color-mix(in srgb,var(--al-c) 9%,transparent);
+}
+#editor blockquote.alert::before{           /* the word */
+  content:attr(data-alert);
+  display:block;margin:0 0 .22em 1.7em;
+  font-family:var(--font-ui);font-size:.8em;font-weight:700;
+  letter-spacing:.06em;text-transform:uppercase;
+  color:var(--al-c);user-select:none;-webkit-user-select:none;
+}
+#editor blockquote.alert::after{            /* the glyph */
+  content:"";position:absolute;left:.95em;top:.62em;
+  width:1.05em;height:1.05em;background:var(--al-c);
+  -webkit-mask:var(--al-icon) center/contain no-repeat;
+          mask:var(--al-icon) center/contain no-repeat;
+  pointer-events:none;
+}
+#editor blockquote.alert>:first-child{margin-top:0}
+#editor blockquote.alert>:last-child{margin-bottom:0}
+#editor blockquote blockquote{margin:.5em 0}          /* no runaway indent */
+#editor blockquote.alert p{margin:.2em 0}
+#editor blockquote.alert[data-alert="note"]     {--al-c:var(--al-note);     --al-icon:var(--al-icon-note)}
+#editor blockquote.alert[data-alert="tip"]      {--al-c:var(--al-tip);      --al-icon:var(--al-icon-tip)}
+#editor blockquote.alert[data-alert="important"]{--al-c:var(--al-important);--al-icon:var(--al-icon-important)}
+#editor blockquote.alert[data-alert="warning"]  {--al-c:var(--al-warning);  --al-icon:var(--al-icon-warning)}
+#editor blockquote.alert[data-alert="caution"]  {--al-c:var(--al-caution);  --al-icon:var(--al-icon-caution)}
 #editor pre{background:var(--code-bg);border:1px solid var(--line);border-radius:var(--r);padding:11px 13px;overflow-x:auto;font-size:13px;margin:.55em 0;white-space:pre-wrap}
 #editor code{background:var(--code-bg);border:1px solid var(--line-soft);border-radius:4px;padding:.05em .32em;font-size:.92em}
 #editor pre code{background:none;border:none;padding:0}
@@ -462,7 +561,7 @@ body.zen #zenExit{display:grid}
     </div>
     <div id="noteList"></div>
     <div class="sb-foot" id="sbFoot">
-      <button class="btn sm" id="connectDriveSm" title="Connect Google Drive  (backup only)"><svg class="ic" data-i="cloud"></svg>Connect Drive</button>
+      <button class="btn sm" id="connectDriveSm" title="Connect Google Drive  (a Typewell folder of .md files)"><svg class="ic" data-i="cloud"></svg>Connect Drive</button>
     </div>
   </aside>
 
@@ -508,6 +607,7 @@ body.zen #zenExit{display:grid}
       <button class="tb" data-cmd="insertUnorderedList" title="Bullet list  Ctrl+Shift+8"><svg class="ic" data-i="ul"></svg></button>
       <button class="tb" data-cmd="insertOrderedList" title="Numbered list  Ctrl+Shift+7"><svg class="ic" data-i="ol"></svg></button>
       <button class="tb" id="taskBtn" title="Task list  Ctrl+Shift+9"><svg class="ic" data-i="task"></svg></button>
+      <button class="tb" id="alertBtn" title="Callout  (type &gt; then [!note])"><svg class="ic" data-i="alert"></svg><span class="lbl" style="display:none"></span></button>
       <div class="tb-sep"></div>
       <button class="tb" id="tableBtn" title="Table  (pick a size)"><svg class="ic" data-i="table"></svg></button>
       <button class="tb" id="imageBtn" title="Insert image"><svg class="ic" data-i="image"></svg></button>
@@ -531,7 +631,7 @@ body.zen #zenExit{display:grid}
 
     <div id="editorWrap"><div id="page">
       <div id="editor" contenteditable="true" spellcheck="true"
-           data-ph="Start typing — markdown works:  - list   1. list   [] task   # heading   > quote   ``` code   --- divider"></div>
+           data-ph="Start typing — markdown works:  - list   1. list   [] task   # heading   > quote   > [!note] callout   ``` code   --- divider"></div>
     </div></div>
 
     <div id="statusbar">
@@ -579,15 +679,20 @@ body.zen #zenExit{display:grid}
       <div class="section">
         <h3>Google Drive <span class="pill" id="drivePill">checking…</span></h3>
         <div class="hint">
-          Notes always live in this browser first. Drive keeps one backup file,
-          <code>typewell-backup.json</code>, in <i>your</i> Drive. Scope is <code>drive.file</code> —
-          Typewell can only see files it created, nothing else.
+          Notes always live in this browser first. Drive gets a <code>Typewell</code> folder
+          holding one <b>.md file per note</b> — plain markdown you can read, edit or move with
+          anything. Scope is <code>drive.file</code>: Typewell sees only the files it created,
+          nothing else in your Drive — which also means a file you <i>add</i> to that folder by
+          hand stays invisible to it. Use <b>Import</b> for those. Deleting a note here moves the
+          file to Drive's trash, which Google empties after 30 days; Typewell's own trash keeps it
+          until you purge it. If a note is deleted on one side and edited on the other, the edit
+          wins and the note comes back.
           <span id="driveCfgHint"></span>
         </div>
         <div class="btn-row">
           <button class="btn primary" id="driveConnectBtn" title="Connect Google Drive  (drive.file scope only)"><svg class="ic" data-i="cloud"></svg>Connect</button>
-          <button class="btn" id="driveBackupBtn" title="Back up to Drive now  Ctrl+S" disabled>Back up now</button>
-          <button class="btn" id="driveRestoreBtn" title="Replace local notes with the Drive backup" disabled>Restore</button>
+          <button class="btn" id="driveBackupBtn" title="Send this browser's notes up to your Drive folder  Ctrl+S" disabled>Back up now</button>
+          <button class="btn" id="driveRestoreBtn" title="Two-way sync with the Drive folder — newest copy of each note wins" disabled>Sync</button>
           <button class="btn" id="driveDisconnectBtn" title="Disconnect  (notes stay in this browser)" disabled>Disconnect</button>
         </div>
         <label class="chk" title="Back up automatically after you stop typing" style="margin-top:11px"><input type="checkbox" id="autoBackupChk"> Auto-back up ~45 s after I stop typing</label>
@@ -595,7 +700,8 @@ body.zen #zenExit{display:grid}
 
       <div class="section">
         <h3>GitHub Gist <span class="pill off">optional second source</span></h3>
-        <div class="hint">Same backup file in a <b>secret gist</b>. Token needs only the
+        <div class="hint">A single <code>typewell-backup.json</code> in a <b>secret gist</b> —
+          an exact copy, unlike the markdown in Drive. Token needs only the
           <a href="https://github.com/settings/tokens/new?scopes=gist&description=Typewell" target="_blank" rel="noopener"><code>gist</code> scope</a>.
           Stored in this browser only.</div>
         <div class="row" style="margin-bottom:0"><input type="password" id="ghToken" placeholder="ghp_…"></div>
@@ -640,7 +746,9 @@ body.zen #zenExit{display:grid}
         <h3>About Typewell</h3>
         <div class="hint">
           A single HTML file — no build step, no server, no tracking. Your notes stay in this
-          browser unless <i>you</i> back them up.
+          browser unless <i>you</i> back them up: Drive gets a <code>Typewell</code> folder of
+          plain <b>.md</b> files you can open in any editor, and the optional gist keeps one
+          exact <code>.json</code> copy.
         </div>
         <div class="btn-row">
           <a class="btn" href="https://typewell.net" target="_blank" rel="noopener"
@@ -702,18 +810,6 @@ const DEFAULT_THEME    = "paper";
 
 const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
 const LS_NOTES="typewell.notes.v1", LS_SET="typewell.settings.v1";
-/* legacy keys from the Inkpad-era build — read once, copied forward, never written */
-const LS_NOTES_OLD="inkpad.notes.v1", LS_SET_OLD="inkpad.settings.v1";
-function migrateLegacyKeys(){
-  for(const [now_,old] of [[LS_NOTES,LS_NOTES_OLD],[LS_SET,LS_SET_OLD]]){
-    try{
-      if(localStorage.getItem(now_)!==null)continue;      /* already on the new key */
-      const v=localStorage.getItem(old);
-      if(v!==null)localStorage.setItem(now_,v);           /* legacy value kept in place too */
-    }catch(e){}
-  }
-}
-migrateLegacyKeys();
 const uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,8);
 const now=()=>Date.now();
 const esc=s=>s.replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -743,6 +839,13 @@ const ICONS={
  ul:'<circle cx="4.2" cy="6" r="1.2" fill="currentColor" stroke="none"/><circle cx="4.2" cy="12" r="1.2" fill="currentColor" stroke="none"/><circle cx="4.2" cy="18" r="1.2" fill="currentColor" stroke="none"/><path d="M9 6h11M9 12h11M9 18h11"/>',
  ol:'<path d="M10 6h10M10 12h10M10 18h10"/><path d="M4 5.5h1.5V9M3.8 9h3.4" stroke-width="1.4"/><path d="M3.8 12.6c0-2.5 3.4-1.8 2 .2L3.8 15h3.4" stroke-width="1.4"/>',
  task:'<rect x="3.5" y="4.5" width="15" height="15" rx="3.5"/><path d="m7.5 12 2.6 2.6 5-5.4"/>',
+ alert:'<rect x="3" y="5" width="18" height="14" rx="2.5"/><path d="M7 5v14"/><path d="M11 9.5h6M11 14h4"/>',
+ alNote:'<circle cx="12" cy="12" r="8.5"/><path d="M12 11.2v5"/><circle cx="12" cy="8" r="1" fill="currentColor" stroke="none"/>',
+ alTip:'<path d="M12 3.5a5.8 5.8 0 0 0-3.4 10.5c.5.4.9 1 .9 1.7v.3h5v-.3c0-.7.4-1.3.9-1.7A5.8 5.8 0 0 0 12 3.5z"/><path d="M10 19h4"/><path d="M10.7 21h2.6"/>',
+ alImportant:'<path d="M20 4.5H4v11h4.5V20L13 15.5h7z"/><path d="M12 7.5v4"/><circle cx="12" cy="13.6" r=".95" fill="currentColor" stroke="none"/>',
+ alWarning:'<path d="M12 4.2 3.3 19.3h17.4z"/><path d="M12 10v4.2"/><circle cx="12" cy="16.9" r="1" fill="currentColor" stroke="none"/>',
+ alCaution:'<path d="M8.6 3.5h6.8L20.5 8.6v6.8L15.4 20.5H8.6L3.5 15.4V8.6z"/><path d="M12 8v4.6"/><circle cx="12" cy="15.9" r="1" fill="currentColor" stroke="none"/>',
+ quote:'<path d="M9.5 6.5C7 8 5.5 10 5.5 13v4.5h5V12H8c0-1.8.7-3.2 2.3-4.2z"/><path d="M18 6.5c-2.5 1.5-4 3.5-4 6.5v4.5h5V12h-2.5c0-1.8.7-3.2 2.3-4.2z"/>',
  table:'<rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 10h18M9.5 4v16M15.5 4v16"/>',
  image:'<rect x="3" y="4" width="18" height="16" rx="2.5"/><circle cx="8.7" cy="9.5" r="1.7"/><path d="m21 15.5-4.8-4.8L6.5 20"/>',
  hr:'<path d="M4 12h16"/><path d="M8 6h8M8 18h8" opacity=".35"/>',
@@ -770,7 +873,7 @@ $$("svg[data-i]").forEach(el=>{el.setAttribute("viewBox","0 0 24 24");el.innerHT
 /* ---------- state ---------- */
 let notes=[],activeId=null,tab="notes",dirtySinceBackup=false;
 let settings={theme:DEFAULT_THEME,defaultFont:"JetBrains Mono",autoBackup:false,
-  ghToken:"",gistId:"",driveFileId:"",driveGranted:false};
+  ghToken:"",gistId:"",driveFolderId:"",driveGranted:false};
 function loadState(){
   try{notes=JSON.parse(localStorage.getItem(LS_NOTES)||"[]")}catch(e){notes=[]}
   try{Object.assign(settings,JSON.parse(localStorage.getItem(LS_SET)||"{}"))}catch(e){}
@@ -780,7 +883,7 @@ function loadState(){
       '<ul class="tasks">'+
       '<li><input type="checkbox" contenteditable="false"><span class="task-text">Type <code>-</code> + space for bullets, <code>[]</code> + space for tasks, <code>#</code> for headings</span></li>'+
       '<li><input type="checkbox" contenteditable="false"><span class="task-text">Rename this file in the top bar — the name stays out of the document</span></li>'+
-      '<li><input type="checkbox" contenteditable="false"><span class="task-text">Connect your Google Drive from the sidebar to back up</span></li></ul>'+
+      '<li><input type="checkbox" contenteditable="false"><span class="task-text">Connect your Google Drive from the sidebar — you get a <code>Typewell</code> folder of .md files</span></li></ul>'+
       '<p>Markdown as you type: <code>**bold**</code> <code>*italic*</code> <code>`code`</code> <code>&gt; quote</code> <code>```</code> code block, <code>---</code> divider.</p>',
       created:now(),updated:now(),pinned:false,deleted:false}];
     saveNotes();
@@ -826,11 +929,11 @@ function renderFoot(){
   const f=$("#sbFoot");
   if(drive.connected){
     f.innerHTML=`<span class="beacon ${dirtySinceBackup?"dirty":"synced"}"></span>
-      <span class="grow">${dirtySinceBackup?"Changes not backed up":"Drive · backed up "+(drive.lastBackup?fmtDate(drive.lastBackup):"")}</span>
+      <span class="grow">${dirtySinceBackup?"Changes not backed up":"Drive · synced "+(drive.lastBackup?fmtDate(drive.lastBackup):"")}</span>
       <button class="ibtn" id="footBackup" title="Back up now  Ctrl+S">${I("cloudUp")}</button>`;
     $("#footBackup").onclick=()=>doDriveBackup();
   }else{
-    f.innerHTML=`<button class="btn sm" id="connectDriveSm" title="Connect Google Drive  (backup only)">${I("cloud")}Connect Drive</button>
+    f.innerHTML=`<button class="btn sm" id="connectDriveSm" title="Connect Google Drive  (a Typewell folder of .md files)">${I("cloud")}Connect Drive</button>
       <span class="grow" style="text-align:right">local only</span>`;
     $("#connectDriveSm").onclick=connectDriveFlow;
   }
@@ -1026,7 +1129,8 @@ function makeDropdown(btn,options,onPick,render=null){
 }
 const FONTS=["JetBrains Mono","Space Grotesk","Inter","Georgia","Times New Roman","Arial","Verdana","Courier New"]
   .map(f=>({value:f,label:f}));
-const BLOCKS=[["P","Text"],["H1","Heading 1"],["H2","Heading 2"],["H3","Heading 3"],["BLOCKQUOTE","Quote"],["PRE","Code"]]
+const BLOCKS=[["P","Text"],["H1","Heading 1"],["H2","Heading 2"],["H3","Heading 3"],
+  ["H4","Heading 4"],["H5","Heading 5"],["H6","Heading 6"],["BLOCKQUOTE","Quote"],["PRE","Code"]]
   .map(([v,l])=>({value:v,label:l}));
 const fontDD=makeDropdown($("#fontSelect"),FONTS,v=>cmd("fontName",v),
   o=>`<span style="font-family:'${o.value}'">${esc(o.label)}</span>`);
@@ -1036,6 +1140,53 @@ const defFontDD=makeDropdown($("#defaultFontSelect"),FONTS,v=>{
   editor.style.fontFamily=`"${v}",monospace`;fontDD.set(v);
 });
 blockDD.set("P");
+
+/* ---------- callout dropdown ----------
+   One button, seven entries: the type is mutually-exclusive state, exactly what
+   the block/font dropdowns already express. It always retypes the *innermost*
+   callout at the caret and never nests — nesting is created by typing "> "
+   inside a callout, so this control keeps one unambiguous job. */
+const ALERT_OPTS=[
+  {value:"note",label:"Note",icon:"alNote"},
+  {value:"tip",label:"Tip",icon:"alTip"},
+  {value:"important",label:"Important",icon:"alImportant"},
+  {value:"warning",label:"Warning",icon:"alWarning"},
+  {value:"caution",label:"Caution",icon:"alCaution"},
+  {value:"quote",label:"Plain quote",icon:"quote"},
+  {value:"none",label:"Remove callout",icon:"clear"},
+];
+const alertDD=makeDropdown($("#alertBtn"),ALERT_OPTS,setAlert,
+  o=>`<span style="display:inline-flex;align-items:center;gap:9px${
+       ALERTS.includes(o.value)?`;color:var(--al-${o.value})`:""}">${I(o.icon)}${esc(o.label)}</span>`);
+function alertAt(){
+  const s=window.getSelection();if(!s.rangeCount)return null;
+  let n=s.anchorNode;if(n&&n.nodeType===3)n=n.parentElement;
+  return n&&editor.contains(n)?n.closest("blockquote"):null;
+}
+function setAlert(kind){
+  editor.focus();histPush();
+  let bq=alertAt();
+  if(kind==="none"){
+    if(bq){
+      const frag=document.createDocumentFragment(),first=bq.firstChild;
+      while(bq.firstChild)frag.appendChild(bq.firstChild);
+      bq.replaceWith(frag);
+      if(first&&first.isConnected)placeCaret(first,true);
+    }
+    scheduleSave();syncToolbar();return;
+  }
+  if(!bq){
+    const b=ensureBlock();if(!b)return;
+    bq=document.createElement("blockquote");
+    b.replaceWith(bq);bq.appendChild(b);        /* b is detached but still referenced */
+  }
+  blockifyQuote(bq);
+  if(kind==="quote"){bq.classList.remove("alert");bq.removeAttribute("data-alert");
+    if(!bq.className)bq.removeAttribute("class");}
+  else{bq.classList.add("alert");bq.setAttribute("data-alert",kind);}
+  placeCaret(bq.querySelector(":scope>p")||bq,false);
+  scheduleSave();syncToolbar();
+}
 
 /* ---------- toolbar reflects the formatting at the caret ---------- */
 const stateBtns={};
@@ -1060,7 +1211,15 @@ function syncToolbar(){
   else if(n.closest("h1"))bv="H1";
   else if(n.closest("h2"))bv="H2";
   else if(n.closest("h3"))bv="H3";
+  else if(n.closest("h4"))bv="H4";
+  else if(n.closest("h5"))bv="H5";
+  else if(n.closest("h6"))bv="H6";
   blockDD.set(bv);
+  /* callout button carries the specific type; blockSelect only says "Quote" */
+  const abq=n.closest("blockquote[data-alert]");
+  const ab=$("#alertBtn");
+  ab.classList.toggle("on",!!abq);
+  ab.style.color=abq?`var(--al-${abq.getAttribute("data-alert")})`:"";
   /* current font family → dropdown label */
   let fn="";try{fn=document.queryCommandValue("fontName")||""}catch(_){}
   fn=fn.split(",")[0].replace(/["']/g,"").trim();
@@ -1233,6 +1392,15 @@ function caretAtEndOf(el){
   const end=document.createRange();end.selectNodeContents(el);end.collapse(false);
   return sel.getRangeAt(0).compareBoundaryPoints(Range.END_TO_END,end)===0;
 }
+/* nothing but empty wrappers between el's start and the caret — compareBoundaryPoints
+   can't do this, (el,0) and (firstTextNode,0) are different boundary points */
+function caretAtStartOf(el){
+  const sel=window.getSelection();if(!sel.rangeCount||!sel.isCollapsed)return false;
+  const r=sel.getRangeAt(0);
+  const pre=document.createRange();
+  try{pre.setStart(el,0);pre.setEnd(r.startContainer,r.startOffset);}catch(_){return false;}
+  return !pre.toString().trim()&&!pre.cloneContents().querySelector("br,img,input,table,hr");
+}
 function makeTaskUl(text=""){
   const ul=document.createElement("ul");ul.className="tasks";
   ul.innerHTML=`<li>${CHECK}<span class="task-text">${text||"<br>"}</span></li>`;
@@ -1271,7 +1439,7 @@ function getBlock(){
   const sel=window.getSelection();if(!sel.rangeCount)return null;
   let n=sel.anchorNode;if(!n)return null;
   if(n.nodeType===3)n=n.parentElement;
-  while(n&&n!==editor&&!/^(P|DIV|H1|H2|H3|H4|LI|BLOCKQUOTE|PRE)$/.test(n.tagName))n=n.parentElement;
+  while(n&&n!==editor&&!/^(P|DIV|H1|H2|H3|H4|H5|H6|LI|BLOCKQUOTE|PRE)$/.test(n.tagName))n=n.parentElement;
   return n===editor?null:n;
 }
 function ensureBlock(){
@@ -1288,7 +1456,45 @@ function markerBeforeCaret(b){
   const pre=document.createRange();
   try{pre.setStart(b,0);pre.setEnd(r.startContainer,r.startOffset);}catch(_){return null;}
   const t=pre.toString();
-  return t.length<=4?t:null; /* markers are short — skip long lines fast */
+  return t.length<=6?t:null; /* markers are short — skip long lines fast ("######") */
+}
+const ALERTS=["note","tip","important","warning","caution"];
+/* longer sibling of markerBeforeCaret() — that one caps at 6 chars, "[!important]"
+   is 12; kept separate so the long scan only runs when the short one can't win */
+function alertMarkerBeforeCaret(b){
+  const sel=window.getSelection();if(!sel.rangeCount)return null;
+  const r=sel.getRangeAt(0);if(!r.collapsed)return null;
+  const pre=document.createRange();
+  try{pre.setStart(b,0);pre.setEnd(r.startContainer,r.startOffset);}catch(_){return null;}
+  const t=pre.toString().replace(/\u00a0/g," ").trim();
+  if(t.length>16)return null;
+  const m=t.match(/^>?\s*\[!(note|tip|important|warning|caution)\]$/i);
+  return m?m[1].toLowerCase():null;
+}
+function bqDepth(bq){let d=0;for(let n=bq;n&&n!==editor;n=n.parentElement)if(n.tagName==="BLOCKQUOTE")d++;return d;}
+/* inline-content quote -> block-structured quote (alerts are always block-structured) */
+function blockifyQuote(bq){
+  if([...bq.children].some(c=>/^(P|DIV|H1|H2|H3|H4|H5|H6|UL|OL|PRE|BLOCKQUOTE|TABLE|HR)$/.test(c.tagName)))return;
+  const p=document.createElement("p");
+  while(bq.firstChild)p.appendChild(bq.firstChild);
+  if(!p.textContent&&!p.querySelector("br,img"))p.innerHTML="<br>";
+  bq.appendChild(p);
+}
+/* "[!note]" (inside a quote) or ">[!note]" (in a bare paragraph) at the caret
+   becomes a callout. Shared by Space and Enter — GitHub muscle memory is Enter. */
+function makeAlertHere(b,e){
+  const ak=alertMarkerBeforeCaret(b);
+  if(!ak)return false;
+  e.preventDefault();histPush();eatMarker(b);
+  let bq=b.tagName==="BLOCKQUOTE"?b:b.closest("blockquote");
+  if(!bq){
+    bq=document.createElement("blockquote");
+    b.replaceWith(bq);bq.appendChild(b);
+  }
+  blockifyQuote(bq);
+  bq.classList.add("alert");bq.setAttribute("data-alert",ak);
+  placeCaret(bq.querySelector(":scope>p")||bq,true);
+  scheduleSave();syncToolbar();return true;
 }
 /* delete the marker between block start and the caret, keep the rest */
 function eatMarker(b){
@@ -1329,7 +1535,7 @@ function autoLink(){
   sel.removeAllRanges();sel.addRange(r2);
   scheduleSave();return true;
 }
-/* inline **bold** *italic* `code` ~~strike~~ transforms */
+/* inline **bold** *italic* `code` ~~strike~~ ==highlight== transforms */
 function inlineMd(){
   const sel=window.getSelection();
   if(!sel.rangeCount||!sel.isCollapsed)return false;
@@ -1341,6 +1547,7 @@ function inlineMd(){
     {re:/(?:^|[^*])(\*([^*\s](?:[^*]*[^*\s])?)\*)$/,tag:"em"},
     {re:/(`([^`\s](?:[^`]*[^`\s])?)`)$/,tag:"code"},
     {re:/(~~([^~\s](?:[^~]*[^~\s])?)~~)$/,tag:"s"},
+    {re:/(==([^=\s](?:[^=]*[^=\s])?)==)$/,tag:"mark"},   /* after ~~ so it can't be mis-eaten */
   ];
   for(const {re,tag} of rules){
     const m=txt.match(re);if(!m)continue;
@@ -1411,6 +1618,28 @@ editor.addEventListener("keydown",e=>{
     }
   }
 
+  /* ----- Backspace: empty callout → plain paragraph, start of one → unwrap.
+     Without the second rule Chrome merges the first line into the previous
+     block and copies the callout's translucent background into an inline
+     <span style="background-color:…">, which then exports as a highlight. ----- */
+  const bqEl=anchorEl&&anchorEl.closest("blockquote.alert");
+  if(bqEl&&e.key==="Backspace"&&!e.shiftKey){
+    const empty=!bqEl.textContent.trim()&&bqEl.children.length<=1;
+    if(empty||caretAtStartOf(bqEl)){
+      e.preventDefault();histPush();
+      if(empty){
+        const p=document.createElement("p");p.innerHTML="<br>";
+        bqEl.replaceWith(p);placeCaret(p,true);
+      }else{
+        const first=bqEl.firstElementChild,frag=document.createDocumentFragment();
+        while(bqEl.firstChild)frag.appendChild(bqEl.firstChild);
+        bqEl.replaceWith(frag);
+        if(first&&first.isConnected)placeCaret(first,true);
+      }
+      scheduleSave();syncToolbar();return;
+    }
+  }
+
   /* ----- inline code: space or → at its end steps outside ----- */
   const codeInline=!preEl&&anchorEl&&anchorEl.closest("code");
   if(codeInline&&(e.key===" "||e.key==="ArrowRight")&&caretAtEndOf(codeInline)){
@@ -1463,18 +1692,45 @@ editor.addEventListener("keydown",e=>{
     }
   }
 
+  /* ----- Enter on an empty final paragraph of a quote/callout exits one level ----- */
+  if(e.key==="Enter"&&!e.shiftKey&&!e.ctrlKey&&!e.metaKey&&!taskLi){
+    const bq=anchorEl&&anchorEl.closest("blockquote");
+    const p=anchorEl&&anchorEl.closest("p");
+    if(bq&&p&&p.parentElement===bq&&p===bq.lastElementChild&&!p.textContent.trim()){
+      e.preventDefault();histPush();
+      p.remove();
+      const np=document.createElement("p");np.innerHTML="<br>";
+      bq.after(np);placeCaret(np,true);      /* nested: lands inside the parent callout */
+      if(!bq.children.length)bq.remove();
+      scheduleSave();return;
+    }
+  }
+
   /* ----- markdown triggers ----- */
   if(e.key===" "&&!taskLi){
     if(inlineMd()){e.preventDefault();return;}
     const b=ensureBlock();
     if(!b||b.tagName==="PRE"||b.tagName==="LI")return;
+    if(makeAlertHere(b,e))return;                /* [!note] etc — tested first, it's the long marker */
     const t=markerBeforeCaret(b);if(t===null)return;
     const run=fn=>{e.preventDefault();histPush();eatMarker(b);fn();scheduleSave();};
-    const H={"#":"H1","##":"H2","###":"H3"};
+    const H={"#":"H1","##":"H2","###":"H3","####":"H4","#####":"H5","######":"H6"};
     if(H[t])return run(()=>document.execCommand("formatBlock",false,H[t]));
     if(t==="-"||t==="*"||t==="+")return run(()=>document.execCommand("insertUnorderedList"));
     if(t==="1."||t==="1)")return run(()=>document.execCommand("insertOrderedList"));
-    if(t===">")return run(()=>document.execCommand("formatBlock",false,"BLOCKQUOTE"));
+    if(t===">"){
+      /* inside a quote/callout "> " nests one level; Chrome's formatBlock is
+         unreliable there, so build the inner blockquote by hand */
+      const par=b.tagName==="BLOCKQUOTE"?null:b.closest("blockquote");
+      if(par){
+        if(bqDepth(par)>=3){e.preventDefault();eatMarker(b);toast("Callouts nest 3 deep");return;}
+        return run(()=>{
+          const nb=document.createElement("blockquote");
+          b.replaceWith(nb);nb.appendChild(b);placeCaret(b,true);
+        });
+      }
+      return run(()=>document.execCommand("formatBlock",false,"BLOCKQUOTE"));
+    }
     if(t==="[]"||t==="[ ]"||t==="-[]"||t==="- []"){
       e.preventDefault();eatMarker(b);
       const rest=b.innerHTML.replace(/^<br>$/,"");
@@ -1485,6 +1741,7 @@ editor.addEventListener("keydown",e=>{
   if(e.key==="Enter"&&!e.shiftKey&&!e.ctrlKey&&!e.metaKey&&!taskLi){
     inlineMd();
     const b=ensureBlock();if(!b||b.tagName==="PRE")return;
+    if(makeAlertHere(b,e))return;            /* Enter after [!note] — GitHub muscle memory */
     const t=b.textContent.trim();
     if(t==="```"){e.preventDefault();
       const pre=document.createElement("pre");pre.innerHTML="<br>";
@@ -1556,34 +1813,66 @@ function htmlToMd(root){
         case "h1":out+="\n# "+inner().trim()+"\n\n";break;
         case "h2":out+="\n## "+inner().trim()+"\n\n";break;
         case "h3":out+="\n### "+inner().trim()+"\n\n";break;
+        case "h4":out+="\n#### "+inner().trim()+"\n\n";break;
+        case "h5":out+="\n##### "+inner().trim()+"\n\n";break;
+        case "h6":out+="\n###### "+inner().trim()+"\n\n";break;
         case "p":case "div":out+=inner()+"\n\n";break;
         case "br":out+="  \n";break;
         case "strong":case "b":out+="**"+inner()+"**";break;
         case "em":case "i":out+="*"+inner()+"*";break;
         case "u":out+="<u>"+inner()+"</u>";break;
         case "s":case "strike":case "del":out+="~~"+inner()+"~~";break;
+        case "mark":out+="=="+inner()+"==";break;
         case "code":out+=ch.closest("pre")?inner():"`"+inner()+"`";break;
         case "pre":{
           const c=ch.cloneNode(true);
           c.querySelectorAll("br").forEach(b=>b.replaceWith("\n"));
-          out+="\n```\n"+c.textContent.replace(/\n$/,"")+"\n```\n\n";break;}
-        case "blockquote":out+="\n> "+inner().trim().replace(/\n/g,"\n> ")+"\n\n";break;
+          out+="\n```"+(ch.getAttribute("data-lang")||"")+"\n"+c.textContent.replace(/\n$/,"")+"\n```\n\n";break;}
+        case "blockquote":{
+          const t=(ch.getAttribute("data-alert")||"").trim().toLowerCase();
+          let body=inner().replace(/\u00a0/g," ")
+                          .replace(/[ \t]+$/gm,"")     /* no "> " lines with a trailing space */
+                          .replace(/\n{3,}/g,"\n\n")   /* a nested quote's own padding */
+                          .trim();
+          if(ALERTS.includes(t))body="[!"+t.toUpperCase()+"]\n"+body;
+          /* a bare ">" on blank lines is what keeps several paragraphs inside ONE
+             alert; a nested quote's lines arrive already prefixed, so this nests */
+          out+="\n"+body.split("\n").map(x=>x?"> "+x:">").join("\n")+"\n\n";
+          break;}
         case "hr":out+="\n---\n\n";break;
         case "a":out+="["+inner()+"]("+ch.getAttribute("href")+")";break;
-        case "img":out+="![]("+(ch.src.startsWith("data:")?"(embedded image)":ch.src)+")";break;
-        case "ul":
-          if(ch.classList.contains("tasks")){
+        /* keep the whole src — a data: URI is the image; "(embedded image)" was
+           silent data loss the moment a note was edited outside the app */
+        case "img":out+="!["+(ch.getAttribute("alt")||"")+"]("+(ch.getAttribute("src")||"")+")";break;
+        case "ul":case "ol":{
+          if(tag==="ul"&&ch.classList.contains("tasks")){
             for(const li of ch.children){
               const done=li.querySelector("input")?.hasAttribute("checked");
               out+="- ["+(done?"x":" ")+"] "+(li.querySelector(".task-text")?.textContent||"").trim()+"\n";
-            }out+="\n";
-          }else{for(const li of ch.children)out+="- "+walk(li).trim()+"\n";out+="\n";}
-          break;
-        case "ol":{let i=1;for(const li of ch.children)out+=(i++)+". "+walk(li).trim()+"\n";out+="\n";break;}
+            }out+="\n";break;
+          }
+          /* clone-based: an exporter must never mutate the live DOM.
+             2-space indent under "- ", 3 under "1. " — the CommonMark content column */
+          const ord=tag==="ol",pad=ord?"   ":"  ";
+          let i=parseInt(ch.getAttribute("start")||"1",10)||1;
+          const sub=el=>{const h=document.createElement("div");h.appendChild(el.cloneNode(true));
+            return walk(h).trim().split("\n").map(x=>pad+x).join("\n")+"\n";};
+          for(const li of ch.children){
+            /* Tab-indent (execCommand) makes the sublist a SIBLING of the <li>;
+               an imported one lives INSIDE it. Both shapes have to serialize. */
+            if(li.tagName==="UL"||li.tagName==="OL"){out+=sub(li);continue;}
+            if(li.tagName!=="LI")continue;
+            const subs=[...li.children].filter(c=>c.tagName==="UL"||c.tagName==="OL");
+            const own=document.createElement("div");
+            for(const c of li.childNodes)if(!subs.includes(c))own.appendChild(c.cloneNode(true));
+            out+=(ord?(i++)+". ":"- ")+walk(own).trim()+"\n";
+            for(const s of subs)out+=sub(s);
+          }
+          out+="\n";break;}
         case "table":{
           const rows=[...ch.querySelectorAll("tr")];
           rows.forEach((tr,ri)=>{
-            const cells=[...tr.children].map(td=>td.textContent.trim().replace(/\|/g,"\\|"));
+            const cells=[...tr.children].map(td=>walk(td).replace(/\s+/g," ").trim().replace(/\|/g,"\\|"));
             out+="| "+cells.join(" | ")+" |\n";
             if(ri===0)out+="|"+cells.map(()=>" --- ").join("|")+"|\n";
           });out+="\n";break;}
@@ -1596,6 +1885,10 @@ function htmlToMd(root){
           if(/italic|oblique/.test(st.fontStyle))s="*"+s+"*";
           const w=st.fontWeight;
           if(w==="bold"||w==="bolder"||(+w>=600))s="**"+s+"**";
+          /* a real highlight from the swatch is opaque; the translucent values
+             are Chrome leaking a quote/callout background into a merged span */
+          const bg=st.backgroundColor;
+          if(bg&&bg!=="transparent"&&!/(?:,|\/)\s*0?(?:\.\d+)?\s*\)$/.test(bg))s="=="+s+"==";
           out+=s;break;}
         default:out+=inner();
       }
@@ -1604,33 +1897,108 @@ function htmlToMd(root){
   }
   return walk(root).replace(/\n{3,}/g,"\n\n").trim()+"\n";
 }
+/* mdToHtml is re-entrant on purpose — every bit of state below is a local or a
+   closure over one, so the blockquote branch can recurse for nested callouts. */
 function mdToHtml(md){
   const lines=md.replace(/\r/g,"").split("\n");
-  let html="",inCode=false,inUl=false,inOl=false,inTask=false;
-  const closeLists=()=>{if(inUl){html+="</ul>";inUl=false}if(inOl){html+="</ol>";inOl=false}if(inTask){html+="</ul>";inTask=false}};
+  let html="",inCode=false,inTask=false;
+  /* one stack instead of inUl/inOl flags, so indentation can nest lists.
+     liOpen: the deepest <li> is still open, because a sublist goes inside it. */
+  const stack=[];let liOpen=false;
+  const popList=()=>{
+    if(liOpen){html+="</li>";liOpen=false}
+    html+="</"+stack.pop().tag+">";
+    liOpen=stack.length>0;
+  };
+  const closeLists=()=>{
+    while(stack.length)popList();
+    liOpen=false;
+    if(inTask){html+="</ul>";inTask=false}
+  };
+  const url=s=>s.replace(/&amp;/g,"&");      /* inline() escapes first; URLs must not stay escaped */
   const inline=s=>esc(s)
+    .replace(/!\[([^\]]*)\]\(([^)\s]+)\)/g,(_,a,u)=>`<img src="${url(u)}" alt="${a}">`)
     .replace(/\*\*(.+?)\*\*/g,"<strong>$1</strong>")
     .replace(/(^|\W)\*(?!\s)(.+?)\*(?=\W|$)/g,"$1<em>$2</em>")
     .replace(/~~(.+?)~~/g,"<s>$1</s>")
+    .replace(/==(.+?)==/g,"<mark>$1</mark>")
     .replace(/`([^`]+)`/g,"<code>$1</code>")
-    .replace(/\[([^\]]+)\]\(([^)]+)\)/g,'<a href="$2" target="_blank" rel="noopener">$1</a>');
-  for(const l of lines){
-    if(l.startsWith("```")){closeLists();html+=inCode?"</pre>":"<pre>";inCode=!inCode;continue;}
+    .replace(/&lt;u&gt;([\s\S]*?)&lt;\/u&gt;/g,"<u>$1</u>")     /* what htmlToMd writes for <u> */
+    .replace(/\[([^\]]*)\]\(([^)]+)\)/g,(_,t,u)=>`<a href="${url(u)}" target="_blank" rel="noopener">${t}</a>`)
+    .replace(/&lt;((?:https?|mailto):[^&\s]+)&gt;/g,(_,u)=>`<a href="${url(u)}" target="_blank" rel="noopener">${u}</a>`);
+  for(let i=0;i<lines.length;i++){
+    const l=lines[i];
+    if(l.startsWith("```")){
+      closeLists();
+      const lang=l.slice(3).trim();
+      if(inCode)html=html.replace(/\n$/,"")+"</pre>";   /* no phantom blank last line */
+      else html+=`<pre${lang?` data-lang="${esc(lang)}"`:""}>`;
+      inCode=!inCode;continue;}
     if(inCode){html+=esc(l)+"\n";continue;}
     let m;
-    if(m=l.match(/^(#{1,3})\s+(.*)/)){closeLists();html+=`<h${m[1].length}>${inline(m[2])}</h${m[1].length}>`;continue;}
+    if(m=l.match(/^(#{1,6})\s+(.*)/)){closeLists();html+=`<h${m[1].length}>${inline(m[2])}</h${m[1].length}>`;continue;}
     if(/^(---|\*\*\*)\s*$/.test(l)){closeLists();html+="<hr>";continue;}
-    if(m=l.match(/^>\s?(.*)/)){closeLists();html+=`<blockquote>${inline(m[1])}</blockquote>`;continue;}
-    if(m=l.match(/^[-*]\s+\[( |x|X)\]\s+(.*)/)){
+    /* blockquote / callout: swallow the whole run, strip one ">", recurse.
+       CommonMark lazy continuation is deliberately not honoured — the run ends
+       at the first non-">" line. Our own exporter never emits lazy lines. */
+    if(/^>/.test(l)){
+      closeLists();
+      const buf=[];
+      while(i<lines.length&&/^>/.test(lines[i])){buf.push(lines[i].replace(/^>[ \t]?/,""));i++;}
+      i--;                                       /* the for-loop will re-increment */
+      let type="";
+      const am=buf.length&&buf[0].match(/^\s*\[!(note|tip|important|warning|caution)\]\s*$/i);
+      if(am){type=am[1].toLowerCase();buf.shift();while(buf.length&&!buf[0].trim())buf.shift();}
+      const body=mdToHtml(buf.join("\n"))||"<p><br></p>";
+      html+=type?`<blockquote class="alert" data-alert="${type}">${body}</blockquote>`
+                :`<blockquote>${body}</blockquote>`;
+      continue;
+    }
+    /* GFM pipe table — the shape insertTable() produces, so it survives export */
+    if(/\|/.test(l)&&i+1<lines.length&&/\|/.test(lines[i+1])&&/^[\s:|-]*-[\s:|-]*$/.test(lines[i+1])){
+      const cells=s=>s.replace(/^\s*\|/,"").replace(/\|\s*$/,"")
+                      .split(/(?<!\\)\|/).map(c=>c.trim().replace(/\\\|/g,"|"));
+      const head=cells(l),delim=cells(lines[i+1]);
+      if(head.length===delim.length&&delim.every(c=>/^:?-+:?$/.test(c))){
+        closeLists();
+        let t="<table><tr>"+head.map(c=>`<th>${inline(c)||"<br>"}</th>`).join("")+"</tr>";
+        i+=2;
+        while(i<lines.length&&/\|/.test(lines[i])&&lines[i].trim()){
+          t+="<tr>"+cells(lines[i]).map(c=>`<td>${inline(c)||"<br>"}</td>`).join("")+"</tr>";i++;
+        }
+        i--;html+=t+"</table>";continue;
+      }
+    }
+    if(m=l.match(/^\s*[-*+]\s+\[( |x|X)\]\s+(.*)/)){
       if(!inTask){closeLists();html+='<ul class="tasks">';inTask=true;}
       const ck=m[1].toLowerCase()==="x";
       html+=`<li${ck?' class="done"':""}><input type="checkbox" contenteditable="false"${ck?" checked":""}><span class="task-text">${inline(m[2])}</span></li>`;continue;}
-    if(m=l.match(/^[-*]\s+(.*)/)){if(!inUl){closeLists();html+="<ul>";inUl=true;}html+=`<li>${inline(m[1])}</li>`;continue;}
-    if(m=l.match(/^\d+[.)]\s+(.*)/)){if(!inOl){closeLists();html+="<ol>";inOl=true;}html+=`<li>${inline(m[1])}</li>`;continue;}
+    if(m=l.match(/^(\s*)([-*+]|\d+[.)])\s+(.*)/)){
+      if(inTask){html+="</ul>";inTask=false;}
+      const ind=m[1].replace(/\t/g,"  ").length,ord=/\d/.test(m[2]);
+      while(stack.length&&ind<stack[stack.length-1].ind)popList();
+      const top=stack[stack.length-1];
+      if(!top||ind>top.ind){
+        const tag=ord?"ol":"ul";
+        const n=ord?parseInt(m[2],10):1;
+        stack.push({ind,ord,tag});
+        html+=`<${tag}${ord&&n!==1?` start="${n}"`:""}>`;liOpen=false;
+      }else if(top.ord!==ord){
+        popList();
+        const tag=ord?"ol":"ul";stack.push({ind,ord,tag});html+="<"+tag+">";liOpen=false;
+      }else if(liOpen){html+="</li>";liOpen=false;}
+      html+="<li>"+inline(m[3]);liOpen=true;continue;}
     closeLists();
-    html+=l.trim()?`<p>${inline(l)}</p>`:"";
+    if(!l.trim())continue;
+    /* two-space / backslash hard breaks: join the run into one <p> with <br>s,
+       which is exactly what htmlToMd wrote them out from */
+    const parts=[l];
+    while(/(\s{2}|\\)$/.test(parts[parts.length-1])&&i+1<lines.length&&lines[i+1].trim()){
+      i++;parts.push(lines[i]);
+    }
+    html+="<p>"+parts.map(x=>inline(x.replace(/(\s{2}|\\)$/,""))).join("<br>")+"</p>";
   }
-  closeLists();if(inCode)html+="</pre>";
+  closeLists();if(inCode)html=html.replace(/\n$/,"")+"</pre>";   /* unterminated fence */
   return html;
 }
 
@@ -1646,8 +2014,11 @@ function doExport(kind){
   flushSave();const n=active();if(!n&&kind!=="json")return;
   if(kind==="md")download(safeName(n.title)+".md",htmlToMd(editor),"text/markdown");
   if(kind==="txt")download(safeName(n.title)+".txt",editor.innerText);
+  /* the callout label lives only in CSS, so the export needs its own copy of it */
   if(kind==="html")download(safeName(n.title)+".html",
-    `<!DOCTYPE html><html><head><meta charset="utf-8"><title>${esc(n.title)}</title></head><body>${n.html}</body></html>`,"text/html");
+    `<!DOCTYPE html><html><head><meta charset="utf-8"><title>${esc(n.title)}</title>`+
+    `<style>blockquote[data-alert]::before{content:attr(data-alert) " — ";font-weight:700;text-transform:uppercase}</style>`+
+    `</head><body>${n.html}</body></html>`,"text/html");
   if(kind==="pdf")window.print();
   if(kind==="json")download("typewell-backup.json",backupJson(),"application/json");
 }
@@ -1704,15 +2075,99 @@ $("#wipeBtn").addEventListener("click",async()=>{
     message:"Delete ALL notes and settings from this browser? Backups in Drive or Gist are not touched."});
   if(!ok)return;
   localStorage.removeItem(LS_NOTES);localStorage.removeItem(LS_SET);
-  /* legacy keys too, or migrateLegacyKeys() would restore them on the next load */
-  try{localStorage.removeItem(LS_NOTES_OLD);localStorage.removeItem(LS_SET_OLD);}catch(e){}
+  localStorage.removeItem(LS_DMAP);
   location.reload();
 });
 
 /* ══════════════ backup providers ══════════════ */
+/* Drive holds a FOLDER of .md files, one per note — readable and editable
+   outside the app.  BACKUP_NAME is now only the local .json export and the
+   gist, which stay a single lossless blob (html survives, markdown can't). */
 const BACKUP_NAME="typewell-backup.json";
-/* pre-rename filename — only ever matched when looking for an existing backup */
-const BACKUP_NAME_OLD="inkpad-backup.json";
+const DRIVE_FOLDER="Typewell";
+const FOLDER_MIME="application/vnd.google-apps.folder";
+const LS_DMAP="typewell.drive.v1";
+
+/* noteId → {fid,name,mtime,lmtime,trashed}
+   mtime  = Drive modifiedTime at the last sync   (the remote sync point)
+   lmtime = n.updated at the last sync            (the local  sync point)
+   Kept out of `notes` so backupJson(), the .json export and the gist payload
+   are byte-identical to before. */
+let dmap={};
+try{dmap=JSON.parse(localStorage.getItem(LS_DMAP)||"{}")}catch(e){dmap={}}
+const saveDmap=()=>{try{localStorage.setItem(LS_DMAP,JSON.stringify(dmap))}catch(e){}};
+
+/* ---------- filenames ---------- */
+/* deny-list, never allow-list: safeName()'s [^\w\-. ] would erase a Hebrew,
+   CJK or Cyrillic title entirely, and here the filename IS the title. */
+const RESERVED=/^(con|prn|aux|nul|com[1-9]|lpt[1-9])$/i;
+const driveName=t=>{
+  let s=(t||"").normalize("NFC")
+    .replace(/[\/\\:*?"<>|\u0000-\u001f]/g," ")   /* illegal once Drive-for-desktop syncs it down */
+    .replace(/\s+/g," ").trim()
+    .replace(/^\.+/,"").replace(/[. ]+$/,"");
+  if(RESERVED.test(s))s="_"+s;
+  if([...s].length>100)s=[...s].slice(0,100).join("").trim();   /* code points, not units */
+  return (s||"Untitled")+".md";
+};
+const uniqueName=(base,taken)=>{
+  if(!taken.has(base.toLowerCase()))return base;
+  const stem=base.slice(0,-3);
+  for(let i=2;i<1000;i++){const c=`${stem} (${i}).md`;if(!taken.has(c.toLowerCase()))return c;}
+  return `${stem} ${uid()}.md`;
+};
+/* one deterministic pass, oldest note first, so a settled file is never
+   renamed just because a newer note wants its name */
+function planNames(live){
+  const taken=new Set(),plan={};
+  const ordered=live.slice().sort((a,b)=>(a.created||0)-(b.created||0));
+  for(const n of ordered){const m=dmap[n.id];
+    if(m&&!m.trashed&&m.name===driveName(n.title)){plan[n.id]=m.name;taken.add(m.name.toLowerCase());}}
+  for(const n of ordered){if(plan[n.id])continue;
+    const nm=uniqueName(driveName(n.title),taken);plan[n.id]=nm;taken.add(nm.toLowerCase());}
+  return plan;
+}
+
+/* ---------- front matter ---------- */
+/* `updated` is deliberately NOT written: it would be stale the moment someone
+   edits the file elsewhere.  Drive's modifiedTime is the remote authority. */
+const fmOut=n=>"---\n"+
+  `id: ${n.id}\n`+
+  `created: ${new Date(n.created||now()).toISOString()}\n`+
+  (n.pinned?"pinned: true\n":"")+
+  "---\n\n";
+const FM_RE=/^---[ \t]*\r?\n([\s\S]*?)\r?\n---[ \t]*(?:\r?\n|$)/;
+function fmIn(text){
+  const m=text.match(FM_RE);
+  if(!m)return {meta:{},body:text};
+  const lines=m[1].split(/\r?\n/);
+  /* every line must be `key: value`, or this is a body that merely opens with
+     an <hr> — front matter must never leak into the note */
+  if(!lines.length||!lines.every(l=>/^[A-Za-z][\w-]*:\s*\S/.test(l)))return {meta:{},body:text};
+  const meta={};
+  for(const l of lines){const i=l.indexOf(":");meta[l.slice(0,i).trim().toLowerCase()]=l.slice(i+1).trim();}
+  return {meta,body:text.slice(m[0].length).replace(/^(?:\r?\n)+/,"")};
+}
+const noteToMd=n=>{
+  const d=document.createElement("div");d.innerHTML=n.html||"";
+  return fmOut(n)+htmlToMd(d);
+};
+/* id resolution: local map > appProperties (survives a browser wipe) >
+   front matter (survives leaving Drive) > new.  The map wins so that a file
+   the user DUPLICATED in Drive can't overwrite the note it was copied from. */
+function mdToNote(f,text,knownId){
+  const {meta,body}=fmIn(text);
+  const t=Date.parse(f.modifiedTime)||now();
+  return {
+    id:knownId||f.appProperties?.tid||meta.id||uid(),
+    title:f.name.replace(/\.md$/i,"").trim()||"Untitled",
+    html:mdToHtml(body),
+    created:Date.parse(meta.created)||t,
+    updated:t,
+    pinned:meta.pinned==="true",
+    deleted:false,
+  };
+}
 
 const drive={
   connected:false,token:null,tokenExp:0,lastBackup:0,autoTimer:null,
@@ -1749,41 +2204,159 @@ const drive={
     if(this.token&&now()<this.tokenExp)return;
     await this.connect(false);
   },
-  async api(path,opts={}){
+  async api(path,opts={},tries=0){
     await this.ensureToken();
     const res=await fetch("https://www.googleapis.com"+path,{...opts,
       headers:{Authorization:"Bearer "+this.token,...(opts.headers||{})}});
-    if(res.status===401){this.token=null;await this.ensureToken();return this.api(path,opts);}
+    if(res.status===401){this.token=null;await this.ensureToken();return this.api(path,opts,tries);}
+    /* one file per note means N requests per sync — back off rather than fail */
+    if((res.status===429||res.status===403)&&tries<4){
+      const t=await res.clone().text();
+      if(/rateLimit|userRateLimit|quotaExceeded/i.test(t)){
+        await new Promise(r=>setTimeout(r,(1<<tries)*600+Math.random()*300));
+        return this.api(path,opts,tries+1);
+      }
+    }
     if(!res.ok)throw new Error("Drive "+res.status+": "+(await res.text()).slice(0,120));
     return res;
   },
-  async findFile(){
-    if(settings.driveFileId)return settings.driveFileId;
-    /* match the new name or the pre-rename one, so older backups are still found */
-    const q=encodeURIComponent(`(name='${BACKUP_NAME}' or name='${BACKUP_NAME_OLD}') and trashed=false`);
-    const {files}=await (await this.api(`/drive/v3/files?q=${q}&fields=files(id,modifiedTime)&spaces=drive`)).json();
-    if(files.length){settings.driveFileId=files[0].id;saveSettings();return files[0].id;}
-    return null;
+  async json(path,opts){return (await this.api(path,opts)).json();},
+
+  /* ---------- folder ---------- */
+  async folder(){
+    if(settings.driveFolderId)return settings.driveFolderId;
+    const q=`name='${DRIVE_FOLDER}' and mimeType='${FOLDER_MIME}' and trashed=false`;
+    const {files}=await this.json(
+      `/drive/v3/files?q=${encodeURIComponent(q)}&fields=files(id)&spaces=drive&pageSize=10`);
+    let id=files?.[0]?.id;
+    if(!id){
+      /* no parents → My Drive root; drive.file may create folders freely */
+      const j=await this.json("/drive/v3/files?fields=id",{method:"POST",
+        headers:{"Content-Type":"application/json"},
+        body:JSON.stringify({name:DRIVE_FOLDER,mimeType:FOLDER_MIME})});
+      id=j.id;
+    }
+    settings.driveFolderId=id;saveSettings();
+    return id;
   },
+  async list(){
+    const fid=await this.folder(),out=[];let page="";
+    do{
+      const q=`'${fid}' in parents and trashed=false`;
+      const j=await this.json(`/drive/v3/files?q=${encodeURIComponent(q)}`+
+        "&fields=nextPageToken,files(id,name,modifiedTime,appProperties)"+
+        "&spaces=drive&pageSize=200&orderBy=name"+(page?"&pageToken="+page:""));
+      /* no mimeType filter in q — third-party editors don't preserve it */
+      out.push(...(j.files||[]).filter(f=>/\.md$/i.test(f.name)));
+      page=j.nextPageToken||"";
+    }while(page);
+    return out;
+  },
+
+  /* ---------- single-file ops ---------- */
+  async put(n,name,md,fid){
+    const b="typewell"+uid();
+    /* PATCH must NOT carry `parents` — Drive rejects it (use addParents=) */
+    const meta=fid?{name}
+      :{name,mimeType:"text/markdown",parents:[await this.folder()],appProperties:{tid:n.id}};
+    const body=
+      `--${b}\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n${JSON.stringify(meta)}`+
+      `\r\n--${b}\r\nContent-Type: text/markdown; charset=UTF-8\r\n\r\n${md}\r\n--${b}--`;
+    return this.json(`/upload/drive/v3/files${fid?"/"+fid:""}`+
+      "?uploadType=multipart&fields=id,name,modifiedTime",
+      {method:fid?"PATCH":"POST",
+       headers:{"Content-Type":"multipart/related; boundary="+b},body});
+  },
+  async meta(fid,patch){
+    return this.json(`/drive/v3/files/${fid}?fields=id,name,modifiedTime,trashed`,
+      {method:"PATCH",headers:{"Content-Type":"application/json"},body:JSON.stringify(patch)});
+  },
+  async read(fid){return (await this.api(`/drive/v3/files/${fid}?alt=media`)).text();},
+  async probe(fid){   /* null == 404, gone for good */
+    try{return await this.json(`/drive/v3/files/${fid}?fields=id,name,trashed,parents,modifiedTime`);}
+    catch(e){return null;}
+  },
+
+  /* ---------- push: local → Drive ---------- */
   async backup(){
     flushSave();
-    const body=backupJson(),id=await this.findFile();
-    const boundary="typewell"+uid();
-    const multipart=
-      `--${boundary}\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n`+
-      JSON.stringify({name:BACKUP_NAME,mimeType:"application/json"})+
-      `\r\n--${boundary}\r\nContent-Type: application/json\r\n\r\n${body}\r\n--${boundary}--`;
-    const path=id?`/upload/drive/v3/files/${id}?uploadType=multipart`:`/upload/drive/v3/files?uploadType=multipart`;
-    const j=await (await this.api(path,{method:id?"PATCH":"POST",
-      headers:{"Content-Type":"multipart/related; boundary="+boundary},body:multipart})).json();
-    settings.driveFileId=j.id;saveSettings();
+    await this.folder();
+    const live=notes.filter(n=>!n.deleted),plan=planNames(live);
+    let pushed=0;
+    for(const n of live){
+      const m=dmap[n.id],name=plan[n.id];
+      if(m&&!m.trashed&&m.lmtime===n.updated&&m.name===name)continue;   /* settled */
+      try{
+        if(m&&m.trashed)await this.meta(m.fid,{trashed:false});         /* untrashed in the app */
+        const bodyChanged=!m||m.lmtime!==n.updated;
+        const j=bodyChanged?await this.put(n,name,noteToMd(n),m?.fid)
+                           :await this.meta(m.fid,{name});              /* rename only */
+        dmap[n.id]={fid:j.id,name:j.name,mtime:Date.parse(j.modifiedTime)||now(),
+                    lmtime:n.updated,trashed:false};
+        pushed++;
+      }catch(e){
+        if(/ 404/.test(e.message)){delete dmap[n.id];}                  /* recreated next pass */
+        else{saveDmap();throw e;}
+      }
+    }
+    /* trashed in the app, and notes purged outright */
+    for(const [id,m] of Object.entries(dmap)){
+      const n=getNote(id);
+      if(n&&!n.deleted)continue;
+      try{if(!m.trashed)await this.meta(m.fid,{trashed:true});}catch(e){}
+      if(!n)delete dmap[id];else{m.trashed=true;m.lmtime=n.updated;}
+    }
+    saveDmap();
     this.lastBackup=now();dirtySinceBackup=false;refreshBeacon();
+    return pushed;
   },
+
+  /* ---------- pull: Drive → local ----------
+     Returns the mergeBackup() shape, so Restore/Import stay one code path.
+     Only files whose bytes actually changed are re-parsed — htmlToMd/mdToHtml
+     round trips are only as good as the markdown, so a note nobody edits
+     externally is never re-parsed at all. */
   async restore(){
-    const id=await this.findFile();
-    if(!id)throw new Error("No backup in your Drive yet — back up first");
-    return (await this.api(`/drive/v3/files/${id}?alt=media`)).json();
+    const files=await this.list();
+    const byFid={},seen=new Set();
+    for(const [id,m] of Object.entries(dmap))byFid[m.fid]=id;
+    const out=[];
+    for(const f of files){
+      const known=byFid[f.id]||null,m=known?dmap[known]:null;
+      const mt=Date.parse(f.modifiedTime)||now();
+      if(known)seen.add(known);
+      if(m&&mt<=m.mtime&&f.name===m.name){m.trashed=false;continue;}   /* unchanged remotely */
+      const n=mdToNote(f,await this.read(f.id),known);
+      /* both sides moved and the remote is newer — keep the local copy too */
+      const cur=getNote(n.id);
+      if(cur&&m&&cur.updated>m.lmtime&&n.updated>cur.updated)
+        notes.push({...cur,id:uid(),title:`${cur.title} (conflict ${fmtShort(now())})`,
+                    created:now(),updated:now(),pinned:false});
+      out.push(n);seen.add(n.id);
+      dmap[n.id]={fid:f.id,name:f.name,mtime:mt,lmtime:n.updated,trashed:false};
+    }
+    /* mapped files no longer in the folder: trashed, moved out, or gone */
+    for(const [id,m] of Object.entries(dmap)){
+      if(seen.has(id)||m.trashed)continue;
+      const info=await this.probe(m.fid);
+      if(info&&!info.trashed)continue;              /* just moved out — leave it be */
+      const cur=getNote(id);
+      if(cur&&cur.updated>m.lmtime){                /* edited here since: the edit wins */
+        if(info)m.trashed=true;                     /* next push untrashes it and re-uploads */
+        else delete dmap[id];                       /* gone for good — recreate on the next push */
+        continue;
+      }
+      if(cur){cur.deleted=true;cur.updated=now();}
+      if(info)m.trashed=true;else delete dmap[id];
+    }
+    saveDmap();saveNotes();
+    return {app:"typewell",version:3,notes:out};
   },
+  async sync(){
+    const r=mergeBackup(await this.restore());
+    return {...r,pushed:await this.backup()};
+  },
+
   scheduleAuto(){
     clearTimeout(this.autoTimer);
     this.autoTimer=setTimeout(async()=>{
@@ -1807,17 +2380,21 @@ async function connectDriveFlow(){
   try{
     await drive.connect(true);
     toast("Google Drive connected","ok");
-    const id=await drive.findFile();
-    if(id){
-      const ok=await dialog({title:"Backup found in Drive",
-        message:"There's already a <b>typewell-backup.json</b> in your Drive. Merge it into this browser? Newer copies of each note win.",ok:"Merge"});
-      if(ok){const r=mergeBackup(await drive.restore());
-        toast(`Merged: ${r.added} new, ${r.updated} updated`,"ok");}
+    const fresh=!settings.driveFolderId;
+    await drive.folder();
+    const existing=fresh?(await drive.list()).length:0;
+    if(existing){
+      const ok=await dialog({title:"Typewell folder found in Drive",
+        message:`Your Drive already has a <b>Typewell</b> folder with ${existing} note${existing>1?"s":""}. Merge them into this browser? Newer copies of each note win.`,ok:"Merge"});
+      if(!ok)return;
     }
+    const r=await drive.sync();
+    toast(`Synced: ${r.added} new, ${r.updated} updated, ${r.pushed} sent up`,"ok");
   }catch(e){toast("Drive: "+e.message,"err");}
 }
 async function doDriveBackup(){
-  try{await drive.backup();toast("Backed up to your Drive","ok");}
+  try{const n=await drive.backup();
+    toast(n?`Saved ${n} note${n>1?"s":""} to your Drive`:"Drive is up to date","ok");}
   catch(e){toast("Drive: "+e.message,"err");}
 }
 
@@ -1843,12 +2420,12 @@ const gist={
     if(!settings.gistId){
       const list=await this.req("/gists?per_page=100");
       /* accept the pre-rename filename too, so older gists are still found */
-      const hit=list.find(g=>g.files&&(g.files[BACKUP_NAME]||g.files[BACKUP_NAME_OLD]));
+      const hit=list.find(g=>g.files&&g.files[BACKUP_NAME]);
       if(!hit)throw new Error("No Typewell gist found for this token");
       settings.gistId=hit.id;saveSettings();
     }
     const j=await this.req("/gists/"+settings.gistId);
-    const f=j.files[BACKUP_NAME]||j.files[BACKUP_NAME_OLD];if(!f)throw new Error("Gist has no "+BACKUP_NAME);
+    const f=j.files[BACKUP_NAME];if(!f)throw new Error("Gist has no "+BACKUP_NAME);
     return JSON.parse(f.truncated?await(await fetch(f.raw_url)).text():f.content);
   }
 };
@@ -1897,9 +2474,9 @@ $("#settingsBtn").addEventListener("click",()=>openOverlay("settingsOverlay"));
 $("#driveConnectBtn").addEventListener("click",connectDriveFlow);
 $("#driveBackupBtn").addEventListener("click",doDriveBackup);
 $("#driveRestoreBtn").addEventListener("click",async()=>{
-  try{const r=mergeBackup(await drive.restore());
-    toast(`Restored: ${r.added} new, ${r.updated} updated`,"ok");}
-  catch(e){toast(e.message,"err");}
+  try{const r=await drive.sync();
+    toast(`Synced: ${r.added} new, ${r.updated} updated, ${r.pushed} sent up`,"ok");}
+  catch(e){toast("Drive: "+e.message,"err");}
 });
 $("#driveDisconnectBtn").addEventListener("click",()=>{drive.disconnect();toast("Drive disconnected");});
 $("#autoBackupChk").addEventListener("change",e=>{settings.autoBackup=e.target.checked;saveSettings();});
@@ -1980,7 +2557,7 @@ updateCounts();
 editor.focus();
 /* resume Drive silently if it was granted before */
 if(GOOGLE_CLIENT_ID&&settings.driveGranted)drive.connect(false).catch(()=>{});
-console.log("%cTypewell","font-weight:bold;font-size:15px","single file · localStorage first · your Drive/Gist as backup");
+console.log("%cTypewell","font-weight:bold;font-size:15px","single file · localStorage first · a folder of .md in your Drive, one .json in a gist");
 
 /* ---------- tooltips: one floating chip, delegated, works for injected nodes ----------
    Convention: title="Label  Shortcut" — 2+ spaces split label from keycap chunks. */

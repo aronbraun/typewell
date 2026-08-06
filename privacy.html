@@ -5,6 +5,38 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Privacy Policy — Typewell</title>
 <meta name="description" content="Typewell has no server, no accounts and no analytics. What that means in practice, and the few third parties your browser does contact.">
+<link rel="canonical" href="https://typewell.net/privacy.html">
+<meta name="application-name" content="Typewell">
+<meta name="author" content="Typewell contributors">
+<meta name="color-scheme" content="light dark">
+<meta name="theme-color" content="#F6F0E2" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0E1012" media="(prefers-color-scheme: dark)">
+
+<!-- Icons are inline data URIs on purpose. The deploy workflow publishes only the
+     three HTML pages, and the project's whole promise is one self-contained file, so
+     an external .ico/.png would be both a broken link and a regression. Every '#' is
+     escaped as %23: left raw, the browser reads everything after it as a fragment and
+     silently drops the icon, with no console error. -->
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0' y1='0' x2='64' y2='64' gradientUnits='userSpaceOnUse'%3E%3Cstop offset='0' stop-color='%230E9E9E'/%3E%3Cstop offset='1' stop-color='%23C98A2D'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width='64' height='64' rx='17' fill='url(%23g)'/%3E%3Cpath d='M12 17H52V27H37.5V48H26.5V27H12Z' fill='%23fff'/%3E%3C/svg%3E">
+<link rel="alternate icon" type="image/png" sizes="32x32" href="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAACQElEQVR42sWXP0vEMBTAk1xBBek3UAdXB7kbdNBNOHF0cVEHxcXioAh+BJ100DtBRARPnERcBMU/i4vlvEE/gp/AKrg1vpe2Z+wlvbZea+DRl7vX/NLkvZc8SkJt4HDPZIQvM+KW4VkscNcsEJcUCCegE08H4VzSvSdT2zggDZBr+K96bO05Mo/Knf7DyiyAKzCQKQ/8B7hqMtaBtV8LmAUJvgnwbRioKyM4ShfYTY9Olbrtq+e75gr4X34iBsoO7ttxeEfoczsrRzWKe04Jf8tw2VXwYDv6DHQ4mj8cxQSbZcP39rzhgU2Z+aH2H3CUoqGL86XiuIBRXwKdcblPQv0f/afv2dzaF6oJm4buyxdL46ST7cE+V64W0y17p5tuq5huPzs+AY2fMJ3zZDaBEMfQeftp/b7VCbn3nBgaI2ZP7y/A59cHeXx9CDkhab6j4uDvhi7Uzuq32lAbGRxWTuDGvowdnsGkWJo4x68MN6pb5gi40NMkGXXjieG/oiBJhqMKPI0INR28uQVJ02vSUNPBRSJKk9sT+UAEPDIRRR0ssX2gDVyfiNqcajROuo0Bl6Ig2ZFK2m5BPLgYN815ro4Cnhguxpqprr2L61Hyy0SqPZfhoDvMLxr+A472DeZVLPnDvfzjXmMYVv0rcs5w7oBUGdZqWC7lDEeONbn+5IjS7Pmq/oLlEvw4lhN8q7xu77QUp6u7C7NgVPGLhoyW3bUAXlNWx9g2dudFxYJFA97bWyaTJtTQ29HhYM9x2WXeN3T8it8fWrC5AAAAAElFTkSuQmCC">
+<link rel="apple-touch-icon" sizes="180x180" href="data:image/png;base64,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">
+
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Typewell">
+<meta property="og:title" content="Privacy Policy — Typewell">
+<meta property="og:description" content="Typewell has no server, no accounts and no analytics. What that means in practice, and the complete list of third parties your browser contacts.">
+<meta property="og:url" content="https://typewell.net/privacy.html">
+<!-- No og:image. The deploy workflow copies only index.html, privacy.html and
+     terms.html into dist/, so a 1200x630 raster committed here would 404 at
+     https://typewell.net and give every share a broken preview - worse than no image at
+     all. twitter:card=summary renders correctly without one. To add it later:
+     commit og.png (1200x630) at the repo root, add it to the `cp` line in
+     .github/workflows/deploy.yml, then add og:image, og:image:width,
+     og:image:height and og:image:alt here and switch the card to
+     summary_large_image. -->
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="Privacy Policy — Typewell">
+<meta name="twitter:description" content="Typewell has no server, no accounts and no analytics. What that means in practice, and the complete list of third parties your browser contacts.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -139,16 +171,13 @@ information to be sent to or stored. Specifically, Typewell does <strong>not</st
   <tr><th>Key</th><th>Contents</th></tr>
   <tr><td><code>typewell.notes.v1</code></td><td>Your notes: titles, contents and timestamps.</td></tr>
   <tr><td><code>typewell.settings.v1</code></td><td>Preferences — theme, default font, auto-backup, plus the backup identifiers described below.</td></tr>
+  <tr><td><code>typewell.drive.v1</code></td><td>Only if you connect Drive: which Drive file corresponds to which note, and when each was last synced. No note contents.</td></tr>
 </table>
 </div>
 <p>This data never leaves your device on its own. It is tied to that one browser on that one
 device: it does not follow you to another computer, and clearing your browser's site data for this
 domain erases it permanently. These policy pages read the theme preference from that same key so
 they match the app's appearance; they store nothing.</p>
-<p>The app was previously called Inkpad and used the keys <code>inkpad.notes.v1</code> and
-<code>inkpad.settings.v1</code>. If those older keys are present and the new ones are not, your
-notes and settings are copied across once on first load, so nothing saved under the former name is
-lost.</p>
 
 <h2>4. Optional backups</h2>
 <p>Both backup destinations are off by default and require you to connect them deliberately.</p>
@@ -156,15 +185,18 @@ lost.</p>
 <h3>Google Drive</h3>
 <p>If you connect Drive, Typewell requests only the
 <code>drive.file</code> scope. That scope is limited to files the app itself creates — it grants no
-ability to see, open or list anything else in your Drive. Your notes are written to a single backup
-file in your own Drive account. The access token is held in memory for the duration of the session
-and is never written to disk; only the backup file's ID and the fact that you granted access are
-saved locally. Data handled by Google under your own account is governed by
+ability to see, open or list anything else in your Drive. Your notes are written to a
+<code>Typewell</code> folder in your own Drive account, one ordinary Markdown file per note, which
+you can read, edit or delete with any tool you like. The access token is held in memory for the
+duration of the session and is never written to disk; only the file identifiers described above and
+the fact that you granted access are saved locally. Data handled by Google under your own account is
+governed by
 <a href="https://policies.google.com/privacy" target="_blank" rel="noopener">Google's Privacy Policy</a>.</p>
 
 <h3>GitHub Gist</h3>
-<p>If you supply a GitHub personal access token, Typewell writes the same backup file to a
-<em>secret</em> gist in your account. The token needs only the <code>gist</code> scope. Data held by
+<p>If you supply a GitHub personal access token, Typewell writes a single JSON backup file to a
+<em>secret</em> gist in your account — unlike the Markdown in Drive, that file is an exact copy.
+The token needs only the <code>gist</code> scope. Data held by
 GitHub is governed by
 <a href="https://docs.github.com/site-policy/privacy-policies/github-general-privacy-statement" target="_blank" rel="noopener">GitHub's Privacy Statement</a>.</p>
 <div class="note">
@@ -187,10 +219,18 @@ For transparency, this is the complete list:</p>
     <td>Your IP address and browser user-agent, as with any file fetched from another domain.</td>
   </tr>
   <tr>
-    <td>Cloudflare Pages</td>
+    <td>GitHub Pages</td>
     <td>Every visit</td>
-    <td>Hosting provider for the site; Cloudflare may log requests as described in its
-    <a href="https://www.cloudflare.com/privacypolicy/" target="_blank" rel="noopener">privacy policy</a>.</td>
+    <td>Hosting provider for the site; GitHub may log requests as described in the
+    <a href="https://docs.github.com/site-policy/privacy-policies/github-general-privacy-statement" target="_blank" rel="noopener">GitHub Privacy Statement</a>
+    and its <a href="https://docs.github.com/pages/getting-started-with-github-pages/what-is-github-pages#data-collection" target="_blank" rel="noopener">Pages data-collection note</a>.</td>
+  </tr>
+  <tr>
+    <td>Cloudflare DNS</td>
+    <td>Name lookups only</td>
+    <td>Cloudflare is the authoritative DNS provider for <code>typewell.net</code>, so it answers
+    the query that turns the domain into an address. The records are unproxied, so page requests go
+    straight to GitHub and Cloudflare does not see them.</td>
   </tr>
   <tr>
     <td>Google Identity Services</td>
@@ -200,7 +240,7 @@ For transparency, this is the complete list:</p>
   <tr>
     <td>Google Drive API</td>
     <td>Only while Drive backup is on</td>
-    <td>The backup file you asked it to write.</td>
+    <td>The Markdown files it writes into the folder you asked it to keep.</td>
   </tr>
   <tr>
     <td>GitHub API</td>
@@ -224,7 +264,7 @@ are always in full control:</p>
 <ul>
   <li><strong>Notes and settings:</strong> delete notes in the app, or clear site data for this
   domain in your browser to remove everything at once.</li>
-  <li><strong>Drive:</strong> delete the backup file in your Drive, and revoke Typewell's access at
+  <li><strong>Drive:</strong> delete the <code>Typewell</code> folder in your Drive, and revoke Typewell's access at
   <a href="https://myaccount.google.com/permissions" target="_blank" rel="noopener">your Google account permissions</a>.</li>
   <li><strong>Gist:</strong> delete the gist, and revoke the token in your GitHub developer settings.</li>
 </ul>
