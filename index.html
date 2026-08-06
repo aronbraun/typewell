@@ -223,12 +223,16 @@ body.zen #topbar,body.zen #toolbar{display:none}
 .tb b{font-weight:800;font-size:13.5px}.tb i{font-style:italic;font-family:Georgia,serif}.tb u{text-decoration:underline}.tb s{text-decoration:line-through}
 .tb-sep{width:1px;height:18px;background:var(--line);margin:0 5px;flex:none}
 .tsel{
-  height:28px;border-radius:var(--r-sm);border:1px solid transparent;background:transparent;
+  height:28px;border-radius:var(--r-sm);border:1px solid var(--line-soft);background:transparent;
   font-size:12.5px;padding:0 6px 0 8px;color:var(--muted);cursor:pointer;
   display:inline-flex;align-items:center;gap:5px;flex:none;
 }
-#fontSelect{width:152px}   /* fits "Times New Roman", the longest label */
-#blockSelect{width:112px}  /* fits "Heading 1" */
+.tsel:hover{border-color:var(--line)}
+/* Width = longest label + padding + gap + chevron, and no more. The chevron stays
+   pinned to the trailing edge, which is what a native <select> and every desktop
+   editor does; slack beyond the longest label is what makes it look adrift. */
+#fontSelect{width:140px}   /* "Times New Roman" = 109px + 30px of chrome */
+#blockSelect{width:92px}   /* "Heading 1"       =  61px + 30px of chrome */
 .tsel:hover{background:var(--hover);color:var(--ink)}
 .tsel .lbl{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex:1 1 auto;min-width:0;text-align:left}
 .tsel>svg{width:11px;height:11px;opacity:.65;flex:none}
@@ -385,6 +389,20 @@ body.zen #statusbar{opacity:.3}body.zen #statusbar:hover{opacity:1}
 .pill.off{background:var(--panel-2);color:var(--muted)}
 kbd{font-family:var(--font-mono);font-size:10.5px;background:var(--panel-2);border:1px solid var(--line);border-bottom-width:2px;border-radius:5px;padding:1px 6px}
 .sc-grid{display:grid;grid-template-columns:1fr auto;gap:6px 18px;font-size:12.5px}
+
+/* formatting guide */
+#guideOverlay .modal{width:min(600px,100%)}
+.g-grid{display:grid;grid-template-columns:auto 1fr;gap:7px 16px;font-size:12.5px;align-items:baseline}
+.g-grid code{
+  font-family:var(--font-mono);font-size:11.5px;background:var(--code-bg);
+  padding:2px 6px;border-radius:var(--r-sm);white-space:nowrap;color:var(--ink);
+}
+.g-grid span{color:var(--muted)}
+.g-note{
+  font-size:12.5px;color:var(--muted);line-height:1.6;margin:10px 0 0;
+  padding:10px 12px;background:var(--panel-2);border-left:3px solid var(--accent);border-radius:var(--r-sm);
+}
+.g-swatch{display:inline-block;width:9px;height:9px;border-radius:3px;margin-right:6px;vertical-align:baseline}
 
 /* small confirm/prompt dialog */
 #dlg .modal{width:min(400px,100%)}
@@ -576,6 +594,7 @@ body.zen #zenExit{display:grid}
         <button class="tdot" data-theme="dark" title="Dark"></button>
         <button class="tdot" data-theme="navy" title="Navy"></button>
       </div>
+      <button class="ibtn" id="guideBtn" title="Formatting guide  (markdown &amp; shortcuts)"><svg class="ic" data-i="guide"></svg></button>
       <button class="ibtn" id="zenBtn" title="Zen mode  Ctrl+Shift+F"><svg class="ic" data-i="zen"></svg></button>
       <button class="ibtn" id="settingsBtn" title="Settings & backup"><svg class="ic" data-i="sliders"></svg></button>
     </div>
@@ -656,6 +675,78 @@ body.zen #zenExit{display:grid}
 </div>
 
 <!-- ============ SETTINGS ============ -->
+<div class="overlay" id="guideOverlay">
+  <div class="modal">
+    <div class="m-head"><h2>Formatting guide</h2>
+      <button class="ibtn" data-close="guideOverlay" title="Close  Esc"><svg class="ic" data-i="x"></svg></button></div>
+    <div class="m-body">
+      <div class="hint" style="margin-top:0">Type the shorthand, then <b>space</b> or <b>Enter</b>. It works
+        anywhere in a line, including the first line of an empty note.</div>
+
+      <div class="row">
+        <label>Callouts</label>
+        <div class="g-grid">
+          <code>[!note]</code><span><span class="g-swatch" style="background:var(--al-note)"></span>Note — neutral aside</span>
+          <code>[!tip]</code><span><span class="g-swatch" style="background:var(--al-tip)"></span>Tip — helpful advice</span>
+          <code>[!important]</code><span><span class="g-swatch" style="background:var(--al-important)"></span>Important — don't miss this</span>
+          <code>[!warning]</code><span><span class="g-swatch" style="background:var(--al-warning)"></span>Warning — proceed carefully</span>
+          <code>[!caution]</code><span><span class="g-swatch" style="background:var(--al-caution)"></span>Caution — risk of harm</span>
+        </div>
+        <div class="g-note">Type the marker on its own line and press <b>Enter</b> — a leading <code>&gt;</code>
+          is optional, so <code>[!warning]</code> alone is enough. Inside a callout, <code>&gt;</code> + space
+          nests another one (3 deep). Press <b>Enter</b> on an empty last line to step out, or
+          <b>Ctrl+Enter</b> from anywhere. The toolbar's callout button does the same and shows which
+          type you are in.</div>
+      </div>
+
+      <div class="row">
+        <label>Blocks</label>
+        <div class="g-grid">
+          <code>- </code><span>Bullet list (<code>*</code> and <code>+</code> work too)</span>
+          <code>1. </code><span>Numbered list (<code>1)</code> works too)</span>
+          <code>[] </code><span>Task list with a real checkbox</span>
+          <code># </code><span>Heading — up to <code>######</code> for heading 6</span>
+          <code>&gt; </code><span>Quote</span>
+          <code>```js</code><span>Code block; the language after the fence is kept</span>
+          <code>---</code><span>Divider (<code>***</code> works too)</span>
+        </div>
+      </div>
+
+      <div class="row">
+        <label>Inline</label>
+        <div class="g-grid">
+          <code>**bold**</code><span>Bold</span>
+          <code>*italic*</code><span>Italic</span>
+          <code>`code`</code><span>Inline code — space or → steps back out</span>
+          <code>~~strike~~</code><span>Strikethrough</span>
+          <code>==mark==</code><span>Highlight</span>
+        </div>
+        <div class="hint">Any URL you type or paste becomes a link. Trailing <code>)</code>, <code>,</code>
+          and <code>.</code> stay outside it.</div>
+      </div>
+
+      <div class="row">
+        <label>Tables &amp; lists</label>
+        <div class="hint" style="margin-top:0">Insert a table from the toolbar, then edit it in place.
+          <b>Tab</b> and <b>Shift+Tab</b> indent and outdent list items. Pasted or imported Markdown
+          tables and nested lists come through intact.</div>
+      </div>
+
+      <div class="row">
+        <label>Exporting</label>
+        <div class="hint" style="margin-top:0">Everything above survives a round trip through Markdown,
+          including callouts, nested lists, highlights and embedded images. Two things do not:
+          table column alignment (<code>|:--|--:|</code>) and <code>&lt;https://…&gt;</code> autolinks,
+          which come back as ordinary links.</div>
+      </div>
+
+      <div class="btn-row" style="margin-top:16px">
+        <button class="btn" id="guideToShortcuts" title="Keyboard shortcuts live in Settings">Keyboard shortcuts →</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <div class="overlay" id="settingsOverlay">
   <div class="modal">
     <div class="m-head"><h2>Settings</h2>
@@ -865,6 +956,7 @@ const ICONS={
  github:'<path d="M9 19c-4.3 1.4-4.3-2.5-6-3m12 5v-3.4c0-1 .1-1.4-.5-2 2.8-.3 5.5-1.4 5.5-6A4.6 4.6 0 0 0 18.7 6a4.3 4.3 0 0 0-.1-3.2s-1.1-.3-3.6 1.3a12 12 0 0 0-6.2 0C6.4 2.5 5.3 2.8 5.3 2.8A4.3 4.3 0 0 0 5.2 6 4.6 4.6 0 0 0 4 9.6c0 4.6 2.7 5.7 5.5 6-.6.6-.6 1.2-.5 2V21"/>',
  issue:'<circle cx="12" cy="12" r="8.5"/><path d="M12 7.8v4.6"/><circle cx="12" cy="16" r="1" fill="currentColor" stroke="none"/>',
  globe:'<circle cx="12" cy="12" r="8.5"/><path d="M3.5 12h17"/><path d="M12 3.5a13 13 0 0 1 0 17 13 13 0 0 1 0-17"/>',
+ guide:'<circle cx="12" cy="12" r="8.5"/><path d="M9.6 9.4a2.5 2.5 0 0 1 4.8.9c0 1.7-2.4 2-2.4 3.4"/><path d="M12 17h.01"/>',
  doc:'<path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/><path d="M9 13h6M9 17h4"/>',
 };
 const I=n=>`<svg class="ic" viewBox="0 0 24 24">${ICONS[n]||""}</svg>`;
@@ -991,6 +1083,11 @@ function openNote(id){
   activeId=id;const n=active();if(!n)return;
   fileName.value=n.title==="Untitled"?"":n.title;
   editor.innerHTML=n.html;
+  /* Quotes saved before callouts existed hold their text inline, with no <p>.
+     Chrome's native Enter splits those into a fresh sibling <blockquote> every
+     press, so you pile up empty quotes with no way back to plain text. Normalise
+     on open, while nothing is focused and there is no caret to disturb. */
+  editor.querySelectorAll("blockquote").forEach(blockifyQuote);
   editor.style.fontFamily=`"${settings.defaultFont}",monospace`;
   $("#editStamp").textContent="edited "+fmtDate(n.updated);
   histReset();
@@ -1220,6 +1317,11 @@ function syncToolbar(){
   const ab=$("#alertBtn");
   ab.classList.toggle("on",!!abq);
   ab.style.color=abq?`var(--al-${abq.getAttribute("data-alert")})`:"";
+  /* keep the menu's tick in step with the caret, the way the font and block
+     dropdowns already do — otherwise opening it never shows where you are */
+  if(abq)alertDD.set(abq.getAttribute("data-alert"));
+  else if(n.closest("blockquote"))alertDD.set("quote");
+  else delete ab.dataset.value;   /* outside a quote there is nothing to tick */
   /* current font family → dropdown label */
   let fn="";try{fn=document.queryCommandValue("fontName")||""}catch(_){}
   fn=fn.split(",")[0].replace(/["']/g,"").trim();
@@ -1729,7 +1831,12 @@ editor.addEventListener("keydown",e=>{
           b.replaceWith(nb);nb.appendChild(b);placeCaret(b,true);
         });
       }
-      return run(()=>document.execCommand("formatBlock",false,"BLOCKQUOTE"));
+      return run(()=>{
+        document.execCommand("formatBlock",false,"BLOCKQUOTE");
+        /* block-structure it straight away so Enter behaves; see the Enter handler */
+        const nb=ensureBlock(),bq2=nb&&(nb.tagName==="BLOCKQUOTE"?nb:nb.closest("blockquote"));
+        if(bq2)blockifyQuote(bq2);
+      });
     }
     if(t==="[]"||t==="[ ]"||t==="-[]"||t==="- []"){
       e.preventDefault();eatMarker(b);
@@ -2471,6 +2578,12 @@ document.addEventListener("click",e=>{
   if(e.target.classList.contains("overlay")&&e.target.id!=="dlg")e.target.classList.remove("open");
 });
 $("#settingsBtn").addEventListener("click",()=>openOverlay("settingsOverlay"));
+$("#guideBtn").addEventListener("click",()=>openOverlay("guideOverlay"));
+$("#guideToShortcuts").addEventListener("click",()=>{
+  $("#guideOverlay").classList.remove("open");
+  openOverlay("settingsOverlay");
+  $("#settingsOverlay .sc-grid")?.scrollIntoView({block:"center",behavior:"smooth"});
+});
 $("#driveConnectBtn").addEventListener("click",connectDriveFlow);
 $("#driveBackupBtn").addEventListener("click",doDriveBackup);
 $("#driveRestoreBtn").addEventListener("click",async()=>{

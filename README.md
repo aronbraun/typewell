@@ -42,6 +42,7 @@ repository is actually deployed.
 - **Rich text editor** — headings, bold/italic/underline/strikethrough, text & highlight colors, font family and size per selection, quotes, dividers, images (paste or insert)
 - **Tables** — insert a table at any size, then edit it in place: add or remove rows and columns, or delete the whole table
 - **Markdown as you type** (see table below) — bullets, numbered lists, task lists, headings, quotes, code, dividers, and inline `**bold**` / `*italic*` / `` `code` `` / `~~strike~~` / `==highlight==`
+- **Formatting guide** — the `?` icon in the header opens every trigger, callout type and export caveat in one panel, so nothing is hidden knowledge
 - **Callouts** — GitHub-style alert banners in five flavours (note, tip, important, warning, caution). Type `[!warning]` at the start of a line, or pick one from the toolbar. They nest, so you can put a tip inside a warning.
 - **Task lists** with real checkboxes; checked state persists, Enter/Backspace behave like Notion
 - **Code blocks done right** — Enter stays inside the block, Enter on an empty last line exits, Tab/Shift+Tab indent and dedent, Backspace on an empty block converts back to a paragraph, and pasting into a block is always plain text
