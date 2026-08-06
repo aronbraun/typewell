@@ -39,14 +39,15 @@ repository is actually deployed.
 ## Features
 
 ### Writing
-- **Rich text editor** — headings, bold/italic/underline/strikethrough, text & highlight colors, font family and size per selection, quotes, dividers, images (paste or insert)
+- **Rich text editor** — headings, bold/italic/underline/strikethrough, font family and size per selection, quotes, dividers, images (paste or insert)
+- **Colors from a palette, not a system dialog** — the swatch button applies the color already showing in one click; the caret next to it opens presets, your recent colors, a *no highlight* option, and a *Custom…* escape hatch to the native picker
 - **Tables** — insert a table at any size, then edit it in place: add or remove rows and columns, or delete the whole table
 - **Markdown as you type** (see table below) — bullets, numbered lists, task lists, headings, quotes, code, dividers, and inline `**bold**` / `*italic*` / `` `code` `` / `~~strike~~` / `==highlight==`
 - **Formatting guide** — the `?` icon in the header opens every trigger, callout type and export caveat in one panel, so nothing is hidden knowledge
 - **Callouts** — GitHub-style alert banners in five flavours (note, tip, important, warning, caution). Type `[!warning]` at the start of a line, or pick one from the toolbar. They nest, so you can put a tip inside a warning.
 - **Task lists** with real checkboxes; checked state persists, Enter/Backspace behave like Notion
 - **Code blocks done right** — Enter stays inside the block, Enter on an empty last line exits, Tab/Shift+Tab indent and dedent, Backspace on an empty block converts back to a paragraph, and pasting into a block is always plain text
-- **Inline code** with an escape hatch: Space or → at the end of a code span steps outside it
+- **Inline code** with an escape hatch: Space or → at the end of a code span steps outside it. Both inline code and code blocks have toolbar buttons that light up when the caret is inside one
 - **Smart links** — URLs you type or paste become links automatically (punctuation-aware); pasting a URL over selected text links the selection
 - **Find & replace** with live highlighting, previous/next, replace one/all
 - **Snapshot undo/redo** — typing groups into sensible steps, every structural change is one step, buttons disable at the ends of history, caret position is restored
@@ -70,7 +71,7 @@ repository is actually deployed.
 
 ### Data in, data out
 - **Export** a note as Markdown, HTML, plain text, or print-to-PDF; export **everything** as a single JSON backup
-- **Import** `.md`, `.txt`, `.html` files as notes (sidebar), or merge a JSON backup via *Settings → Data → Import backup* (newer copy of each note wins)
+- **Import** `.md`, `.txt`, `.html` files as notes (sidebar), or merge a JSON backup — *Import backup* sits in the same export menu as *Full backup*, and also in *Settings → Data* (newer copy of each note wins)
 - The Markdown converter round-trips both ways: callouts (including nested ones), tables, nested and numbered lists, task lists, fenced code with its language, highlights, underline, links, and embedded images. Two known gaps: table column alignment (`|:--|--:|`) is not preserved, and `<https://example.com>` autolinks normalize to `[example.com](https://example.com)`.
 
 ---
@@ -140,6 +141,7 @@ Triggers work anywhere — including the first line of an empty note and lines t
 | `Ctrl+B` / `Ctrl+I` / `Ctrl+U` | bold / italic / underline |
 | `Ctrl+Shift+X` | strikethrough |
 | `Ctrl+E` | inline code |
+| `Ctrl+Shift+E` | code block (toggles back to paragraphs) |
 | `Ctrl+Shift+7` / `Ctrl+Shift+8` / `Ctrl+Shift+9` | numbered / bullet / task list |
 | `Ctrl+Alt+0`–`Ctrl+Alt+3` | paragraph / heading 1–3 |
 | `Ctrl+\` | clear formatting |

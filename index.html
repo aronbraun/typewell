@@ -258,10 +258,36 @@ body.zen #topbar,body.zen #toolbar{display:none}
 .size-ctl button{width:22px;height:28px;color:var(--muted);font-size:14px;border-radius:var(--r-sm);flex:none}
 .size-ctl button:hover{background:var(--hover);color:var(--ink)}
 .size-ctl span{width:30px;flex:none;text-align:center;font-size:11.5px;font-family:var(--font-mono);color:var(--muted)}
-.swatch{position:relative;width:28px;height:28px;flex:none;border-radius:var(--r-sm);display:grid;place-items:center;color:var(--muted);cursor:pointer}
-.swatch:hover{background:var(--hover);color:var(--ink)}
-.swatch input{position:absolute;inset:0;opacity:0;cursor:pointer}
-.swatch .bar{position:absolute;bottom:5px;left:7px;right:7px;height:3px;border-radius:2px}
+/* ---- colour split control ---- */
+.cpick{display:inline-flex;flex:none;height:28px;border-radius:var(--r-sm);overflow:hidden}
+.cpick:hover{background:var(--hover)}
+.sw-main{position:relative;width:28px;height:28px;flex:none;display:grid;place-items:center;color:var(--muted);cursor:pointer}
+.sw-caret{width:14px;height:28px;flex:none;display:grid;place-items:center;color:var(--faint);cursor:pointer}
+.sw-caret .ic{width:11px;height:11px}
+.cpick:hover .sw-main,.cpick:hover .sw-caret{color:var(--ink)}
+.sw-main .bar{position:absolute;bottom:5px;left:6px;right:6px;height:3px;border-radius:2px}
+.sw-main>span:not(.bar),.sw-main>svg{transform:translateY(-2px);pointer-events:none}
+.sw-main .bar{pointer-events:none}
+/* The native picker is still the escape hatch behind "Custom…", but it must
+   never be what you hit by accident: zero-sized and off-screen, opened only by
+   a .click() from the palette. */
+.cp-native{position:absolute;width:0;height:0;opacity:0;pointer-events:none;border:0;padding:0}
+
+/* ---- colour palette popup ---- */
+.cp-menu{width:198px;padding:9px}
+.cp-menu .cp-lbl{font-size:10px;letter-spacing:.4px;text-transform:uppercase;color:var(--faint);margin:0 0 5px 2px}
+.cp-menu .cp-lbl+.cp-lbl,.cp-grid+.cp-lbl{margin-top:10px}
+.cp-grid{display:grid;grid-template-columns:repeat(8,1fr);gap:4px}
+.cp-sw{width:19px;height:19px;border-radius:5px;cursor:pointer;border:1px solid rgba(128,128,128,.35);padding:0}
+.cp-sw:hover{transform:scale(1.14)}
+/* the colour in use gets a ring, not a tick: a tick drawn over an arbitrary
+   colour is illegible on about half of them */
+.cp-sw.cur{outline:2px solid var(--accent);outline-offset:2px}
+.cp-sw.none{position:relative;background:var(--panel-2)}
+.cp-sw.none::after{content:"";position:absolute;inset:3px;border-top:1.5px solid var(--danger);transform:rotate(45deg);transform-origin:center}
+.cp-custom{margin-top:9px;width:100%;height:26px;border-radius:var(--r-sm);border:1px solid var(--line);
+  background:transparent;color:var(--muted);font-size:11.5px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px}
+.cp-custom:hover{border-color:var(--accent);color:var(--accent)}
 
 /* ================= find bar ================= */
 #findbar{display:none;gap:6px;align-items:center;padding:6px 10px;background:var(--panel-2);border-bottom:1px solid var(--line);flex:none;flex-wrap:wrap}
@@ -503,9 +529,7 @@ kbd{font-family:var(--font-mono);font-size:10.5px;background:var(--panel-2);bord
 select.tsel{vertical-align:middle;align-self:center}
 .theme-dots{height:28px;align-items:center}
 .size-ctl span{line-height:28px}
-.swatch .bar,.swatch>span,.swatch>svg{pointer-events:none}
-.swatch>span{line-height:1;transform:translateY(-2px)}
-.swatch>svg{transform:translateY(-2px)}
+.sw-main>span:not(.bar){line-height:1}
 #findbar .ibtn{width:27px;height:27px}
 .btn>svg.ic{flex:none}
 .ibtn>svg.ic{flex:none}
@@ -684,14 +708,24 @@ body.zen #zenExit{display:grid}
       <button class="tb" data-cmd="underline" title="Underline  Ctrl+U"><u>U</u></button>
       <button class="tb" data-cmd="strikeThrough" title="Strikethrough  Ctrl+Shift+X"><s>S</s></button>
       <button class="tb" id="inlineCodeBtn" title="Inline code  Ctrl+E"><svg class="ic" data-i="code"></svg></button>
+      <button class="tb" id="codeBlockBtn" title="Code block  (type ``` then Enter)  Ctrl+Shift+E"><svg class="ic" data-i="codeblock"></svg></button>
       <button class="tb" id="linkBtn" title="Link  Ctrl+K  (Ctrl+click a link to open it)"><svg class="ic" data-i="link"></svg></button>
       <div class="tb-sep"></div>
-      <label class="swatch" title="Text color"><span style="font-weight:700;font-size:13px">A</span>
-        <span class="bar" id="foreBar" style="background:#0E9E9E"></span>
-        <input type="color" id="foreColor" value="#0E9E9E"></label>
-      <label class="swatch" title="Highlight"><svg class="ic" data-i="hilite"></svg>
-        <span class="bar" id="hiliteBar" style="background:#F5E6A8"></span>
-        <input type="color" id="hiliteColor" value="#F5E6A8"></label>
+      <!-- Split control, the Word / Docs shape: the big half applies the colour
+           already showing, the caret opens the palette. Applying the colour you
+           can see should never cost a trip through a dialog. -->
+      <div class="cpick">
+        <button class="sw-main" id="foreApply" title="Apply this text color"><span style="font-weight:700;font-size:13px">A</span>
+          <span class="bar" id="foreBar" style="background:#0E9E9E"></span></button>
+        <button class="sw-caret" id="foreOpen" title="Text color"><svg class="ic" data-i="chevDown"></svg></button>
+      </div>
+      <div class="cpick">
+        <button class="sw-main" id="hiliteApply" title="Apply this highlight"><svg class="ic" data-i="hilite"></svg>
+          <span class="bar" id="hiliteBar" style="background:#F5E6A8"></span></button>
+        <button class="sw-caret" id="hiliteOpen" title="Highlight color"><svg class="ic" data-i="chevDown"></svg></button>
+      </div>
+      <input type="color" id="foreColor" value="#0E9E9E" class="cp-native">
+      <input type="color" id="hiliteColor" value="#F5E6A8" class="cp-native">
       <div class="tb-sep"></div>
       <button class="tb" data-cmd="insertUnorderedList" title="Bullet list  Ctrl+Shift+8"><svg class="ic" data-i="ul"></svg></button>
       <button class="tb" data-cmd="insertOrderedList" title="Numbered list  Ctrl+Shift+7"><svg class="ic" data-i="ol"></svg></button>
@@ -756,6 +790,10 @@ body.zen #zenExit{display:grid}
   <button data-x="pdf" title="Print or save as PDF"><svg class="ic" data-i="print"></svg>Print / PDF</button>
   <div class="msep"></div>
   <button data-x="json" title="Every note plus settings  (.json)"><svg class="ic" data-i="shield"></svg>Full backup (.json)</button>
+  <div class="msep"></div>
+  <!-- The other half of "Full backup". It also lives in Settings -> Data, but
+       nobody looks for the way back in a different menu from the way out. -->
+  <button data-x="import" title="Merge a .json backup into this browser  (newer copy of each note wins)"><svg class="ic" data-i="import"></svg>Import backup (.json)</button>
 </div>
 
 <!-- ============ SETTINGS ============ -->
@@ -834,6 +872,7 @@ body.zen #zenExit{display:grid}
           <span>Link</span><span><kbd>Ctrl</kbd><kbd>K</kbd></span>
           <span>Strikethrough</span><span><kbd>Ctrl</kbd><kbd>Shift</kbd><kbd>X</kbd></span>
           <span>Inline code</span><span><kbd>Ctrl</kbd><kbd>E</kbd></span>
+          <span>Code block</span><span><kbd>Ctrl</kbd><kbd>Shift</kbd><kbd>E</kbd></span>
           <span>Numbered list</span><span><kbd>Ctrl</kbd><kbd>Shift</kbd><kbd>7</kbd></span>
           <span>Bullet list</span><span><kbd>Ctrl</kbd><kbd>Shift</kbd><kbd>8</kbd></span>
           <span>Task list</span><span><kbd>Ctrl</kbd><kbd>Shift</kbd><kbd>9</kbd></span>
@@ -1027,6 +1066,8 @@ const ICONS={
  undo:'<path d="M9 14 4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11"/>',
  redo:'<path d="m15 14 5-5-5-5"/><path d="M20 9H9.5a5.5 5.5 0 0 0 0 11H13"/>',
  code:'<path d="m8.5 8-4 4 4 4"/><path d="m15.5 8 4 4-4 4"/>',
+ /* the same chevrons, boxed - a code *block* rather than a code span */
+ codeblock:'<rect x="3" y="4.5" width="18" height="15" rx="2.5"/><path d="m9.5 10-2 2 2 2"/><path d="m14.5 10 2 2-2 2"/>',
  link:'<path d="M10.2 13.5a4.7 4.7 0 0 0 7 .4l2.6-2.6a4.7 4.7 0 0 0-6.6-6.6l-1.5 1.5"/><path d="M13.8 10.5a4.7 4.7 0 0 0-7-.4l-2.6 2.6a4.7 4.7 0 0 0 6.6 6.6l1.5-1.5"/>',
  hilite:'<path d="m10 4 10 10-5 5L5 9z"/><path d="M5 9 3 21l7-2"/>',
  ul:'<circle cx="4.2" cy="6" r="1.2" fill="currentColor" stroke="none"/><circle cx="4.2" cy="12" r="1.2" fill="currentColor" stroke="none"/><circle cx="4.2" cy="18" r="1.2" fill="currentColor" stroke="none"/><path d="M9 6h11M9 12h11M9 18h11"/>',
@@ -1066,19 +1107,91 @@ $$("svg[data-i]").forEach(el=>{el.setAttribute("viewBox","0 0 24 24");el.innerHT
 
 /* ---------- state ---------- */
 let notes=[],activeId=null,tab="notes",dirtySinceBackup=false;
+/* The first note is the manual. It is the only documentation a first-time
+   visitor is guaranteed to read, because it is already open — and it is a
+   normal note, so every trigger it describes can be tried on the spot and
+   deleted when it has served its purpose. Written as content, not chrome:
+   it exports, syncs and round-trips through Markdown like anything else. */
+const CB='<input type="checkbox" contenteditable="false">';
+const TASK=t=>`<li>${CB}<span class="task-text">${t}</span></li>`;
+const WELCOME_HTML=
+  '<p>Typewell is a notepad that lives entirely in this browser. There is no account '+
+  'and no server: what you type is saved to this browser as you go. Everything below '+
+  'is a real note — edit it, try things in it, delete it when you are done.</p>'+
+
+  '<blockquote data-alert="tip"><p><strong>Tip</strong></p>'+
+  '<p>Nothing here needs setting up. Start typing and it is saved.</p></blockquote>'+
+
+  '<h2>Markdown as you type</h2>'+
+  '<p>Type the marker at the start of a line, then a space. The line changes and the '+
+  'marker disappears.</p>'+
+  '<ul class="tasks">'+
+  TASK('<code>#</code> through <code>######</code> — headings, six levels')+
+  TASK('<code>-</code> or <code>*</code> — a bullet list. <code>1.</code> — a numbered list')+
+  TASK('<code>[]</code> — a task list, with a real checkbox like this one')+
+  TASK('<code>&gt;</code> — a quote. <code>&gt; [!warning]</code> — a coloured callout')+
+  TASK('<code>```</code> then Enter — a code block. <code>```js</code> keeps the language')+
+  TASK('<code>---</code> or <code>***</code> — a divider line')+
+  '</ul>'+
+  '<p>Mid-sentence, these close themselves as you type: <code>**bold**</code>, '+
+  '<code>*italic*</code>, <code>`code`</code>, <code>~~strike~~</code>, '+
+  '<code>==highlight==</code>. Paste or type a web address and it becomes a link.</p>'+
+
+  '<h2>Callouts</h2>'+
+  '<p>Five kinds. Type <code>[!note]</code>, <code>[!tip]</code>, '+
+  '<code>[!important]</code>, <code>[!warning]</code> or <code>[!caution]</code> at the '+
+  'start of a line and press Enter — or use the callout button in the toolbar.</p>'+
+  '<blockquote data-alert="warning"><p><strong>Warning</strong></p>'+
+  '<p>To get out of a quote or a code block, press <b>Ctrl+Enter</b>. Pressing Enter '+
+  'twice keeps you inside it.</p></blockquote>'+
+
+  '<h2>The keys worth knowing</h2>'+
+  '<ul>'+
+  '<li><b>Ctrl+B</b> bold · <b>Ctrl+I</b> italic · <b>Ctrl+U</b> underline · '+
+  '<b>Ctrl+E</b> inline code · <b>Ctrl+Shift+E</b> code block</li>'+
+  '<li><b>Ctrl+K</b> add a link. Plain click on a link edits it; <b>Ctrl+click</b> opens it</li>'+
+  '<li><b>Ctrl+F</b> find and replace · <b>/</b> search all your notes</li>'+
+  '<li><b>Ctrl+Z</b> undo · <b>Ctrl+Shift+Z</b> redo · <b>Ctrl+Shift+F</b> zen mode</li>'+
+  '<li><b>Tab</b> and <b>Shift+Tab</b> indent and outdent a list item or a code line</li>'+
+  '</ul>'+
+  '<p>The <b>?</b> icon in the top bar opens the full guide with every trigger and every '+
+  'shortcut, any time.</p>'+
+
+  '<h2>Your notes, and getting them out</h2>'+
+  '<ul class="tasks">'+
+  TASK('Rename a note in the <b>top bar</b>. The name never becomes part of the text')+
+  TASK('Drag the handle at the start of a list line to move that line')+
+  TASK('Pin, duplicate or delete from the sidebar. Deleted notes wait in <b>Trash</b>')+
+  TASK('Export one note as Markdown, HTML, plain text or PDF from the download icon')+
+  TASK('<b>Full backup (.json)</b> saves every note at once, and <b>Import backup</b> in the same menu brings it back')+
+  '</ul>'+
+
+  '<h2>Backing up to your own Google Drive</h2>'+
+  '<p>This is optional, and it is the only time anything leaves this browser. Press '+
+  '<b>Connect Drive</b> in the sidebar. Typewell makes a folder called '+
+  '<code>Typewell</code> in <em>your</em> Drive and saves each note there as an ordinary '+
+  '<code>.md</code> file — readable in Obsidian, iA Writer or any text editor. Edit one '+
+  'of those files elsewhere and the change comes back here.</p>'+
+  '<p>Typewell asks for the narrowest Google permission there is: it can only see files '+
+  'it created itself. The rest of your Drive stays invisible to it. Press <b>Ctrl+S</b> '+
+  'to sync now, or turn on auto-sync in Settings.</p>'+
+
+  '<blockquote data-alert="note"><p><strong>Note</strong></p>'+
+  '<p>Notes are stored in this browser. Clearing site data for this site erases them, so '+
+  'if they matter, connect Drive or take a <code>.json</code> backup.</p></blockquote>'+
+
+  '<hr>'+
+  '<p>That is the whole app. Delete this note whenever you like — a fresh one is always '+
+  'a click away, and the <b>?</b> guide keeps all of it.</p>';
+
 let settings={theme:DEFAULT_THEME,defaultFont:"JetBrains Mono",autoBackup:false,
-  ghToken:"",gistId:"",driveFolderId:"",driveGranted:false};
+  ghToken:"",gistId:"",driveFolderId:"",driveGranted:false,
+  recentFore:[],recentHilite:[]};
 function loadState(){
   try{notes=JSON.parse(localStorage.getItem(LS_NOTES)||"[]")}catch(e){notes=[]}
   try{Object.assign(settings,JSON.parse(localStorage.getItem(LS_SET)||"{}"))}catch(e){}
   if(!notes.length){
-    notes=[{id:uid(),title:"welcome",html:
-      '<p>Everything works out of the box — no account, no server.</p>'+
-      '<ul class="tasks">'+
-      '<li><input type="checkbox" contenteditable="false"><span class="task-text">Type <code>-</code> + space for bullets, <code>[]</code> + space for tasks, <code>#</code> for headings</span></li>'+
-      '<li><input type="checkbox" contenteditable="false"><span class="task-text">Rename this file in the top bar — the name stays out of the document</span></li>'+
-      '<li><input type="checkbox" contenteditable="false"><span class="task-text">Connect your Google Drive from the sidebar — you get a <code>Typewell</code> folder of .md files</span></li></ul>'+
-      '<p>Markdown as you type: <code>**bold**</code> <code>*italic*</code> <code>`code`</code> <code>&gt; quote</code> <code>```</code> code block, <code>---</code> divider.</p>',
+    notes=[{id:uid(),title:"Welcome to Typewell",html:WELCOME_HTML,
       created:now(),updated:now(),pinned:false,deleted:false}];
     saveNotes();
   }
@@ -1291,6 +1404,24 @@ $("#redoBtn").addEventListener("mousedown",e=>{e.preventDefault();doRedo();});
 document.execCommand("styleWithCSS",false,true);
 document.execCommand("defaultParagraphSeparator",false,"p");
 function cmd(name,val=null){histPush();document.execCommand(name,false,val);editor.focus();scheduleSave();}
+
+/* execCommand always works off the *live* selection, and by the time a menu
+   item's click handler runs the caret may no longer be where the user left it.
+   Snapshot the range when a control is pressed, put it back before running the
+   command. Cheap insurance that removes a whole class of "it only worked the
+   second time" reports. */
+let savedRange=null;
+function saveSel(){
+  const s=window.getSelection();
+  savedRange=(s.rangeCount&&editor.contains(s.anchorNode))?s.getRangeAt(0).cloneRange():null;
+}
+function restoreSel(){
+  if(!savedRange)return false;
+  editor.focus();
+  const s=window.getSelection();
+  try{s.removeAllRanges();s.addRange(savedRange);}catch(_){return false}
+  return true;
+}
 $$("#toolbar [data-cmd]").forEach(b=>b.addEventListener("mousedown",e=>{e.preventDefault();cmd(b.dataset.cmd);}));
 
 /* ---------- custom dropdowns (styled popup, native selects can't be) ---------- */
@@ -1302,7 +1433,7 @@ function makeDropdown(btn,options,onPick,render=null){
     const i=openDDs.indexOf(close);if(i>-1)openDDs.splice(i,1);
     document.removeEventListener("mousedown",outside);}};
   const outside=e=>{if(menu&&!menu.contains(e.target)&&!btn.contains(e.target))close();};
-  btn.addEventListener("mousedown",e=>e.preventDefault());   /* keep editor selection */
+  btn.addEventListener("mousedown",e=>{e.preventDefault();saveSel();});   /* keep editor selection */
   btn.addEventListener("click",()=>{
     if(menu){close();return;}
     closeAllDD();
@@ -1312,7 +1443,7 @@ function makeDropdown(btn,options,onPick,render=null){
       b.innerHTML=render?render(o):esc(o.label);
       if(o.value===btn.dataset.value)b.classList.add("sel");
       b.addEventListener("mousedown",ev=>ev.preventDefault());
-      b.addEventListener("click",()=>{api.set(o.value);close();onPick(o.value);});
+      b.addEventListener("click",()=>{api.set(o.value);close();restoreSel();onPick(o.value);});
       menu.appendChild(b);
     }
     document.body.appendChild(menu);
@@ -1328,10 +1459,35 @@ function makeDropdown(btn,options,onPick,render=null){
 }
 const FONTS=["JetBrains Mono","Space Grotesk","Inter","Georgia","Times New Roman","Arial","Verdana","Courier New"]
   .map(f=>({value:f,label:f}));
+/* Headings only. Quote and code blocks each have their own toolbar button that
+   lights up when the caret is inside one, and a control that both sets a state
+   and silently disagrees with the button next to it is worse than either alone. */
 const BLOCKS=[["P","Text"],["H1","Heading 1"],["H2","Heading 2"],["H3","Heading 3"],
-  ["H4","Heading 4"],["H5","Heading 5"],["H6","Heading 6"],["BLOCKQUOTE","Quote"],["PRE","Code"]]
+  ["H4","Heading 4"],["H5","Heading 5"],["H6","Heading 6"]]
   .map(([v,l])=>({value:v,label:l}));
-const fontDD=makeDropdown($("#fontSelect"),FONTS,v=>cmd("fontName",v),
+
+/* With nothing selected, execCommand only arms a "pending style" for the next
+   character typed - and Chrome throws that away as soon as focus moves. You
+   pick a font, nothing happens, you pick again and it sticks. Applying to the
+   whole block instead is both what actually works and what a font control with
+   no selection ought to mean. */
+function applyFont(v){
+  editor.focus();
+  const s=window.getSelection();
+  const blk=s.rangeCount&&s.getRangeAt(0).collapsed?getBlock():null;
+  if(!blk)return cmd("fontName",v);
+  /* On a task item the <li> also holds the checkbox, which is
+     contenteditable=false - selecting the whole li makes execCommand refuse the
+     edit outright and the font silently does nothing. Aim at the text span. */
+  const b=blk.tagName==="LI"&&blk.querySelector(".task-text")||blk;
+  const r=document.createRange();r.selectNodeContents(b);
+  s.removeAllRanges();s.addRange(r);
+  cmd("fontName",v);
+  /* selecting the block was the means, not the intent - leaving it highlighted
+     reads as "I just selected your line for you" */
+  placeCaret(b);
+}
+const fontDD=makeDropdown($("#fontSelect"),FONTS,applyFont,
   o=>`<span style="font-family:'${o.value}'">${esc(o.label)}</span>`);
 const blockDD=makeDropdown($("#blockSelect"),BLOCKS,v=>cmd("formatBlock",v));
 const defFontDD=makeDropdown($("#defaultFontSelect"),FONTS,v=>{
@@ -1401,13 +1557,14 @@ function syncToolbar(){
     stateBtns[c]?.classList.toggle("on",on);
   }
   $("#inlineCodeBtn").classList.toggle("on",!!(n.closest("code")&&!n.closest("pre")));
+  $("#codeBlockBtn").classList.toggle("on",!!n.closest("pre"));
   $("#linkBtn").classList.toggle("on",!!n.closest("a"));
   $("#taskBtn").classList.toggle("on",inTask);
-  /* block type → dropdown label */
+  /* block type → dropdown label. Quotes and code blocks are not in this list;
+     their own buttons carry that state, so a paragraph inside either still
+     reads as "Text" here, which is what it is. */
   let bv="P";
-  if(n.closest("pre"))bv="PRE";
-  else if(n.closest("blockquote"))bv="BLOCKQUOTE";
-  else if(n.closest("h1"))bv="H1";
+  if(n.closest("h1"))bv="H1";
   else if(n.closest("h2"))bv="H2";
   else if(n.closest("h3"))bv="H3";
   else if(n.closest("h4"))bv="H4";
@@ -1441,8 +1598,98 @@ let syncT=null;
 document.addEventListener("selectionchange",()=>{
   clearTimeout(syncT);syncT=setTimeout(syncToolbar,80);
 });
-$("#foreColor").addEventListener("input",e=>{$("#foreBar").style.background=e.target.value;cmd("foreColor",e.target.value);});
-$("#hiliteColor").addEventListener("input",e=>{$("#hiliteBar").style.background=e.target.value;cmd("hiliteColor",e.target.value);});
+/* ---------- colour palette ----------
+   The old control was a bare <input type="color">: the only way to reach any
+   colour was the operating system's dialog, there was no way to reuse the one
+   you just picked, and re-applying the colour already showing still cost two
+   clicks and a modal. A palette of presets plus your own recent colours covers
+   almost every real use without leaving the page. */
+const FORE_PRESETS=["#1B1F24","#4A5568","#8A94A6","#C0392B","#E67E22","#D4A017",
+  "#2E7D32","#0E9E9E","#2563EB","#6D28D9","#BE185D","#7C4A21",
+  "#E03131","#F08C00","#2F9E44","#1971C2","#9C36B5","#0B7285"];
+const HILITE_PRESETS=["#F5E6A8","#FFE08A","#FFD0D0","#FFD8B0","#D8F0C0","#C7EEF3",
+  "#CFE0FF","#E4D4FF","#FFD6EC","#E6E6E6","#FFF3BF","#B2F2BB",
+  "#A5D8FF","#EEBEFE","#FFC9C9","#D3F9D8"];
+
+function normHex(v){
+  /* execCommand hands back rgb(); the palette compares hex. One shape in, one
+     shape out, or "which swatch am I on" is unanswerable. */
+  if(!v)return"";
+  const m=String(v).match(/^rgba?\((\d+),\s*(\d+),\s*(\d+)/);
+  if(m)return"#"+[1,2,3].map(i=>(+m[i]).toString(16).padStart(2,"0")).join("").toUpperCase();
+  return String(v).trim().toUpperCase();
+}
+
+function makeColorControl({main,caret,bar,native,presets,cmdName,recentKey,noneLabel}){
+  let menu=null;
+  const recents=()=>settings[recentKey]||[];
+  const pushRecent=hex=>{
+    const list=[hex,...recents().filter(c=>c!==hex)].slice(0,8);
+    settings[recentKey]=list;saveSettings();
+  };
+  const apply=hex=>{
+    restoreSel();
+    if(hex==="none"){cmd(cmdName,"transparent");return;}
+    bar.style.background=hex;native.value=hex;
+    pushRecent(hex);
+    cmd(cmdName,hex);
+  };
+  const close=()=>{if(menu){menu.remove();menu=null;
+    const i=openDDs.indexOf(close);if(i>-1)openDDs.splice(i,1);
+    document.removeEventListener("mousedown",outside);}};
+  const outside=e=>{if(menu&&!menu.contains(e.target)&&!caret.contains(e.target))close();};
+
+  const swatch=(hex,cur,label)=>{
+    const b=document.createElement("button");
+    b.className="cp-sw"+(hex===cur?" cur":"")+(hex==="none"?" none":"");
+    if(hex!=="none")b.style.background=hex;
+    b.title=label||hex;
+    b.addEventListener("mousedown",ev=>ev.preventDefault());
+    b.addEventListener("click",()=>{close();apply(hex);});
+    return b;
+  };
+  const section=(title,colors,cur)=>{
+    const frag=document.createDocumentFragment();
+    const l=document.createElement("p");l.className="cp-lbl";l.textContent=title;frag.appendChild(l);
+    const g=document.createElement("div");g.className="cp-grid";
+    colors.forEach(c=>g.appendChild(swatch(c,cur,c==="none"?noneLabel:null)));
+    frag.appendChild(g);return frag;
+  };
+
+  main.addEventListener("mousedown",e=>{e.preventDefault();saveSel();});
+  main.addEventListener("click",()=>apply(normHex(bar.style.background)||native.value));
+
+  caret.addEventListener("mousedown",e=>{e.preventDefault();saveSel();});
+  caret.addEventListener("click",()=>{
+    if(menu){close();return;}
+    closeAllDD();
+    const cur=normHex(bar.style.background)||native.value.toUpperCase();
+    menu=document.createElement("div");menu.className="menu cp-menu open";
+    menu.appendChild(section("Colors",noneLabel?["none",...presets]:presets,cur));
+    if(recents().length)menu.appendChild(section("Recent",recents(),cur));
+    const custom=document.createElement("button");
+    custom.className="cp-custom";custom.textContent="Custom…";
+    custom.addEventListener("mousedown",ev=>ev.preventDefault());
+    custom.addEventListener("click",()=>{close();native.click();});
+    menu.appendChild(custom);
+    document.body.appendChild(menu);
+    const r=caret.getBoundingClientRect();
+    menu.style.top=Math.min(r.bottom+6,innerHeight-menu.offsetHeight-10)+"px";
+    menu.style.left=Math.min(r.left-80,innerWidth-menu.offsetWidth-10)+"px";
+    openDDs.push(close);
+    document.addEventListener("mousedown",outside);
+  });
+
+  /* "change", not "input": the native dialog fires input on every drag of the
+     hue slider, which would push a dozen junk entries into Recent. */
+  native.addEventListener("change",e=>apply(e.target.value.toUpperCase()));
+}
+
+makeColorControl({main:$("#foreApply"),caret:$("#foreOpen"),bar:$("#foreBar"),
+  native:$("#foreColor"),presets:FORE_PRESETS,cmdName:"foreColor",recentKey:"recentFore"});
+makeColorControl({main:$("#hiliteApply"),caret:$("#hiliteOpen"),bar:$("#hiliteBar"),
+  native:$("#hiliteColor"),presets:HILITE_PRESETS,cmdName:"hiliteColor",
+  recentKey:"recentHilite",noneLabel:"No highlight"});
 $("#hrBtn").addEventListener("mousedown",e=>{e.preventDefault();cmd("insertHorizontalRule");});
 $("#clearFmtBtn").addEventListener("mousedown",e=>{e.preventDefault();cmd("removeFormat");cmd("formatBlock","P");});
 
@@ -1466,14 +1713,68 @@ function toggleInlineCode(){
   const sel=window.getSelection();if(!sel.rangeCount)return;
   const anc=sel.anchorNode&&(sel.anchorNode.nodeType===1?sel.anchorNode:sel.anchorNode.parentElement);
   const c=anc&&anc.closest("code");
-  if(c&&!c.closest("pre")){c.replaceWith(document.createTextNode(c.textContent));scheduleSave();return;}
+  if(c&&!c.closest("pre")){
+    const t=document.createTextNode(c.textContent);
+    c.replaceWith(t);
+    /* leave the caret in the text that is left, not floating in the parent -
+       otherwise the very next syncToolbar cannot tell where we are */
+    const r=document.createRange();r.selectNodeContents(t);
+    sel.removeAllRanges();sel.addRange(r);
+    scheduleSave();syncToolbar();return;
+  }
   if(sel.isCollapsed)return;
   histPush();
   const r=sel.getRangeAt(0),code=document.createElement("code");
-  try{r.surroundContents(code)}catch(_){code.textContent=r.toString();r.deleteContents();r.insertNode(code);}
-  scheduleSave();
+  try{r.surroundContents(code)}catch(_){
+    /* the selection straddled an element boundary, so surroundContents refuses.
+       Flatten instead - and sweep up the empty <b>/<i> shells deleteContents
+       leaves behind, or they pile up invisibly with every use. */
+    code.textContent=r.toString();r.deleteContents();r.insertNode(code);
+    const blk=code.closest("p,li,h1,h2,h3,h4,h5,h6,blockquote,div")||editor;
+    blk.querySelectorAll("b,i,u,s,em,strong,code,span").forEach(el=>{
+      if(el!==code&&!el.textContent&&!el.querySelector("img,br,input"))el.remove();
+    });
+  }
+  /* surroundContents leaves the selection *around* the new <code>, so the
+     anchor lands on the parent and the button reads as off the instant you
+     press it. Put the selection inside, the way bold leaves it. */
+  const nr=document.createRange();nr.selectNodeContents(code);
+  sel.removeAllRanges();sel.addRange(nr);
+  scheduleSave();syncToolbar();
+}
+
+/* Code blocks had a markdown trigger and a keyboard exit but no button, which
+   made them the one block type you had to know about to reach. Toggle, like
+   every other block control: inside one, turn it back into paragraphs. */
+function toggleCodeBlock(){
+  editor.focus();
+  const b=getBlock();if(!b)return;
+  histPush();
+  const pre=b.tagName==="PRE"?b:b.closest("pre");
+  if(pre){
+    /* one paragraph per line, so a block that was several lines does not
+       collapse into a single run-on paragraph on the way out */
+    const lines=pre.textContent.split("\n");
+    const frag=document.createDocumentFragment();
+    for(const ln of (lines.length?lines:[""])){
+      const p=document.createElement("p");
+      p.innerHTML=ln.trim()?esc(ln):"<br>";
+      frag.appendChild(p);
+    }
+    const first=frag.firstChild;
+    pre.replaceWith(frag);
+    placeCaret(first,true);
+  }else{
+    const el=document.createElement("pre");
+    el.textContent=b.textContent;
+    if(!el.textContent)el.innerHTML="<br>";
+    b.replaceWith(el);
+    placeCaret(el,true);
+  }
+  scheduleSave();syncToolbar();
 }
 $("#inlineCodeBtn").addEventListener("mousedown",e=>{e.preventDefault();toggleInlineCode();});
+$("#codeBlockBtn").addEventListener("mousedown",e=>{e.preventDefault();toggleCodeBlock();});
 
 async function insertLink(){
   const sel=window.getSelection();
@@ -2274,7 +2575,9 @@ $("#exportBtn").addEventListener("click",e=>{
 });
 exportMenu.addEventListener("click",e=>{
   const x=e.target.closest("[data-x]")?.dataset.x;if(!x)return;
-  exportMenu.classList.remove("open");doExport(x);
+  exportMenu.classList.remove("open");
+  if(x==="import"){$("#jsonInput").click();return;}   /* the one entry that reads, not writes */
+  doExport(x);
 });
 document.addEventListener("click",e=>{
   if(!e.target.closest("#exportBtn,#exportMenu"))exportMenu.classList.remove("open");
@@ -3209,6 +3512,7 @@ editor.addEventListener("keydown",e=>{
   if(!e.altKey){
     if(e.shiftKey&&k==="x")   return run(()=>cmd("strikeThrough"));
     if(!e.shiftKey&&k==="e")  return run(toggleInlineCode);
+    if(e.shiftKey&&k==="e")   return run(toggleCodeBlock);
     if(e.shiftKey&&e.code==="Digit7") return run(()=>cmd("insertOrderedList"));
     if(e.shiftKey&&e.code==="Digit8") return run(()=>cmd("insertUnorderedList"));
     if(e.shiftKey&&e.code==="Digit9") return run(toggleTaskList);
