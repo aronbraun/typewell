@@ -1,8 +1,8 @@
-# Inkpad
+# Typewell
 
 **Your notes · your browser · your Drive.**
 
-Inkpad is a complete notes app in **one HTML file**. No build step, no server, no account, no dependencies. Notes live in your browser's local storage first; you can back them up to **your own Google Drive** or a **secret GitHub Gist** with one click. Host it anywhere static files are served — GitHub Pages included — and it's free for everyone who uses it.
+Typewell is a complete notes app in **one HTML file**. No build step, no server, no account, no dependencies. Notes live in your browser's local storage first; you can back them up to **your own Google Drive** or a **secret GitHub Gist** with one click. Host it anywhere static files are served — GitHub Pages included — and it's free for everyone who uses it.
 
 ![single file](https://img.shields.io/badge/single%20file-index.html-blue)
 ![dependencies](https://img.shields.io/badge/dependencies-0-brightgreen)
@@ -14,12 +14,12 @@ Inkpad is a complete notes app in **one HTML file**. No build step, no server, n
 
 | | |
 |---|---|
-| **Live app** | [inkpad.js.org](https://inkpad.js.org) |
-| **Mirror** | [inkpad-js.github.io/inkpad](https://inkpad-js.github.io/inkpad/) |
-| **Source** | [github.com/inkpad-js/inkpad](https://github.com/inkpad-js/inkpad) |
-| **Report a bug / request a feature** | [open an issue](https://github.com/inkpad-js/inkpad/issues/new) |
-| **Privacy policy** | [privacy.html](https://inkpad.js.org/privacy.html) |
-| **Terms & conditions** | [terms.html](https://inkpad.js.org/terms.html) |
+| **Live app** | [typewell.net](https://typewell.net) |
+| **Mirror** | [aronbraun.github.io/typewell](https://aronbraun.github.io/typewell/) |
+| **Source** | [github.com/aronbraun/typewell](https://github.com/aronbraun/typewell) |
+| **Report a bug / request a feature** | [open an issue](https://github.com/aronbraun/typewell/issues/new) |
+| **Privacy policy** | [privacy.html](https://typewell.net/privacy.html) |
+| **Terms & conditions** | [terms.html](https://typewell.net/terms.html) |
 | **License** | [MIT](LICENSE) |
 
 ---
@@ -28,13 +28,9 @@ Inkpad is a complete notes app in **one HTML file**. No build step, no server, n
 
 **Use it:** open `index.html` in a browser. That's it.
 
-**Host it (GitHub Pages):**
-
-1. Push this folder to a GitHub repository.
-2. Repo → *Settings* → *Pages* → deploy from branch → `main` / root.
-3. Your notepad is live at `https://<you>.github.io/<repo>/`.
-
-Any other static host (Netlify, Cloudflare Pages, S3, nginx) works the same way — it's one file.
+**Host it:** drop the files on any static host — Cloudflare Pages, GitHub
+Pages, Netlify, S3, nginx. There is nothing to build. See
+[Deploying](#deploying) for how this repository is actually deployed.
 
 > **Note:** the app itself works from a plain `file://` open, but the Google Drive connection requires a real `http(s)` origin (localhost is fine).
 
@@ -83,10 +79,10 @@ Notes are **local-first**: everything is stored in your browser (`localStorage`)
 
 ### Google Drive (recommended)
 
-Inkpad keeps a single file, `inkpad-backup.json`, in the connected user's own Drive using the **`drive.file`** scope — the app can only see files it created, nothing else in the Drive.
+Typewell keeps a single file, `typewell-backup.json`, in the connected user's own Drive using the **`drive.file`** scope — the app can only see files it created, nothing else in the Drive.
 
 - One-click **Connect Drive** button in the sidebar
-- On connect, if a backup already exists, Inkpad offers to **merge** it (newer copy of each note wins) — this is also how you move between devices
+- On connect, if a backup already exists, Typewell offers to **merge** it (newer copy of each note wins) — this is also how you move between devices
 - **Back up now** button / **Ctrl+S**, plus optional **auto-backup** ~45 s after you stop typing
 - Reconnects silently on the next visit once granted
 
@@ -107,7 +103,7 @@ Client IDs are public by design — shipping one in the file is safe and is exac
 
 ### GitHub Gist (optional second source)
 
-Backs up the same JSON to a **secret gist**. Paste a token with only the [`gist` scope](https://github.com/settings/tokens/new?scopes=gist&description=Inkpad) into Settings. The token is stored in that browser only and requests go straight from the browser to `api.github.com`.
+Backs up the same JSON to a **secret gist**. Paste a token with only the [`gist` scope](https://github.com/settings/tokens/new?scopes=gist&description=Typewell) into Settings. The token is stored in that browser only and requests go straight from the browser to `api.github.com`.
 
 ---
 
@@ -154,31 +150,61 @@ Triggers work anywhere — including the first line of an empty note and lines t
 
 ## Deploying
 
-Any static host works — it is one file. For GitHub Pages there are two options.
+It is one file — any static host works. Production runs on **Cloudflare Pages**,
+which also gives every pull request its own preview URL.
 
-**Deploy from a branch (default).** Settings → Pages → Source → *Deploy from a
-branch* → `main` / root. The client ID must be hardcoded in `index.html`.
+### Cloudflare Pages (production)
 
-**GitHub Actions (build-time substitution).** `.github/workflows/deploy.yml`
-replaces the `__GOOGLE_CLIENT_ID__` placeholder from a repository *variable*
-before publishing, so the same source can deploy to staging and production with
-different client IDs.
+`build.sh` copies the site into `dist/` and substitutes the
+`__GOOGLE_CLIENT_ID__` placeholder from an environment variable. Keeping the
+build in the repository rather than pasted into a dashboard means it is
+reviewable, diffable, and runs identically on your own machine.
 
-1. Settings → Secrets and variables → Actions → **Variables** → New repository
-   variable → `GOOGLE_CLIENT_ID`.
-2. Settings → Pages → Source → **GitHub Actions**. Until you do this the
-   workflow runs but the deploy step fails, and the live site keeps serving
-   whatever the branch contains.
+Dashboard → *Workers & Pages* → *Create* → *Pages* → connect `aronbraun/typewell`:
+
+| Setting | Value |
+|---|---|
+| Build command | `bash build.sh` |
+| Build output directory | `dist` |
+| Environment variable | `GOOGLE_CLIENT_ID`, set for **Production** and **Preview** |
+
+Then add `typewell.net` under *Custom domains*. Because it is an apex domain,
+the nameservers have to point at Cloudflare — which they already do.
+
+### Pull-request previews
+
+Cloudflare builds every branch and every pull request automatically. Each gets
+its own URL plus a status check on the PR; there is nothing to configure beyond
+connecting the repository.
+
+One caveat, stated plainly because it will otherwise waste an afternoon: a
+preview lives on its own origin (`<hash>.<project>.pages.dev`), and Google does
+**not** accept wildcards in *Authorized JavaScript origins*. **Google Drive
+backup therefore does not work inside a preview** — the origin check fails.
+Everything else in the app does. If you need Drive in a preview, register that
+specific origin in the Google console, or test Drive against production.
+
+### GitHub Pages (mirror)
+
+`.github/workflows/deploy.yml` still publishes the same source to
+[aronbraun.github.io/typewell](https://aronbraun.github.io/typewell/) on every
+push to `main`, doing the identical substitution from the repository *variable*
+`GOOGLE_CLIENT_ID` (Settings → Secrets and variables → Actions → **Variables**).
+It is a fallback, not the canonical site.
+
+### About that client ID
 
 A variable, not a secret: an OAuth client ID is public by design and ships to
-every visitor. Build-time substitution hides nothing — a Pages artifact is
+every visitor. Build-time substitution hides nothing — a published site is
 world-readable. What actually constrains the ID is the *Authorized JavaScript
-origins* list in the Google console. Never put a real secret through this.
+origins* list in the Google console, which for this project is:
 
-If you also use a custom domain, set the domain **first**, on branch deploy,
-and wait for the DNS check and HTTPS to go green before switching the source.
-Keep the `CNAME` file committed: Actions deploys ignore it, but a rollback to
-branch deploy needs it.
+```
+https://typewell.net
+https://aronbraun.github.io
+```
+
+Never put a real secret through this mechanism.
 
 ## Privacy
 
@@ -189,7 +215,7 @@ branch deploy needs it.
 ## Architecture notes
 
 - One file: HTML + CSS + vanilla JS, no frameworks, no build. `contenteditable` editor with a custom snapshot-based undo history, custom dropdown/dialog/toast components, and hand-drawn SVG icons.
-- Storage keys: `inkpad.notes.v1` (notes) and `inkpad.settings.v1` (settings) in `localStorage` (~5 MB budget — the status line in Settings shows usage). Images are embedded as data URLs, so keep them modest; the app warns above ~800 KB.
+- Storage keys: `typewell.notes.v1` (notes) and `typewell.settings.v1` (settings) in `localStorage` (~5 MB budget — the status line in Settings shows usage). Images are embedded as data URLs, so keep them modest; the app warns above ~800 KB.
 - Drive sync is last-write-wins **per note** by `updated` timestamp; the backup file is plain JSON you can read and version yourself.
 
 ## Limitations (honest ones)
@@ -203,13 +229,13 @@ branch deploy needs it.
 
 [![Built with Claude Code](https://img.shields.io/badge/built%20with-Claude%20Code-D97757)](https://claude.com/claude-code)
 
-Inkpad was designed and written with [Claude](https://claude.com/claude-code) — the editor, the storage layer, the Drive/Gist backup paths, and this README. It's still one hand-readable HTML file: open it and every line is there.
+Typewell was designed and written with [Claude](https://claude.com/claude-code) — the editor, the storage layer, the Drive/Gist backup paths, and this README. It's still one hand-readable HTML file: open it and every line is there.
 
 Type design: [JetBrains Mono](https://www.jetbrains.com/lp/mono/) and [Space Grotesk](https://fonts.google.com/specimen/Space+Grotesk), loaded from Google Fonts.
 
 ## Contributing
 
-Issues and pull requests are welcome at the [repository](https://github.com/inkpad-js/inkpad). Found a bug or want something added? [Open an issue](https://github.com/inkpad-js/inkpad/issues/new). There's no build step — edit `index.html`, open it in a browser, and you're testing the real thing.
+Issues and pull requests are welcome at the [repository](https://github.com/aronbraun/typewell). Found a bug or want something added? [Open an issue](https://github.com/aronbraun/typewell/issues/new). There's no build step — edit `index.html`, open it in a browser, and you're testing the real thing.
 
 ## License
 

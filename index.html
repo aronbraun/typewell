@@ -3,14 +3,14 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Inkpad — your notes, your browser, your Drive</title>
+<title>Typewell — your notes, your browser, your Drive</title>
 <meta name="description" content="A free, single-file notepad. Notes live in your browser; back them up to your own Google Drive or a GitHub Gist.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:ital,wght@0,400;0,500;0,700;1,400&family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
 <style>
 /* ============================================================
-   Inkpad v2 — single-file notes
+   Typewell v2 — single-file notes
    Themes: paper · dark · navy   UI: Space Grotesk   Editor: JetBrains Mono
    ============================================================ */
 :root{
@@ -445,8 +445,8 @@ body.zen #zenExit{display:grid}
   <!-- ============ SIDEBAR ============ -->
   <aside id="sidebar">
     <div class="sb-head">
-      <div class="logo">i_</div>
-      <div class="brand">Inkpad<small>your notes · your browser · your Drive</small></div>
+      <div class="logo">Tw</div>
+      <div class="brand">Typewell<small>your notes · your browser · your Drive</small></div>
     </div>
     <div class="sb-actions">
       <button class="btn primary" id="newNoteBtn" title="New note  Ctrl+Alt+N" style="flex:1"><svg class="ic" data-i="plus"></svg>New note</button>
@@ -580,8 +580,8 @@ body.zen #zenExit{display:grid}
         <h3>Google Drive <span class="pill" id="drivePill">checking…</span></h3>
         <div class="hint">
           Notes always live in this browser first. Drive keeps one backup file,
-          <code>inkpad-backup.json</code>, in <i>your</i> Drive. Scope is <code>drive.file</code> —
-          Inkpad can only see files it created, nothing else.
+          <code>typewell-backup.json</code>, in <i>your</i> Drive. Scope is <code>drive.file</code> —
+          Typewell can only see files it created, nothing else.
           <span id="driveCfgHint"></span>
         </div>
         <div class="btn-row">
@@ -596,7 +596,7 @@ body.zen #zenExit{display:grid}
       <div class="section">
         <h3>GitHub Gist <span class="pill off">optional second source</span></h3>
         <div class="hint">Same backup file in a <b>secret gist</b>. Token needs only the
-          <a href="https://github.com/settings/tokens/new?scopes=gist&description=Inkpad" target="_blank" rel="noopener"><code>gist</code> scope</a>.
+          <a href="https://github.com/settings/tokens/new?scopes=gist&description=Typewell" target="_blank" rel="noopener"><code>gist</code> scope</a>.
           Stored in this browser only.</div>
         <div class="row" style="margin-bottom:0"><input type="password" id="ghToken" placeholder="ghp_…"></div>
         <div class="btn-row">
@@ -637,17 +637,17 @@ body.zen #zenExit{display:grid}
       </div>
 
       <div class="section">
-        <h3>About Inkpad</h3>
+        <h3>About Typewell</h3>
         <div class="hint">
           A single HTML file — no build step, no server, no tracking. Your notes stay in this
           browser unless <i>you</i> back them up.
         </div>
         <div class="btn-row">
-          <a class="btn" href="https://inkpad.js.org" target="_blank" rel="noopener"
-             title="Website  inkpad.js.org"><svg class="ic" data-i="globe"></svg>Website</a>
-          <a class="btn" href="https://github.com/inkpad-js/inkpad" target="_blank" rel="noopener"
+          <a class="btn" href="https://typewell.net" target="_blank" rel="noopener"
+             title="Website  typewell.net"><svg class="ic" data-i="globe"></svg>Website</a>
+          <a class="btn" href="https://github.com/aronbraun/typewell" target="_blank" rel="noopener"
              title="Source code on GitHub"><svg class="ic" data-i="github"></svg>GitHub</a>
-          <a class="btn" href="https://github.com/inkpad-js/inkpad/issues/new" target="_blank" rel="noopener"
+          <a class="btn" href="https://github.com/aronbraun/typewell/issues/new" target="_blank" rel="noopener"
              title="Report a bug or request a feature"><svg class="ic" data-i="issue"></svg>Issues</a>
           <a class="btn" href="privacy.html" target="_blank" rel="noopener"
              title="Privacy policy  What leaves your browser"><svg class="ic" data-i="shield"></svg>Privacy</a>
@@ -701,7 +701,19 @@ const DEFAULT_THEME    = "paper";
 /* ════════════════════════ end config ════════════════════════ */
 
 const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
-const LS_NOTES="inkpad.notes.v1", LS_SET="inkpad.settings.v1";
+const LS_NOTES="typewell.notes.v1", LS_SET="typewell.settings.v1";
+/* legacy keys from the Inkpad-era build — read once, copied forward, never written */
+const LS_NOTES_OLD="inkpad.notes.v1", LS_SET_OLD="inkpad.settings.v1";
+function migrateLegacyKeys(){
+  for(const [now_,old] of [[LS_NOTES,LS_NOTES_OLD],[LS_SET,LS_SET_OLD]]){
+    try{
+      if(localStorage.getItem(now_)!==null)continue;      /* already on the new key */
+      const v=localStorage.getItem(old);
+      if(v!==null)localStorage.setItem(now_,v);           /* legacy value kept in place too */
+    }catch(e){}
+  }
+}
+migrateLegacyKeys();
 const uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,8);
 const now=()=>Date.now();
 const esc=s=>s.replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -1629,7 +1641,7 @@ function download(name,content,type="text/plain"){
   setTimeout(()=>URL.revokeObjectURL(a.href),4000);
 }
 const safeName=t=>(t||"note").replace(/[^\w\-. ]+/g,"").trim().replace(/\s+/g,"-").slice(0,60)||"note";
-function backupJson(){return JSON.stringify({app:"inkpad",version:2,exportedAt:new Date().toISOString(),notes},null,1);}
+function backupJson(){return JSON.stringify({app:"typewell",version:2,exportedAt:new Date().toISOString(),notes},null,1);}
 function doExport(kind){
   flushSave();const n=active();if(!n&&kind!=="json")return;
   if(kind==="md")download(safeName(n.title)+".md",htmlToMd(editor),"text/markdown");
@@ -1637,7 +1649,7 @@ function doExport(kind){
   if(kind==="html")download(safeName(n.title)+".html",
     `<!DOCTYPE html><html><head><meta charset="utf-8"><title>${esc(n.title)}</title></head><body>${n.html}</body></html>`,"text/html");
   if(kind==="pdf")window.print();
-  if(kind==="json")download("inkpad-backup.json",backupJson(),"application/json");
+  if(kind==="json")download("typewell-backup.json",backupJson(),"application/json");
 }
 const exportMenu=$("#exportMenu");
 $("#exportBtn").addEventListener("click",e=>{
@@ -1668,7 +1680,7 @@ $("#fileInput").addEventListener("change",async e=>{
   saveNotes();markDirty();renderList();toast("Imported","ok");e.target.value="";
 });
 function mergeBackup(obj){
-  if(!obj||!Array.isArray(obj.notes))throw new Error("Not an Inkpad backup file");
+  if(!obj||!Array.isArray(obj.notes))throw new Error("Not a Typewell backup file");
   let added=0,updated=0;
   for(const inc of obj.notes){
     const cur=getNote(inc.id);
@@ -1691,11 +1703,16 @@ $("#wipeBtn").addEventListener("click",async()=>{
   const ok=await dialog({title:"Erase everything",danger:true,ok:"Erase",
     message:"Delete ALL notes and settings from this browser? Backups in Drive or Gist are not touched."});
   if(!ok)return;
-  localStorage.removeItem(LS_NOTES);localStorage.removeItem(LS_SET);location.reload();
+  localStorage.removeItem(LS_NOTES);localStorage.removeItem(LS_SET);
+  /* legacy keys too, or migrateLegacyKeys() would restore them on the next load */
+  try{localStorage.removeItem(LS_NOTES_OLD);localStorage.removeItem(LS_SET_OLD);}catch(e){}
+  location.reload();
 });
 
 /* ══════════════ backup providers ══════════════ */
-const BACKUP_NAME="inkpad-backup.json";
+const BACKUP_NAME="typewell-backup.json";
+/* pre-rename filename — only ever matched when looking for an existing backup */
+const BACKUP_NAME_OLD="inkpad-backup.json";
 
 const drive={
   connected:false,token:null,tokenExp:0,lastBackup:0,autoTimer:null,
@@ -1742,7 +1759,8 @@ const drive={
   },
   async findFile(){
     if(settings.driveFileId)return settings.driveFileId;
-    const q=encodeURIComponent(`name='${BACKUP_NAME}' and trashed=false`);
+    /* match the new name or the pre-rename one, so older backups are still found */
+    const q=encodeURIComponent(`(name='${BACKUP_NAME}' or name='${BACKUP_NAME_OLD}') and trashed=false`);
     const {files}=await (await this.api(`/drive/v3/files?q=${q}&fields=files(id,modifiedTime)&spaces=drive`)).json();
     if(files.length){settings.driveFileId=files[0].id;saveSettings();return files[0].id;}
     return null;
@@ -1750,7 +1768,7 @@ const drive={
   async backup(){
     flushSave();
     const body=backupJson(),id=await this.findFile();
-    const boundary="inkpad"+uid();
+    const boundary="typewell"+uid();
     const multipart=
       `--${boundary}\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n`+
       JSON.stringify({name:BACKUP_NAME,mimeType:"application/json"})+
@@ -1792,7 +1810,7 @@ async function connectDriveFlow(){
     const id=await drive.findFile();
     if(id){
       const ok=await dialog({title:"Backup found in Drive",
-        message:"There's already an <b>inkpad-backup.json</b> in your Drive. Merge it into this browser? Newer copies of each note win.",ok:"Merge"});
+        message:"There's already a <b>typewell-backup.json</b> in your Drive. Merge it into this browser? Newer copies of each note win.",ok:"Merge"});
       if(ok){const r=mergeBackup(await drive.restore());
         toast(`Merged: ${r.added} new, ${r.updated} updated`,"ok");}
     }
@@ -1817,19 +1835,20 @@ const gist={
     const files={[BACKUP_NAME]:{content:backupJson()}};
     if(settings.gistId)await this.req("/gists/"+settings.gistId,{method:"PATCH",body:JSON.stringify({files})});
     else{const j=await this.req("/gists",{method:"POST",
-      body:JSON.stringify({description:"Inkpad notes backup",public:false,files})});
+      body:JSON.stringify({description:"Typewell notes backup",public:false,files})});
       settings.gistId=j.id;saveSettings();}
     dirtySinceBackup=false;refreshBeacon();
   },
   async restore(){
     if(!settings.gistId){
       const list=await this.req("/gists?per_page=100");
-      const hit=list.find(g=>g.files&&g.files[BACKUP_NAME]);
-      if(!hit)throw new Error("No Inkpad gist found for this token");
+      /* accept the pre-rename filename too, so older gists are still found */
+      const hit=list.find(g=>g.files&&(g.files[BACKUP_NAME]||g.files[BACKUP_NAME_OLD]));
+      if(!hit)throw new Error("No Typewell gist found for this token");
       settings.gistId=hit.id;saveSettings();
     }
     const j=await this.req("/gists/"+settings.gistId);
-    const f=j.files[BACKUP_NAME];if(!f)throw new Error("Gist has no "+BACKUP_NAME);
+    const f=j.files[BACKUP_NAME]||j.files[BACKUP_NAME_OLD];if(!f)throw new Error("Gist has no "+BACKUP_NAME);
     return JSON.parse(f.truncated?await(await fetch(f.raw_url)).text():f.content);
   }
 };
@@ -1961,7 +1980,7 @@ updateCounts();
 editor.focus();
 /* resume Drive silently if it was granted before */
 if(GOOGLE_CLIENT_ID&&settings.driveGranted)drive.connect(false).catch(()=>{});
-console.log("%cInkpad","font-weight:bold;font-size:15px","single file · localStorage first · your Drive/Gist as backup");
+console.log("%cTypewell","font-weight:bold;font-size:15px","single file · localStorage first · your Drive/Gist as backup");
 
 /* ---------- tooltips: one floating chip, delegated, works for injected nodes ----------
    Convention: title="Label  Shortcut" — 2+ spaces split label from keycap chunks. */

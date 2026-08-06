@@ -3,8 +3,8 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Privacy Policy — Inkpad</title>
-<meta name="description" content="Inkpad has no server, no accounts and no analytics. What that means in practice, and the few third parties your browser does contact.">
+<title>Privacy Policy — Typewell</title>
+<meta name="description" content="Typewell has no server, no accounts and no analytics. What that means in practice, and the few third parties your browser does contact.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -96,8 +96,8 @@ footer a{color:var(--muted)}
 
 <header>
   <div class="bar">
-    <div class="logo">Ik</div>
-    <a class="brand" href="index.html">Inkpad</a>
+    <div class="logo">Tw</div>
+    <a class="brand" href="index.html">Typewell</a>
     <nav>
       <a href="index.html">App</a>
       <a href="terms.html">Terms</a>
@@ -111,20 +111,20 @@ footer a{color:var(--muted)}
 <p class="updated">Last updated 5 August 2026</p>
 
 <div class="tldr">
-  <p><strong>Inkpad has no server.</strong> There is no account to create, no database holding your
+  <p><strong>Typewell has no server.</strong> There is no account to create, no database holding your
   notes, and no analytics of any kind. Your notes stay in your own browser until you explicitly
   connect a backup, and even then they go to <em>your</em> Google Drive or <em>your</em> GitHub
   account — never to us. We could not read your notes if we wanted to.</p>
 </div>
 
 <h2>1. Who this applies to</h2>
-<p>This policy covers the Inkpad web app published at
-<a href="https://inkpad.js.org">inkpad.js.org</a> and its source repository. Inkpad is a free,
+<p>This policy covers the Typewell web app published at
+<a href="https://typewell.net">typewell.net</a> and its source repository. Typewell is a free,
 open-source project maintained by volunteers; there is no company behind it and nothing is sold.</p>
 
 <h2>2. What we collect</h2>
-<p>Nothing. Inkpad is a single static HTML file. It has no backend, so there is nowhere for your
-information to be sent to or stored. Specifically, Inkpad does <strong>not</strong>:</p>
+<p>Nothing. Typewell is a single static HTML file. It has no backend, so there is nowhere for your
+information to be sent to or stored. Specifically, Typewell does <strong>not</strong>:</p>
 <ul>
   <li>ask you to create an account or give an email address;</li>
   <li>set cookies, or use any tracking, advertising or analytics service;</li>
@@ -137,20 +137,24 @@ information to be sent to or stored. Specifically, Inkpad does <strong>not</stro
 <div class="scroller">
 <table>
   <tr><th>Key</th><th>Contents</th></tr>
-  <tr><td><code>inkpad.notes.v1</code></td><td>Your notes: titles, contents and timestamps.</td></tr>
-  <tr><td><code>inkpad.settings.v1</code></td><td>Preferences — theme, default font, auto-backup, plus the backup identifiers described below.</td></tr>
+  <tr><td><code>typewell.notes.v1</code></td><td>Your notes: titles, contents and timestamps.</td></tr>
+  <tr><td><code>typewell.settings.v1</code></td><td>Preferences — theme, default font, auto-backup, plus the backup identifiers described below.</td></tr>
 </table>
 </div>
 <p>This data never leaves your device on its own. It is tied to that one browser on that one
 device: it does not follow you to another computer, and clearing your browser's site data for this
 domain erases it permanently. These policy pages read the theme preference from that same key so
 they match the app's appearance; they store nothing.</p>
+<p>The app was previously called Inkpad and used the keys <code>inkpad.notes.v1</code> and
+<code>inkpad.settings.v1</code>. If those older keys are present and the new ones are not, your
+notes and settings are copied across once on first load, so nothing saved under the former name is
+lost.</p>
 
 <h2>4. Optional backups</h2>
 <p>Both backup destinations are off by default and require you to connect them deliberately.</p>
 
 <h3>Google Drive</h3>
-<p>If you connect Drive, Inkpad requests only the
+<p>If you connect Drive, Typewell requests only the
 <code>drive.file</code> scope. That scope is limited to files the app itself creates — it grants no
 ability to see, open or list anything else in your Drive. Your notes are written to a single backup
 file in your own Drive account. The access token is held in memory for the duration of the session
@@ -159,7 +163,7 @@ saved locally. Data handled by Google under your own account is governed by
 <a href="https://policies.google.com/privacy" target="_blank" rel="noopener">Google's Privacy Policy</a>.</p>
 
 <h3>GitHub Gist</h3>
-<p>If you supply a GitHub personal access token, Inkpad writes the same backup file to a
+<p>If you supply a GitHub personal access token, Typewell writes the same backup file to a
 <em>secret</em> gist in your account. The token needs only the <code>gist</code> scope. Data held by
 GitHub is governed by
 <a href="https://docs.github.com/site-policy/privacy-policies/github-general-privacy-statement" target="_blank" rel="noopener">GitHub's Privacy Statement</a>.</p>
@@ -172,7 +176,7 @@ GitHub is governed by
 </div>
 
 <h2>5. Third parties your browser contacts</h2>
-<p>Inkpad itself sends nothing, but loading any web page involves requests to whoever serves it.
+<p>Typewell itself sends nothing, but loading any web page involves requests to whoever serves it.
 For transparency, this is the complete list:</p>
 <div class="scroller">
 <table>
@@ -183,9 +187,10 @@ For transparency, this is the complete list:</p>
     <td>Your IP address and browser user-agent, as with any file fetched from another domain.</td>
   </tr>
   <tr>
-    <td>GitHub Pages</td>
+    <td>Cloudflare Pages</td>
     <td>Every visit</td>
-    <td>Hosting provider for the site; GitHub may log requests as described in its privacy statement.</td>
+    <td>Hosting provider for the site; Cloudflare may log requests as described in its
+    <a href="https://www.cloudflare.com/privacypolicy/" target="_blank" rel="noopener">privacy policy</a>.</td>
   </tr>
   <tr>
     <td>Google Identity Services</td>
@@ -206,11 +211,11 @@ For transparency, this is the complete list:</p>
 </div>
 <p>None of these are analytics or advertising services, and none of them receive your notes except
 the two backup destinations you connect yourself. If you would rather not contact Google Fonts at
-all, download <code>index.html</code> and open it from your own disk — Inkpad runs perfectly from a
+all, download <code>index.html</code> and open it from your own disk — Typewell runs perfectly from a
 <code>file://</code> URL, and the fonts simply fall back to your system's.</p>
 
 <h2>6. Cookies</h2>
-<p>Inkpad sets no cookies, so there is no cookie banner to dismiss. <code>localStorage</code> is
+<p>Typewell sets no cookies, so there is no cookie banner to dismiss. <code>localStorage</code> is
 used instead, purely to hold your own notes and settings as described above.</p>
 
 <h2>7. Deleting your data</h2>
@@ -219,13 +224,13 @@ are always in full control:</p>
 <ul>
   <li><strong>Notes and settings:</strong> delete notes in the app, or clear site data for this
   domain in your browser to remove everything at once.</li>
-  <li><strong>Drive:</strong> delete the backup file in your Drive, and revoke Inkpad's access at
+  <li><strong>Drive:</strong> delete the backup file in your Drive, and revoke Typewell's access at
   <a href="https://myaccount.google.com/permissions" target="_blank" rel="noopener">your Google account permissions</a>.</li>
   <li><strong>Gist:</strong> delete the gist, and revoke the token in your GitHub developer settings.</li>
 </ul>
 
 <h2>8. Children</h2>
-<p>Inkpad is suitable for general audiences and collects no personal information from anyone,
+<p>Typewell is suitable for general audiences and collects no personal information from anyone,
 children included.</p>
 
 <h2>9. Changes to this policy</h2>
@@ -234,12 +239,12 @@ the project's public commit history — so you can see exactly what changed and 
 
 <h2>10. Contact</h2>
 <p>Questions or concerns are best raised as an issue on
-<a href="https://github.com/inkpad-js/inkpad/issues/new" target="_blank" rel="noopener">the project's issue tracker</a>,
+<a href="https://github.com/aronbraun/typewell/issues/new" target="_blank" rel="noopener">the project's issue tracker</a>,
 where the answer is public and useful to everyone.</p>
 
 <footer>
-  <p>Inkpad is free and open source, <a href="https://github.com/inkpad-js/inkpad/blob/main/LICENSE" target="_blank" rel="noopener">MIT licensed</a>.
-  This page lives in the <a href="https://github.com/inkpad-js/inkpad/blob/main/privacy.html" target="_blank" rel="noopener">same repository as the app</a>,
+  <p>Typewell is free and open source, <a href="https://github.com/aronbraun/typewell/blob/main/LICENSE" target="_blank" rel="noopener">MIT licensed</a>.
+  This page lives in the <a href="https://github.com/aronbraun/typewell/blob/main/privacy.html" target="_blank" rel="noopener">same repository as the app</a>,
   so every claim it makes can be checked against the code, and every revision is public.</p>
 </footer>
 
@@ -248,7 +253,7 @@ where the answer is public and useful to everyone.</p>
 <script>
 /* mirror the theme chosen in the app; otherwise keep the default set on <html> */
 try{
-  var s=JSON.parse(localStorage.getItem("inkpad.settings.v1")||"{}");
+  var s=JSON.parse(localStorage.getItem("typewell.settings.v1")||"{}");
   if(s.theme) document.documentElement.dataset.theme=s.theme;
 }catch(e){}
 </script>
