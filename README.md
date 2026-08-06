@@ -160,103 +160,52 @@ Triggers work anywhere — including the first line of an empty note and lines t
 ## Deploying
 
 It is one file — any static host works. This repository publishes to **GitHub
-Pages** from two workflows in `.github/workflows/`. Pages is set up as a
-*branch* deploy, so everything that is live lives in the `gh-pages` branch:
-
-```
-gh-pages/
-├── index.html  privacy.html  terms.html   ← production
-├── CNAME  .nojekyll                        ← written by the deploy, not committed to main
-└── pr/
-    ├── 42/…                                ← preview for PR #42
-    └── 57/…                                ← preview for PR #57
-```
-
-A branch deploy rather than the "GitHub Actions" source, deliberately: an
-artifact deploy replaces the *entire* site on every run, so previews and
-production would delete each other. A branch is the only Pages mode where more
-than one thing can be live at once.
-
-### Production — `deploy.yml`
+Pages** from a single workflow, `.github/workflows/deploy.yml`, with Pages set to
+the **GitHub Actions** source.
 
 Every push to `main` (or a manual *Run workflow*) copies the three pages into
-`dist/`, substitutes `__GOOGLE_CLIENT_ID__` from the repository variable, and
-writes the result to the **root** of `gh-pages`. Live a minute or two later at
+`dist/`, substitutes `__GOOGLE_CLIENT_ID__`, uploads that directory as a Pages
+artifact and deploys it. Live a minute or two later at
 [typewell.net](https://typewell.net/) and
 [aronbraun.github.io/typewell](https://aronbraun.github.io/typewell/) — the same
 site, two names.
 
-It cleans stale files out of the root, but excludes `pr/` from that clean, so a
-production deploy never eats an open PR's preview.
+An artifact deploy replaces the entire site on every run. Two consequences worth
+knowing, because both look like missing features:
 
-### Pull-request previews — `preview.yml`
-
-Every pull request gets its own copy of the site at
-
-```
-https://typewell.net/pr/<number>/
-```
-
-refreshed on every push and announced in one sticky comment on the PR. Merging
-or closing the PR deletes the directory. The preview deploy is scoped to its own
-subdirectory, so it cannot reach production either.
-
-Two things worth knowing before you file a bug about them:
-
-- **Drive backup is switched off in previews on purpose.** The placeholder is
-  substituted with an empty string, so the Drive panel reads "not configured".
-  Google's *Authorized JavaScript origins* are per-origin, not per-path, so a
-  preview can only ever share production's origin entry — pointing it at the
-  real ID would buy nothing and produce a confusing error. Everything else is
-  the real app; test Drive against production.
-- Previews run on `pull_request`, never `pull_request_target`, and are gated to
-  same-repo branches. **A pull request from a fork gets no preview.** That is
-  the point: a fork PR must never receive a token that can write to `gh-pages`.
+- **There are no per-PR previews.** Only one thing can be live at a time, so a
+  preview would delete production and production would delete the preview.
+  Serving both at once needs a branch deploy (`gh-pages/pr/<number>/`), which
+  costs a published branch full of build output and a second workflow racing the
+  first for it. Not worth it here. To try a branch, open `index.html` from disk —
+  it is the whole app.
+- **Jekyll never runs**, so there is no `.nojekyll` to keep around, and the
+  custom domain lives in the Pages settings rather than in a `CNAME` file in the
+  payload. One place for each thing.
 
 ### One-time setup
 
 | Where | What |
 |---|---|
-| Settings → Pages → Source | *Deploy from a branch* → branch `gh-pages`, folder `/ (root)` |
+| Settings → Pages → Source | **GitHub Actions** |
 | Settings → Pages → Custom domain | `typewell.net` |
-| Settings → Secrets and variables → Actions → **Variables** | `GOOGLE_CLIENT_ID` |
+| Settings → Secrets and variables → Actions | `GOOGLE_CLIENT_ID` — as a **variable** or a **secret**; the workflow reads the secret first and falls back to the variable |
 | DNS, wherever the zone lives | apex `A`/`AAAA` records pointing at [GitHub's Pages IPs](https://docs.github.com/pages/configuring-a-custom-domain-for-your-github-pages-site/managing-a-custom-domain-for-your-github-pages-site#configuring-an-apex-domain), and `www` as a `CNAME` to `aronbraun.github.io` |
 
-The `gh-pages` branch does not exist until the first deploy creates it, so the
-order matters: push to `main` (or run the workflow by hand) **first**, then pick
-the branch in the Pages settings. Until then the branch simply is not in the
-dropdown.
-
-### `.nojekyll` — do not tidy it away
-
-Under a branch deploy GitHub runs the published branch through Jekyll, which
-ignores files and directories whose names start with `_` or `.`. The empty
-`.nojekyll` at the repository root is copied into every deploy to turn that off.
-It looks like a stray zero-byte file worth deleting; it isn't. (It *is*
-redundant under a GitHub-Actions artifact deploy — which is exactly why it is
-easy to delete by mistake after reading someone else's setup.)
-
-### The custom domain lives in `CNAME`
-
-Under a branch deploy, the `CNAME` file in the *published branch* is what binds
-`typewell.net` to the site — the field in the Pages settings UI is just a
-front-end for writing that file. Since every production deploy rewrites the
-branch root, a `CNAME` that existed only because someone typed it into the
-settings would be clobbered on the next push. So `deploy.yml` writes it as part
-of the payload.
-
-It is deliberately not committed to `main`: the source stays host-agnostic and
-the domain is configured in exactly one place. To move the site, change the one
-`CUSTOM_DOMAIN:` line in `deploy.yml`. Previews get no `CNAME`; only the root
-one means anything.
-
+The build **fails** if the placeholder survives substitution. A site that ships
+with Drive quietly switched off looks identical to a working one until somebody
+tries to connect, which is the worst moment to find out.
 ### About that client ID
 
-A variable, not a secret: an OAuth client ID is public by design and ships to
-every visitor. Build-time substitution hides nothing — a published site is
-world-readable. It lives in deploy configuration only so that a checkout, a
+Really a variable, not a secret: an OAuth client ID is public by design and
+ships to every visitor. Build-time substitution hides nothing — a published site
+is world-readable. It lives in deploy configuration only so that a checkout, a
 fork, or a `file://` open shows a clean "not configured" instead of carrying
 someone else's ID around.
+
+Storing it as a *secret* works too and the workflow reads that first. It costs
+nothing but a masked value in the build log, and a workflow that ignores the
+value you actually set is worse than an untidy one.
 
 What actually constrains the ID is the *Authorized JavaScript origins* list in
 the Google console, which for this project is:

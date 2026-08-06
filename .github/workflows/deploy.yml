@@ -1,55 +1,53 @@
 name: Deploy to GitHub Pages
 
-# Production. Every push to main publishes the site to the ROOT of the
-# `gh-pages` branch, which GitHub then serves at
+# Production, and the only deploy path. Every push to main builds the site and
+# hands it to GitHub Pages as an artifact:
 #
 #   https://typewell.net/                      (custom domain)
 #   https://aronbraun.github.io/typewell/      (default domain)
 #
-# Requires Settings -> Pages -> Source = "Deploy from a branch",
-# branch `gh-pages`, folder `/ (root)`. A *branch* deploy is deliberate: it is
-# the only Pages mode where more than one thing can live on the site at once,
-# which is what makes the per-PR previews in preview.yml possible. Under the
-# "GitHub Actions" source an artifact deploy replaces the entire site on every
-# run, so previews would delete production and vice versa.
+# Requires Settings -> Pages -> Source = "GitHub Actions".
 #
-# Consequences of a branch deploy that are easy to forget:
-#   * Jekyll processes the branch, so `.nojekyll` must be in the published
-#     payload. It is copied in by the build step below. Do not remove it.
-#   * The `CNAME` file in the published branch is what binds typewell.net to
-#     this site. It is written by the build step rather than committed to main,
-#     so the custom domain is configured in exactly one place.
+# An artifact deploy replaces the whole site on every run. That is why there are
+# no per-PR previews any more: two things cannot live on the site at once, so a
+# preview would delete production and production would delete the preview. It
+# also means Jekyll never runs, so there is no .nojekyll to carry around, and
+# the custom domain lives in the Pages settings rather than in a CNAME file.
+# One place for each thing.
 
 on:
   push:
     branches: [main]
   workflow_dispatch:
 
-# Read-only at the top level; the one job that needs to write says so itself.
 permissions:
   contents: read
 
-# Shared with preview.yml. Both workflows push to the same branch, so they must
-# take turns rather than race. cancel-in-progress is false: a half-finished
-# deploy is worse than a slow one.
+# One deploy at a time. cancel-in-progress is false: a half-finished deploy is
+# worse than a slow one, and pushes to main are rare enough that queueing costs
+# nothing.
 concurrency:
-  group: gh-pages
+  group: pages
   cancel-in-progress: false
 
 jobs:
   deploy:
-    name: Publish to gh-pages
+    name: Build and deploy
     runs-on: ubuntu-latest
+
     permissions:
-      contents: write # push the built site to the gh-pages branch
+      contents: read
+      pages: write # publish the artifact
+      id-token: write # OIDC token the deploy step authenticates with
+
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
 
     steps:
       - name: Checkout
         uses: actions/checkout@v7.0.1
         with:
-          # The deploy action builds its own authenticated remote, so the
-          # checkout credentials are not needed and are better not left lying
-          # around in .git/config.
           persist-credentials: false
 
       - name: Build site
@@ -58,11 +56,13 @@ jobs:
           # ${{ }} is substituted before the shell ever sees the text, which
           # would let the value inject shell syntax.
           #
-          # A variable, not a secret. An OAuth client ID is public by design and
-          # ships to every visitor; what constrains it is the Authorized
-          # JavaScript origins list in the Google console, not secrecy.
-          GOOGLE_CLIENT_ID: ${{ vars.GOOGLE_CLIENT_ID }}
-          CUSTOM_DOMAIN: typewell.net
+          # Reads the secret first, then the variable. An OAuth client ID is
+          # public by design - it ships to every visitor, and what constrains it
+          # is the Authorized JavaScript origins list in the Google console, not
+          # secrecy - so a variable is the honest home for it. But it is stored
+          # as a secret on this repo, and a workflow that silently ignores the
+          # value you actually set is worse than an untidy one.
+          GOOGLE_CLIENT_ID: ${{ secrets.GOOGLE_CLIENT_ID || vars.GOOGLE_CLIENT_ID }}
         run: |
           set -euo pipefail
 
@@ -71,16 +71,8 @@ jobs:
           mkdir -p "$out"
           cp index.html privacy.html terms.html "$out/"
 
-          # Required. Under a branch deploy GitHub runs the payload through
-          # Jekyll unless this file is present at the site root.
-          cp .nojekyll "$out/.nojekyll"
-
-          # Authoritative for the custom domain under a branch deploy. Written
-          # here rather than committed to main so that main stays host-agnostic.
-          printf '%s\n' "$CUSTOM_DOMAIN" > "$out/CNAME"
-
           if [ -z "$GOOGLE_CLIENT_ID" ]; then
-            echo "::warning::repository variable GOOGLE_CLIENT_ID is not set - the Drive panel will read 'not configured'"
+            echo "::warning::GOOGLE_CLIENT_ID is not set - the Drive panel will read 'not configured'"
           elif ! printf '%s' "$GOOGLE_CLIENT_ID" | grep -qE '^[A-Za-z0-9._-]+$'; then
             # Real client IDs are [A-Za-z0-9._-] only. Refusing anything else
             # keeps the value from being able to break out of the sed script
@@ -91,29 +83,25 @@ jobs:
 
           sed -i "s|__GOOGLE_CLIENT_ID__|${GOOGLE_CLIENT_ID}|g" "$out/index.html"
 
+          # Fails the build rather than warning. A site that silently ships with
+          # Drive switched off looks identical to one that works until someone
+          # tries to connect, and the whole point of this step is that value.
           if grep -q '__GOOGLE_CLIENT_ID__' "$out/index.html"; then
-            echo "::warning::placeholder __GOOGLE_CLIENT_ID__ survived substitution"
+            echo "::error::placeholder __GOOGLE_CLIENT_ID__ survived substitution"
+            exit 1
           fi
 
           echo "Built $out:"
           ls -la "$out"
 
-      - name: Deploy to gh-pages (root)
-        uses: JamesIves/github-pages-deploy-action@v4.8.0
+      - name: Configure Pages
+        uses: actions/configure-pages@v6.0.0
+
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v5.0.0
         with:
-          branch: gh-pages
-          folder: dist
-          # No target-folder: this writes the branch root.
-          clean: true
-          # ...but never touch the previews. Without this, every production
-          # deploy would delete every open PR's preview.
-          clean-exclude: |
-            pr/
-          # Rebase and retry on a conflicting push instead of force-pushing over
-          # whatever landed in between. Never force_orphan / single-commit here:
-          # both would discard the pr/ tree along with the history.
-          force: false
-          single-commit: false
-          commit-message: "Deploy ${{ github.sha }} to gh-pages root"
-          git-config-name: github-actions[bot]
-          git-config-email: 41898282+github-actions[bot]@users.noreply.github.com
+          path: dist
+
+      - name: Deploy to GitHub Pages
+        id: deploy
+        uses: actions/deploy-pages@v5.0.0
