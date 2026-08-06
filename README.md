@@ -126,7 +126,7 @@ Backs up the same JSON to a **secret gist**. Paste a token with only the [`gist`
 | `> ` | quote |
 | `[!note]` `[!tip]` `[!important]` `[!warning]` `[!caution]` + Enter | callout / alert banner (works with or without a leading `> `) |
 | ` ``` ` + Enter | code block (` ```js ` keeps the language) |
-| `---` / `***` + Enter | divider |
+| `---` / `***` + space or Enter | divider (must be the whole line) |
 | `**text**` `*text*` `` `text` `` `~~text~~` `==text==` + space | bold / italic / code / strike / highlight |
 | any URL + space or Enter | link (trailing `),.` stay plain) |
 

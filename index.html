@@ -274,6 +274,13 @@ body.zen #page{padding-top:52px}
   outline:none;min-height:70vh;
   font-family:var(--font-mono);font-size:14px;line-height:1.75;word-wrap:break-word;
 }
+/* JetBrains Mono ships with programming ligatures enabled: "---" fuses into one
+   long dash and "***" into a single glyph, so typing the third character looks
+   like it swallowed the first. Fine in code, wrong in prose, and actively
+   confusing when those exact sequences are markdown triggers you have to see. */
+#editor,#editor pre,#editor code,code,kbd,.tsel,.size-ctl span{
+  font-variant-ligatures:none;font-feature-settings:"liga" 0,"calt" 0;
+}
 #editor:empty::before{content:attr(data-ph);color:var(--faint);pointer-events:none}
 #editor h1{font-size:1.65em;line-height:1.25;margin:.85em 0 .3em;font-family:var(--font-ui)}
 #editor h2{font-size:1.35em;line-height:1.3;margin:.85em 0 .28em;font-family:var(--font-ui)}
@@ -1369,7 +1376,9 @@ function syncToolbar(){
   /* callout button carries the specific type; blockSelect only says "Quote" */
   const abq=n.closest("blockquote[data-alert]");
   const ab=$("#alertBtn");
-  ab.classList.toggle("on",!!abq);
+  /* lit for any quote, not just a callout — "Plain quote" is one of this
+     button's own options, so being inside one is a state it represents */
+  ab.classList.toggle("on",!!n.closest("blockquote"));
   /* a data attribute, not an inline style: an inline colour outranks .tb.on and
      left the button looking unselected whenever the var failed to resolve */
   if(abq)ab.dataset.alert=abq.getAttribute("data-alert");else delete ab.dataset.alert;
@@ -1897,6 +1906,13 @@ editor.addEventListener("keydown",e=>{
     const run=fn=>{e.preventDefault();histPush();eatMarker(b);fn();scheduleSave();};
     const H={"#":"H1","##":"H2","###":"H3","####":"H4","#####":"H5","######":"H6"};
     if(H[t])return run(()=>document.execCommand("formatBlock",false,H[t]));
+    /* divider on space as well as Enter — every other marker fires on space, so
+       "--- " silently doing nothing reads as the trigger being broken */
+    if((t==="---"||t==="***")&&b.textContent.trim()===t){
+      e.preventDefault();histPush();
+      const hr=document.createElement("hr"),p=document.createElement("p");p.innerHTML="<br>";
+      b.replaceWith(hr);hr.after(p);placeCaret(p,true);scheduleSave();return;
+    }
     if(t==="-"||t==="*"||t==="+")return run(()=>document.execCommand("insertUnorderedList"));
     if(t==="1."||t==="1)")return run(()=>document.execCommand("insertOrderedList"));
     if(t===">"){
