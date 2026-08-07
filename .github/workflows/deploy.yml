@@ -31,8 +31,24 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  # The gate. Typewell is one file of contenteditable and execCommand, where a
+  # fix to one control lands on another often enough that "it looked fine when
+  # I clicked around" has shipped the same class of bug more than once. A red
+  # suite does not reach typewell.net.
+  test:
+    name: Regression suite
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7.0.1
+        with:
+          persist-credentials: false
+      - name: Run the suite in headless Chrome
+        run: node tests/run.mjs
+
   deploy:
     name: Build and deploy
+    needs: test
     runs-on: ubuntu-latest
 
     permissions:
@@ -70,6 +86,10 @@ jobs:
           rm -rf "$out"
           mkdir -p "$out"
           cp index.html privacy.html terms.html "$out/"
+          # PWA: the manifest, the worker and the icons it names. sw.js must
+          # sit at the root or its scope cannot cover the whole site.
+          cp manifest.webmanifest sw.js "$out/"
+          cp icon-192.png icon-512.png icon-maskable-512.png "$out/"
 
           if [ -z "$GOOGLE_CLIENT_ID" ]; then
             echo "::warning::GOOGLE_CLIENT_ID is not set - the Drive panel will read 'not configured'"

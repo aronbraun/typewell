@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex">
+<title>Typewell — regression suite</title>
+<style>
+  :root{color-scheme:light dark;--ok:#2E9E5B;--bad:#D64545;--line:#8884;}
+  body{margin:0;font:13px/1.6 ui-monospace,SFMono-Regular,Menlo,monospace;
+       display:grid;grid-template-columns:minmax(340px,1fr) 1fr;height:100vh}
+  #left{overflow-y:auto;padding:16px 18px;border-right:1px solid var(--line)}
+  h1{font-size:15px;margin:0 0 4px}
+  #sum{margin:0 0 14px;font-size:12px;opacity:.75}
+  #sum b{font-size:14px}
+  ol{margin:0;padding-left:22px}
+  li{margin:0 0 3px;padding-left:2px}
+  li.pass::marker{color:var(--ok)}
+  li.fail{color:var(--bad)}
+  li.fail::marker{color:var(--bad)}
+  pre{margin:3px 0 9px;padding:7px 9px;background:#8881;border-radius:6px;
+      white-space:pre-wrap;font-size:11.5px;opacity:.9}
+  #frame{border:0;width:100%;height:100%}
+  #bar{position:sticky;top:0;background:Canvas;padding-bottom:8px}
+  button{font:inherit;padding:4px 12px;border-radius:6px;border:1px solid var(--line);
+         background:transparent;color:inherit;cursor:pointer}
+</style>
+</head>
+<body>
+<div id="left">
+  <div id="bar">
+    <h1>Typewell regression suite</h1>
+    <p id="sum">loading the app…</p>
+    <button id="again">Run again</button>
+  </div>
+  <ol id="list"></ol>
+</div>
+<!-- the real app, in a real frame, driven by real events -->
+<iframe id="frame" src="index.html" title="Typewell under test"></iframe>
+
+<script type="module">
+import { suite } from "./tests/suite.js";
+
+const frame = document.getElementById("frame");
+const list  = document.getElementById("list");
+const sum   = document.getElementById("sum");
+
+function render(results) {
+  list.innerHTML = "";
+  let pass = 0;
+  for (const r of results) {
+    if (r.pass) pass++;
+    const li = document.createElement("li");
+    li.className = r.pass ? "pass" : "fail";
+    li.textContent = r.name;
+    if (!r.pass) {
+      const pre = document.createElement("pre");
+      pre.textContent = r.error;
+      li.appendChild(pre);
+    }
+    list.appendChild(li);
+  }
+  const fail = results.length - pass;
+  sum.innerHTML = `<b style="color:var(--${fail ? "bad" : "ok"})">${pass}/${results.length}</b> passing`
+    + (fail ? ` — <b style="color:var(--bad)">${fail} failing</b>` : " — all green");
+  window.__RESULTS__ = results;          /* what tests/run.mjs polls for */
+}
+
+function run() {
+  sum.textContent = "running…";
+  let results;
+  try {
+    results = suite(frame.contentWindow);
+  } catch (e) {
+    results = [{ name: "suite crashed before it could run", pass: false, error: e.stack || e.message }];
+  }
+  render(results);
+}
+
+/* The app builds its UI on load; give the frame a turn to finish before poking
+   it. A module script is deferred, so the frame may already be loaded by the
+   time this runs and the load event will never fire again — check for that
+   rather than waiting for an event that has been and gone. */
+/* setTimeout, not requestAnimationFrame: a headless or backgrounded tab is not
+   compositing, so rAF never fires and the suite would hang forever. */
+let armed = false;
+const armRun = () => { if (!armed) { armed = true; setTimeout(run, 120); } };
+frame.addEventListener("load", armRun);
+if (frame.contentDocument && frame.contentDocument.readyState === "complete") armRun();
+document.getElementById("again").addEventListener("click", () => { armed = false; run(); });
+</script>
+</body>
+</html>

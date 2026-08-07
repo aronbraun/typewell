@@ -4,3 +4,6 @@
 # .github/workflows/ to debug something cannot end up committed.
 dist/
 seed/
+
+# Local editor/agent scratch — the dev server config is per-machine.
+.claude/

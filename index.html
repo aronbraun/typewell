@@ -6,6 +6,7 @@
 <title>Typewell — your notes, your browser, your Drive</title>
 <meta name="description" content="Markdown notes that live in your own browser. No account, no server, no tracking, with optional sync to a folder of .md files in your own Google Drive, or a secret Gist.">
 <link rel="canonical" href="https://typewell.net/">
+<link rel="manifest" href="manifest.webmanifest">
 <meta name="application-name" content="Typewell">
 <meta name="author" content="Typewell contributors">
 <meta name="color-scheme" content="light dark">
@@ -258,36 +259,50 @@ body.zen #topbar,body.zen #toolbar{display:none}
 .size-ctl button{width:22px;height:28px;color:var(--muted);font-size:14px;border-radius:var(--r-sm);flex:none}
 .size-ctl button:hover{background:var(--hover);color:var(--ink)}
 .size-ctl span{width:30px;flex:none;text-align:center;font-size:11.5px;font-family:var(--font-mono);color:var(--muted)}
-/* ---- colour split control ---- */
-.cpick{display:inline-flex;flex:none;height:28px;border-radius:var(--r-sm);overflow:hidden}
-.cpick:hover{background:var(--hover)}
-.sw-main{position:relative;width:28px;height:28px;flex:none;display:grid;place-items:center;color:var(--muted);cursor:pointer}
-.sw-caret{width:14px;height:28px;flex:none;display:grid;place-items:center;color:var(--faint);cursor:pointer}
-.sw-caret .ic{width:11px;height:11px}
-.cpick:hover .sw-main,.cpick:hover .sw-caret{color:var(--ink)}
-.sw-main .bar{position:absolute;bottom:5px;left:6px;right:6px;height:3px;border-radius:2px}
-.sw-main>span:not(.bar),.sw-main>svg{transform:translateY(-2px);pointer-events:none}
-.sw-main .bar{pointer-events:none}
-/* The native picker is still the escape hatch behind "Custom…", but it must
-   never be what you hit by accident: zero-sized and off-screen, opened only by
-   a .click() from the palette. */
-.cp-native{position:absolute;width:0;height:0;opacity:0;pointer-events:none;border:0;padding:0}
+/* ---- colour control ----
+   One button, one popup. The split control it replaces put "apply" and "choose"
+   on two halves of a 42px target, so half of every click landed on the half you
+   did not mean. */
+.cpick{position:relative;width:28px;height:28px;flex:none;display:grid;place-items:center;
+  color:var(--muted);border-radius:var(--r-sm);cursor:pointer}
+.cpick:hover{background:var(--hover);color:var(--ink)}
+.cpick.on{background:var(--hover);color:var(--ink)}
+.cpick .bar{position:absolute;bottom:4px;left:5px;right:5px;height:3px;border-radius:2px;
+  pointer-events:none;box-shadow:0 0 0 1px rgba(128,128,128,.28) inset}
+.cpick>span:not(.bar),.cpick>svg{transform:translateY(-2px);pointer-events:none}
 
-/* ---- colour palette popup ---- */
-.cp-menu{width:198px;padding:9px}
-.cp-menu .cp-lbl{font-size:10px;letter-spacing:.4px;text-transform:uppercase;color:var(--faint);margin:0 0 5px 2px}
-.cp-menu .cp-lbl+.cp-lbl,.cp-grid+.cp-lbl{margin-top:10px}
-.cp-grid{display:grid;grid-template-columns:repeat(8,1fr);gap:4px}
-.cp-sw{width:19px;height:19px;border-radius:5px;cursor:pointer;border:1px solid rgba(128,128,128,.35);padding:0}
-.cp-sw:hover{transform:scale(1.14)}
+/* ---- colour palette popup ----
+   Custom picker on top, presets and history below it: the same order Word,
+   Docs and every other editor uses, so the muscle memory transfers. */
+.cp-menu{width:226px;padding:10px}
+.cp-menu .cp-lbl{font-size:10px;letter-spacing:.4px;text-transform:uppercase;color:var(--faint);margin:10px 0 6px 2px}
+.cp-menu .cp-lbl:first-child{margin-top:0}
+.cp-top{display:flex;align-items:center;gap:8px}
+/* The native picker lives *in* the popup rather than hidden at 0,0 off-screen:
+   the OS dialog anchors to the element it was opened from, so a hidden one
+   opened it in the top-left corner of the screen every time. */
+.cp-native{flex:none;width:38px;height:30px;padding:0;border:1px solid var(--line);
+  border-radius:var(--r-sm);background:var(--panel-2);cursor:pointer}
+.cp-native::-webkit-color-swatch-wrapper{padding:3px}
+.cp-native::-webkit-color-swatch{border:none;border-radius:4px}
+.cp-native::-moz-color-swatch{border:none;border-radius:4px}
+.cp-hex{flex:1 1 auto;min-width:0;height:30px;padding:0 8px;border-radius:var(--r-sm);
+  border:1px solid var(--line);background:var(--bg);color:var(--ink);outline:none;
+  font-family:var(--font-mono);font-size:11.5px;letter-spacing:.5px;text-transform:uppercase}
+.cp-hex:focus{border-color:var(--accent)}
+.cp-grid{display:grid;grid-template-columns:repeat(8,1fr);gap:5px}
+/* .menu button sets width:100% and display:flex, which is right for a menu row
+   and turns a swatch grid into one swatch per line. Beat it on specificity
+   rather than fight it everywhere. */
+.cp-menu .cp-grid button{display:block;width:100%;height:21px;padding:0;border-radius:5px;
+  cursor:pointer;border:1px solid rgba(128,128,128,.35);transition:transform .1s}
+.cp-menu .cp-grid button:hover{transform:scale(1.16);background:inherit}
 /* the colour in use gets a ring, not a tick: a tick drawn over an arbitrary
    colour is illegible on about half of them */
-.cp-sw.cur{outline:2px solid var(--accent);outline-offset:2px}
-.cp-sw.none{position:relative;background:var(--panel-2)}
-.cp-sw.none::after{content:"";position:absolute;inset:3px;border-top:1.5px solid var(--danger);transform:rotate(45deg);transform-origin:center}
-.cp-custom{margin-top:9px;width:100%;height:26px;border-radius:var(--r-sm);border:1px solid var(--line);
-  background:transparent;color:var(--muted);font-size:11.5px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px}
-.cp-custom:hover{border-color:var(--accent);color:var(--accent)}
+.cp-menu .cp-grid button.cur{outline:2px solid var(--accent);outline-offset:2px}
+.cp-menu .cp-grid button.none{position:relative;background:var(--panel-2)}
+.cp-menu .cp-grid button.none::after{content:"";position:absolute;inset:4px;
+  border-top:1.5px solid var(--danger);transform:rotate(45deg);transform-origin:center}
 
 /* ================= find bar ================= */
 #findbar{display:none;gap:6px;align-items:center;padding:6px 10px;background:var(--panel-2);border-bottom:1px solid var(--line);flex:none;flex-wrap:wrap}
@@ -500,6 +515,9 @@ kbd{font-family:var(--font-mono);font-size:10.5px;background:var(--panel-2);bord
   max-width:320px;animation:toastIn .16s ease;
 }
 .toast.err{border-left-color:var(--danger)}
+.toast-act{margin-left:11px;padding:2px 9px;border-radius:var(--r-sm);border:1px solid var(--accent);
+  background:transparent;color:var(--accent);font-size:11.5px;font-weight:600;cursor:pointer}
+.toast-act:hover{background:var(--accent);color:var(--panel)}
 .toast.ok{border-left-color:var(--ok)}
 @keyframes toastIn{from{transform:translateY(8px);opacity:0}to{transform:none;opacity:1}}
 .menu{position:fixed;background:var(--panel);border:1px solid var(--line);border-radius:11px;box-shadow:var(--shadow);z-index:70;min-width:186px;padding:5px;display:none;animation:pop .13s ease}
@@ -529,7 +547,7 @@ kbd{font-family:var(--font-mono);font-size:10.5px;background:var(--panel-2);bord
 select.tsel{vertical-align:middle;align-self:center}
 .theme-dots{height:28px;align-items:center}
 .size-ctl span{line-height:28px}
-.sw-main>span:not(.bar){line-height:1}
+.cpick>span:not(.bar){line-height:1}
 #findbar .ibtn{width:27px;height:27px}
 .btn>svg.ic{flex:none}
 .ibtn>svg.ic{flex:none}
@@ -626,26 +644,51 @@ body.zen #zenExit{display:grid}
 
 @media print{#tblUI,#tblPick{display:none!important}}
 
-/* ---------- drag-to-reorder list items ---------- */
+/* ---------- drag-to-reorder blocks ---------- */
 #dragUI{position:fixed;inset:0;z-index:53;pointer-events:none;display:none}
-#dragUI.on{display:block}
+#dragUI.on,#dragUI.dragging{display:block}
 #dragUI .dragh{
-  position:absolute;pointer-events:auto;width:18px;height:20px;border-radius:5px;
+  position:absolute;pointer-events:auto;width:20px;height:22px;border-radius:6px;
   display:grid;place-items:center;color:var(--faint,var(--muted));cursor:grab;
-  opacity:.32;transition:opacity .12s,background .12s;background:transparent;
+  opacity:0;transform:translateX(3px);background:transparent;
+  transition:opacity .13s ease,transform .13s ease,background .13s,color .13s;
 }
-#dragUI .dragh:hover{opacity:1;background:var(--hover)}
-#dragUI.dragging .dragh{opacity:1;cursor:grabbing;background:var(--hover)}
-#dragUI .dragh svg{width:13px;height:13px;pointer-events:none}
-#dragUI .dropline{
-  position:absolute;height:2px;border-radius:2px;background:var(--accent);display:none;
-}
-#dragUI.dragging .dropline{display:block}
+/* the visible button is small so it does not crowd the text; the thing you
+   have to hit with a mouse is not */
+#dragUI .dragh::before{content:"";position:absolute;inset:-7px -6px;border-radius:9px}
+#dragUI.on .dragh{opacity:.45;transform:none}
+#dragUI .dragh:hover{opacity:1;background:var(--hover);color:var(--ink);
+  box-shadow:0 0 0 1px var(--line-soft)}
+#dragUI .dragh:active{cursor:grabbing}
+#dragUI.dragging .dragh{opacity:1;cursor:grabbing;background:var(--hover);color:var(--accent)}
+#dragUI .dragh svg{width:14px;height:14px;pointer-events:none}
+
+/* The drop indicator: a line where the block will land, with a dot on the lead
+   end so a line at the very top of the page still reads as a target and not as
+   a stray border. */
+#dragUI .dropline{position:absolute;height:2px;border-radius:2px;background:var(--accent);
+  display:none;box-shadow:0 0 0 3px color-mix(in srgb,var(--accent) 14%,transparent)}
+#dragUI .dropline::before{content:"";position:absolute;left:-4px;top:50%;
+  width:8px;height:8px;margin-top:-4px;border-radius:50%;background:var(--accent)}
+#dragUI.dragging .dropline{display:block;animation:dropIn .12s ease}
+@keyframes dropIn{from{opacity:0;transform:scaleX(.9)}to{opacity:1;transform:none}}
+
+/* The thing under the cursor is a real, dimmed copy of the block, not an empty
+   outline: at a glance you want to see *which* row you picked up. */
 #dragUI .ghost{
-  position:absolute;pointer-events:none;display:none;border-radius:var(--r-sm);
-  background:var(--accent-soft);outline:1px solid color-mix(in srgb,var(--accent) 40%,transparent);
+  position:absolute;pointer-events:none;display:none;overflow:hidden;
+  padding:4px 12px;border-radius:var(--r);opacity:.92;
+  background:var(--panel);border:1px solid var(--line);
+  box-shadow:0 12px 30px -8px rgba(0,0,0,.35);
+  font-family:var(--font-mono);font-size:13px;line-height:1.5;color:var(--ink);
+  white-space:nowrap;text-overflow:ellipsis;
 }
 #dragUI.dragging .ghost{display:block}
+#dragUI .ghost *{font-size:inherit!important;margin:0!important;padding:0!important;
+  border:none!important;background:none!important;list-style:none!important}
+/* the row being moved stays visible but recedes, so the page does not reflow
+   under the pointer mid-drag */
+#editor .drag-src{opacity:.34}
 @media print{#dragUI{display:none!important}}
 
 </style>
@@ -711,21 +754,12 @@ body.zen #zenExit{display:grid}
       <button class="tb" id="codeBlockBtn" title="Code block  (type ``` then Enter)  Ctrl+Shift+E"><svg class="ic" data-i="codeblock"></svg></button>
       <button class="tb" id="linkBtn" title="Link  Ctrl+K  (Ctrl+click a link to open it)"><svg class="ic" data-i="link"></svg></button>
       <div class="tb-sep"></div>
-      <!-- Split control, the Word / Docs shape: the big half applies the colour
-           already showing, the caret opens the palette. Applying the colour you
-           can see should never cost a trip through a dialog. -->
-      <div class="cpick">
-        <button class="sw-main" id="foreApply" title="Apply this text color"><span style="font-weight:700;font-size:13px">A</span>
-          <span class="bar" id="foreBar" style="background:#0E9E9E"></span></button>
-        <button class="sw-caret" id="foreOpen" title="Text color"><svg class="ic" data-i="chevDown"></svg></button>
-      </div>
-      <div class="cpick">
-        <button class="sw-main" id="hiliteApply" title="Apply this highlight"><svg class="ic" data-i="hilite"></svg>
-          <span class="bar" id="hiliteBar" style="background:#F5E6A8"></span></button>
-        <button class="sw-caret" id="hiliteOpen" title="Highlight color"><svg class="ic" data-i="chevDown"></svg></button>
-      </div>
-      <input type="color" id="foreColor" value="#0E9E9E" class="cp-native">
-      <input type="color" id="hiliteColor" value="#F5E6A8" class="cp-native">
+      <!-- One button, one popup. The bar under the glyph is the colour that will
+           be applied; the popup is where you change it. -->
+      <button class="cpick" id="foreBtn" title="Text colour"><span style="font-weight:700;font-size:13px">A</span>
+        <span class="bar" id="foreBar" style="background:#0E9E9E"></span></button>
+      <button class="cpick" id="hiliteBtn" title="Highlight"><svg class="ic" data-i="hilite"></svg>
+        <span class="bar" id="hiliteBar" style="background:#F5E6A8"></span></button>
       <div class="tb-sep"></div>
       <button class="tb" data-cmd="insertUnorderedList" title="Bullet list  Ctrl+Shift+8"><svg class="ic" data-i="ul"></svg></button>
       <button class="tb" data-cmd="insertOrderedList" title="Numbered list  Ctrl+Shift+7"><svg class="ic" data-i="ol"></svg></button>
@@ -1119,7 +1153,7 @@ const WELCOME_HTML=
   'and no server: what you type is saved to this browser as you go. Everything below '+
   'is a real note — edit it, try things in it, delete it when you are done.</p>'+
 
-  '<blockquote data-alert="tip"><p><strong>Tip</strong></p>'+
+  '<blockquote class="alert" data-alert="tip">'+
   '<p>Nothing here needs setting up. Start typing and it is saved.</p></blockquote>'+
 
   '<h2>Markdown as you type</h2>'+
@@ -1141,7 +1175,7 @@ const WELCOME_HTML=
   '<p>Five kinds. Type <code>[!note]</code>, <code>[!tip]</code>, '+
   '<code>[!important]</code>, <code>[!warning]</code> or <code>[!caution]</code> at the '+
   'start of a line and press Enter — or use the callout button in the toolbar.</p>'+
-  '<blockquote data-alert="warning"><p><strong>Warning</strong></p>'+
+  '<blockquote class="alert" data-alert="warning">'+
   '<p>To get out of a quote or a code block, press <b>Ctrl+Enter</b>. Pressing Enter '+
   'twice keeps you inside it.</p></blockquote>'+
 
@@ -1160,7 +1194,11 @@ const WELCOME_HTML=
   '<h2>Your notes, and getting them out</h2>'+
   '<ul class="tasks">'+
   TASK('Rename a note in the <b>top bar</b>. The name never becomes part of the text')+
-  TASK('Drag the handle at the start of a list line to move that line')+
+  TASK('Hover any block — a line, a heading, a quote, a code block — and a grip '+
+       'appears in the margin. Drag it to move that block, or press '+
+       '<b>Alt+Shift+↑/↓</b>')+
+  TASK('Install Typewell from your browser’s address bar to run it in its own '+
+       'window, offline. It still checks for a new version every time you open it')+
   TASK('Pin, duplicate or delete from the sidebar. Deleted notes wait in <b>Trash</b>')+
   TASK('Export one note as Markdown, HTML, plain text or PDF from the download icon')+
   TASK('<b>Full backup (.json)</b> saves every note at once, and <b>Import backup</b> in the same menu brings it back')+
@@ -1176,7 +1214,7 @@ const WELCOME_HTML=
   'it created itself. The rest of your Drive stays invisible to it. Press <b>Ctrl+S</b> '+
   'to sync now, or turn on auto-sync in Settings.</p>'+
 
-  '<blockquote data-alert="note"><p><strong>Note</strong></p>'+
+  '<blockquote class="alert" data-alert="note">'+
   '<p>Notes are stored in this browser. Clearing site data for this site erases them, so '+
   'if they matter, connect Drive or take a <code>.json</code> backup.</p></blockquote>'+
 
@@ -1202,9 +1240,51 @@ const getNote=id=>notes.find(n=>n.id===id);
 const active=()=>getNote(activeId);
 
 /* ---------- toast + dialog ---------- */
-function toast(msg,kind=""){
+function toast(msg,kind="",action=null){
   const t=document.createElement("div");t.className="toast "+kind;t.textContent=msg;
-  $("#toasts").appendChild(t);setTimeout(()=>t.remove(),3400);
+  if(action){
+    const b=document.createElement("button");
+    b.className="toast-act";b.textContent=action.label;
+    b.addEventListener("click",()=>{t.remove();action.run();});
+    t.appendChild(b);
+  }
+  $("#toasts").appendChild(t);
+  if(!action)setTimeout(()=>t.remove(),3400);
+  else setTimeout(()=>t.remove(),12000);   /* long enough to read and decide */
+}
+
+/* ---------- installable / offline ----------
+   Registered with updateViaCache:"none" and re-checked whenever the tab comes
+   back to the foreground. The worker itself is network-first (see sw.js), so
+   an online visit is never served a stale page — this is only about noticing a
+   new *worker* promptly rather than up to a day later. */
+if("serviceWorker"in navigator&&location.protocol!=="file:"){
+  addEventListener("load",()=>{
+    navigator.serviceWorker.register("sw.js",{scope:"/",updateViaCache:"none"}).then(reg=>{
+      const offerReload=w=>{
+        /* only when a worker was already in charge — on a first-ever visit the
+           new worker IS the current page, and "update available" is a lie */
+        if(!navigator.serviceWorker.controller)return;
+        toast("A new version of Typewell is ready","",{label:"Reload",run(){
+          w.postMessage("skip-waiting");
+          /* the reload waits for the new worker to take over, otherwise it can
+             race and load the old one one last time */
+          navigator.serviceWorker.addEventListener("controllerchange",
+            ()=>location.reload(),{once:true});
+          setTimeout(()=>location.reload(),1500);   /* belt and braces */
+        }});
+      };
+      if(reg.waiting)offerReload(reg.waiting);
+      reg.addEventListener("updatefound",()=>{
+        const w=reg.installing;if(!w)return;
+        w.addEventListener("statechange",()=>{if(w.state==="installed")offerReload(w);});
+      });
+      const check=()=>{if(document.visibilityState==="visible")reg.update().catch(()=>{})};
+      addEventListener("visibilitychange",check);
+      addEventListener("online",check);
+      setInterval(check,30*60*1000);
+    }).catch(()=>{/* offline support is a bonus, never a hard requirement */});
+  });
 }
 function dialog({title="Confirm",message="",input=false,value="",placeholder="",ok="OK",danger=false}){
   return new Promise(res=>{
@@ -1424,6 +1504,66 @@ function restoreSel(){
 }
 $$("#toolbar [data-cmd]").forEach(b=>b.addEventListener("mousedown",e=>{e.preventDefault();cmd(b.dataset.cmd);}));
 
+/* ---------- armed formats ("from here on") ----------
+   Bold with nothing selected does not bold the paragraph, it bolds what you
+   type next. execCommand gives that for free for bold/italic/underline via its
+   own pending-style machinery — and gives nothing at all for fontName or for a
+   thing like <code> that has no execCommand behind it: Chrome throws the
+   pending style away the moment focus moves to a toolbar button, so you press
+   the control, nothing happens, you press it again and it sticks.
+
+   So carry it here instead. Arm a format, and the next character typed is
+   wrapped in it; after that the caret is *inside* the element and the browser
+   takes over naturally. Anything that moves the caret disarms. */
+let armed=null;               /* {font, code, at:{node,offset}} */
+function armFormat(patch){
+  const s=window.getSelection();
+  if(!s.rangeCount||!editor.contains(s.anchorNode))return;
+  const r=s.getRangeAt(0);
+  armed=Object.assign({font:null,code:false},armed,patch,
+    {at:{node:r.startContainer,offset:r.startOffset}});
+  syncToolbar();
+}
+function disarm(){if(armed){armed=null;syncToolbar();}}
+document.addEventListener("selectionchange",()=>{
+  if(!armed)return;
+  const s=window.getSelection();
+  if(!s.rangeCount||!s.isCollapsed){disarm();return;}
+  const r=s.getRangeAt(0);
+  if(r.startContainer!==armed.at.node||r.startOffset!==armed.at.offset)disarm();
+});
+editor.addEventListener("blur",disarm);
+editor.addEventListener("beforeinput",e=>{
+  if(!armed||e.inputType!=="insertText"||!e.data)return;
+  const s=window.getSelection();
+  if(!s.rangeCount||!s.isCollapsed)return disarm();
+  /* Check the caret here as well as in selectionchange. selectionchange is a
+     queued task, so a click elsewhere followed immediately by a keystroke can
+     deliver the keystroke first — and the format would land on the wrong line. */
+  const at=s.getRangeAt(0);
+  if(at.startContainer!==armed.at.node||at.startOffset!==armed.at.offset)return disarm();
+  e.preventDefault();
+  histPush();
+  const text=document.createTextNode(e.data);
+  let outer=text;
+  if(armed.font){
+    const f=document.createElement("font");
+    f.setAttribute("face",armed.font);f.appendChild(outer);outer=f;
+  }
+  if(armed.code){
+    const c=document.createElement("code");c.appendChild(outer);outer=c;
+  }
+  const r=s.getRangeAt(0);
+  r.insertNode(outer);
+  /* caret *inside* the new text node, so the second character and everything
+     after it inherits the wrapper without any further help from us */
+  const nr=document.createRange();
+  nr.setStart(text,text.length);nr.collapse(true);
+  s.removeAllRanges();s.addRange(nr);
+  armed=null;
+  scheduleSave();syncToolbar();
+});
+
 /* ---------- custom dropdowns (styled popup, native selects can't be) ---------- */
 const openDDs=[];
 function closeAllDD(){let had=openDDs.length>0;openDDs.splice(0).forEach(f=>f());return had;}
@@ -1466,30 +1606,77 @@ const BLOCKS=[["P","Text"],["H1","Heading 1"],["H2","Heading 2"],["H3","Heading 
   ["H4","Heading 4"],["H5","Heading 5"],["H6","Heading 6"]]
   .map(([v,l])=>({value:v,label:l}));
 
-/* With nothing selected, execCommand only arms a "pending style" for the next
-   character typed - and Chrome throws that away as soon as focus moves. You
-   pick a font, nothing happens, you pick again and it sticks. Applying to the
-   whole block instead is both what actually works and what a font control with
-   no selection ought to mean. */
+/* Selection → that text. No selection → from here on, exactly like bold. The
+   version before this one applied the font to the whole block when nothing was
+   selected, which is neither of those things. */
 function applyFont(v){
   editor.focus();
   const s=window.getSelection();
-  const blk=s.rangeCount&&s.getRangeAt(0).collapsed?getBlock():null;
-  if(!blk)return cmd("fontName",v);
-  /* On a task item the <li> also holds the checkbox, which is
-     contenteditable=false - selecting the whole li makes execCommand refuse the
-     edit outright and the font silently does nothing. Aim at the text span. */
-  const b=blk.tagName==="LI"&&blk.querySelector(".task-text")||blk;
-  const r=document.createRange();r.selectNodeContents(b);
-  s.removeAllRanges();s.addRange(r);
-  cmd("fontName",v);
-  /* selecting the block was the means, not the intent - leaving it highlighted
-     reads as "I just selected your line for you" */
-  placeCaret(b);
+  if(s.rangeCount&&!s.getRangeAt(0).collapsed)return cmd("fontName",v);
+  armFormat({font:v});
 }
 const fontDD=makeDropdown($("#fontSelect"),FONTS,applyFont,
   o=>`<span style="font-family:'${o.value}'">${esc(o.label)}</span>`);
-const blockDD=makeDropdown($("#blockSelect"),BLOCKS,v=>cmd("formatBlock",v));
+
+/* A heading is a size as much as it is a tag, and two things quietly cancel
+   that out:
+
+   - an inline font-size anywhere inside (the size stepper leaves one, and so
+     does almost every paste from a word processor) outranks the h1 rule, so
+     the line goes bold and stays 14px;
+   - formatBlock on a list item wraps the whole <ul> in the heading instead of
+     converting the item, which is invalid and does nothing useful.
+
+   Both are handled here rather than in CSS: !important on the heading sizes
+   would take away deliberate per-word sizing everywhere else. */
+function applyBlock(tag){
+  editor.focus();
+  const b=getBlock();
+  if(b&&b.tagName==="LI")liftItem(b,tag);
+  else cmd("formatBlock",tag);
+  stripHeadingSizes(getBlock());
+  syncToolbar();
+}
+function stripHeadingSizes(nb){
+  if(!nb||!/^H[1-6]$/.test(nb.tagName))return;
+  nb.querySelectorAll("[style]").forEach(el=>{
+    el.style.removeProperty("font-size");
+    el.style.removeProperty("font-weight");
+    if(!el.getAttribute("style"))el.removeAttribute("style");
+  });
+  nb.querySelectorAll("font[size]").forEach(el=>el.removeAttribute("size"));
+  /* a <span> that carried nothing but the size is now a wrapper around
+     nothing — leave it and every heading collects one more on each pass */
+  nb.querySelectorAll("span:not([style]):not([class])").forEach(el=>el.replaceWith(...el.childNodes));
+  nb.style.removeProperty("font-size");
+  scheduleSave();
+}
+/* pull one <li> out of its list and make it a block of its own, splitting the
+   list in two if it came from the middle */
+function liftItem(li,tag){
+  histPush();
+  const list=li.parentElement;
+  const el=document.createElement(tag==="P"?"p":tag);
+  /* a task item keeps its text in .task-text next to a contenteditable=false
+     checkbox; the checkbox has no meaning outside a list */
+  const src=li.querySelector(".task-text")||li;
+  while(src.firstChild)el.appendChild(src.firstChild);
+  if(!el.firstChild)el.innerHTML="<br>";
+
+  const after=[...list.children].slice([...list.children].indexOf(li)+1);
+  list.after(el);
+  if(after.length){
+    const rest=document.createElement(list.tagName);
+    if(list.className)rest.className=list.className;
+    after.forEach(n=>rest.appendChild(n));
+    el.after(rest);
+  }
+  li.remove();
+  if(!list.children.length)list.remove();
+  placeCaret(el);
+  scheduleSave();
+}
+const blockDD=makeDropdown($("#blockSelect"),BLOCKS,applyBlock);
 const defFontDD=makeDropdown($("#defaultFontSelect"),FONTS,v=>{
   settings.defaultFont=v;saveSettings();
   editor.style.fontFamily=`"${v}",monospace`;fontDD.set(v);
@@ -1556,7 +1743,8 @@ function syncToolbar(){
     if(c==="insertUnorderedList"&&inTask)on=false;   /* task list has its own button */
     stateBtns[c]?.classList.toggle("on",on);
   }
-  $("#inlineCodeBtn").classList.toggle("on",!!(n.closest("code")&&!n.closest("pre")));
+  $("#inlineCodeBtn").classList.toggle("on",
+    !!(armed&&armed.code)||!!(n.closest("code")&&!n.closest("pre")));
   $("#codeBlockBtn").classList.toggle("on",!!n.closest("pre"));
   $("#linkBtn").classList.toggle("on",!!n.closest("a"));
   $("#taskBtn").classList.toggle("on",inTask);
@@ -1589,7 +1777,10 @@ function syncToolbar(){
   let fn="";try{fn=document.queryCommandValue("fontName")||""}catch(_){}
   fn=fn.split(",")[0].replace(/["']/g,"").trim();
   const hit=FONTS.find(f=>f.value.toLowerCase()===fn.toLowerCase());
-  if(hit)fontDD.set(hit.value);
+  /* an armed font is the answer to "what will I get if I type", which is what
+     this label means — it outranks whatever is under the caret right now */
+  if(armed&&armed.font)fontDD.set(armed.font);
+  else if(hit)fontDD.set(hit.value);
   /* current size → stepper display */
   const px=parseFloat(getComputedStyle(n).fontSize);
   if(px){curSize=Math.round(px);$("#sizeVal").textContent=curSize;}
@@ -1620,7 +1811,7 @@ function normHex(v){
   return String(v).trim().toUpperCase();
 }
 
-function makeColorControl({main,caret,bar,native,presets,cmdName,recentKey,noneLabel}){
+function makeColorControl({btn,bar,presets,cmdName,recentKey,noneLabel}){
   let menu=null;
   const recents=()=>settings[recentKey]||[];
   const pushRecent=hex=>{
@@ -1630,18 +1821,18 @@ function makeColorControl({main,caret,bar,native,presets,cmdName,recentKey,noneL
   const apply=hex=>{
     restoreSel();
     if(hex==="none"){cmd(cmdName,"transparent");return;}
-    bar.style.background=hex;native.value=hex;
+    bar.style.background=hex;
     pushRecent(hex);
     cmd(cmdName,hex);
   };
-  const close=()=>{if(menu){menu.remove();menu=null;
+  const close=()=>{if(menu){menu.remove();menu=null;btn.classList.remove("on");
     const i=openDDs.indexOf(close);if(i>-1)openDDs.splice(i,1);
     document.removeEventListener("mousedown",outside);}};
-  const outside=e=>{if(menu&&!menu.contains(e.target)&&!caret.contains(e.target))close();};
+  const outside=e=>{if(menu&&!menu.contains(e.target)&&!btn.contains(e.target))close();};
 
   const swatch=(hex,cur,label)=>{
     const b=document.createElement("button");
-    b.className="cp-sw"+(hex===cur?" cur":"")+(hex==="none"?" none":"");
+    b.className=(hex===cur?"cur":"")+(hex==="none"?" none":"");
     if(hex!=="none")b.style.background=hex;
     b.title=label||hex;
     b.addEventListener("mousedown",ev=>ev.preventDefault());
@@ -1656,39 +1847,56 @@ function makeColorControl({main,caret,bar,native,presets,cmdName,recentKey,noneL
     frag.appendChild(g);return frag;
   };
 
-  main.addEventListener("mousedown",e=>{e.preventDefault();saveSel();});
-  main.addEventListener("click",()=>apply(normHex(bar.style.background)||native.value));
-
-  caret.addEventListener("mousedown",e=>{e.preventDefault();saveSel();});
-  caret.addEventListener("click",()=>{
+  btn.addEventListener("mousedown",e=>{e.preventDefault();saveSel();});
+  btn.addEventListener("click",()=>{
     if(menu){close();return;}
     closeAllDD();
-    const cur=normHex(bar.style.background)||native.value.toUpperCase();
+    const cur=normHex(bar.style.background)||"#000000";
     menu=document.createElement("div");menu.className="menu cp-menu open";
-    menu.appendChild(section("Colors",noneLabel?["none",...presets]:presets,cur));
+
+    /* Custom first: the native picker sits right here rather than hidden at
+       0,0, so the OS dialog opens over the popup instead of in the corner of
+       the screen, and the hex box covers "I already know the value". */
+    const top=document.createElement("div");top.className="cp-top";
+    const native=document.createElement("input");
+    native.type="color";native.className="cp-native";native.value=cur;
+    native.title="Pick any colour";
+    const hex=document.createElement("input");
+    hex.className="cp-hex";hex.value=cur;hex.spellcheck=false;
+    hex.setAttribute("aria-label","Hex colour");
+    /* "change", not "input": the native dialog fires input on every drag of
+       the hue slider, which would push a dozen junk entries into Recent. */
+    native.addEventListener("change",e=>{const v=e.target.value.toUpperCase();hex.value=v;close();apply(v);});
+    native.addEventListener("input",e=>{hex.value=e.target.value.toUpperCase();});
+    const takeHex=()=>{
+      const v=hex.value.trim().replace(/^#?/,"#").toUpperCase();
+      if(!/^#[0-9A-F]{6}$/.test(v)){hex.value=normHex(native.value);return;}
+      close();apply(v);
+    };
+    hex.addEventListener("keydown",e=>{if(e.key==="Enter"){e.preventDefault();takeHex();}});
+    top.append(native,hex);
+    menu.appendChild(top);
+
+    menu.appendChild(section("Colours",noneLabel?["none",...presets]:presets,cur));
     if(recents().length)menu.appendChild(section("Recent",recents(),cur));
-    const custom=document.createElement("button");
-    custom.className="cp-custom";custom.textContent="Custom…";
-    custom.addEventListener("mousedown",ev=>ev.preventDefault());
-    custom.addEventListener("click",()=>{close();native.click();});
-    menu.appendChild(custom);
+
     document.body.appendChild(menu);
-    const r=caret.getBoundingClientRect();
-    menu.style.top=Math.min(r.bottom+6,innerHeight-menu.offsetHeight-10)+"px";
-    menu.style.left=Math.min(r.left-80,innerWidth-menu.offsetWidth-10)+"px";
+    const r=btn.getBoundingClientRect();
+    const w=menu.offsetWidth,h=menu.offsetHeight;
+    menu.style.top=Math.max(8,Math.min(r.bottom+6,innerHeight-h-10))+"px";
+    /* centred under the button, then clamped - the old version subtracted a
+       fixed 80px and hung off the left edge on a narrow window */
+    menu.style.left=Math.max(8,Math.min(r.left+r.width/2-w/2,innerWidth-w-10))+"px";
+    btn.classList.add("on");
     openDDs.push(close);
     document.addEventListener("mousedown",outside);
   });
-
-  /* "change", not "input": the native dialog fires input on every drag of the
-     hue slider, which would push a dozen junk entries into Recent. */
-  native.addEventListener("change",e=>apply(e.target.value.toUpperCase()));
 }
 
-makeColorControl({main:$("#foreApply"),caret:$("#foreOpen"),bar:$("#foreBar"),
-  native:$("#foreColor"),presets:FORE_PRESETS,cmdName:"foreColor",recentKey:"recentFore"});
-makeColorControl({main:$("#hiliteApply"),caret:$("#hiliteOpen"),bar:$("#hiliteBar"),
-  native:$("#hiliteColor"),presets:HILITE_PRESETS,cmdName:"hiliteColor",
+makeColorControl({btn:$("#foreBtn"),bar:$("#foreBar"),
+  presets:FORE_PRESETS,cmdName:"foreColor",recentKey:"recentFore"});
+makeColorControl({btn:$("#hiliteBtn"),bar:$("#hiliteBar"),
+  presets:HILITE_PRESETS,cmdName:"hiliteColor",
   recentKey:"recentHilite",noneLabel:"No highlight"});
 $("#hrBtn").addEventListener("mousedown",e=>{e.preventDefault();cmd("insertHorizontalRule");});
 $("#clearFmtBtn").addEventListener("mousedown",e=>{e.preventDefault();cmd("removeFormat");cmd("formatBlock","P");});
@@ -1722,7 +1930,10 @@ function toggleInlineCode(){
     sel.removeAllRanges();sel.addRange(r);
     scheduleSave();syncToolbar();return;
   }
-  if(sel.isCollapsed)return;
+  /* Nothing selected: arm it, so what you type next is code — the same thing
+     bold does. Doing nothing at all was the old behaviour and it read as a
+     broken button. */
+  if(sel.isCollapsed)return armFormat({code:!(armed&&armed.code)});
   histPush();
   const r=sel.getRangeAt(0),code=document.createElement("code");
   try{r.surroundContents(code)}catch(_){
@@ -2247,7 +2458,7 @@ editor.addEventListener("keydown",e=>{
     const t=markerBeforeCaret(b);if(t===null)return;
     const run=fn=>{e.preventDefault();histPush();eatMarker(b);fn();scheduleSave();};
     const H={"#":"H1","##":"H2","###":"H3","####":"H4","#####":"H5","######":"H6"};
-    if(H[t])return run(()=>document.execCommand("formatBlock",false,H[t]));
+    if(H[t])return run(()=>{document.execCommand("formatBlock",false,H[t]);stripHeadingSizes(getBlock());});
     /* divider on space as well as Enter — every other marker fires on space, so
        "--- " silently doing nothing reads as the trigger being broken */
     if((t==="---"||t==="***")&&b.textContent.trim()===t){
@@ -3520,21 +3731,30 @@ editor.addEventListener("keydown",e=>{
   }
   if(e.altKey&&!e.shiftKey){
     const H={Digit0:"P",Digit1:"H1",Digit2:"H2",Digit3:"H3"};
-    if(H[e.code]) return run(()=>cmd("formatBlock",H[e.code]));
+    if(H[e.code]) return run(()=>applyBlock(H[e.code]));
   }
 });
-/* ═══════════ drag-to-reorder list items ═══════════
-   A single floating grip, shown only while the pointer is near the start of a
-   list item. Kept out of #editor entirely — anything living inside the editable
-   surface ends up in n.html and gets walked by htmlToMd, which is the same rule
-   the table chrome follows. HTML5 drag-and-drop is unusable inside
-   contenteditable (Chrome starts its own text drag), so this is pointer-driven. */
+/* ═══════════ drag-to-reorder blocks ═══════════
+   A single floating grip in the left gutter, following whatever block the
+   pointer is over: a list item, a paragraph, a heading, a quote, a code block,
+   a table, a divider. Grab it and a line shows where the block will land.
+
+   All of the chrome is kept out of #editor entirely — anything living inside
+   the editable surface ends up in n.html and gets walked by htmlToMd, which is
+   the same rule the table chrome follows. HTML5 drag-and-drop is unusable
+   inside contenteditable (Chrome starts its own text drag), so this is
+   pointer-driven.
+
+   Reordering stays *within one parent*: a bullet moves among its own bullets, a
+   paragraph moves among the top-level blocks. Letting a paragraph land halfway
+   into a list would mean silently rewriting it into a list item, and a move
+   that changes what the thing *is* is not a move. */
 const dragUI=document.createElement("div");
 dragUI.id="dragUI";dragUI.setAttribute("contenteditable","false");
 dragUI.innerHTML=
   '<div class="ghost"></div>'+
   '<div class="dropline"></div>'+
-  '<button class="dragh" title="Drag to move this item" tabindex="-1">'+
+  '<button class="dragh" title="Drag to move this block  (Alt+Shift+↑/↓)" tabindex="-1">'+
     '<svg class="ic" viewBox="0 0 24 24" fill="currentColor" stroke="none">'+
       '<circle cx="9" cy="6" r="1.6"/><circle cx="15" cy="6" r="1.6"/>'+
       '<circle cx="9" cy="12" r="1.6"/><circle cx="15" cy="12" r="1.6"/>'+
@@ -3545,102 +3765,195 @@ const dragGrip=dragUI.querySelector(".dragh"),
       dropLine=dragUI.querySelector(".dropline"),
       dragGhost=dragUI.querySelector(".ghost");
 
-let gripItem=null;        /* the <li> the grip currently belongs to */
-let dragging=null;        /* the <li> being moved */
+let gripItem=null;        /* the block the grip currently belongs to */
+let dragging=null;        /* the block being moved */
 let dropAt=null;          /* {parent, before} */
 
-const REACH=34;           /* how far left of the item the grip stays awake */
+const REACH=40;           /* how far left of the block the grip stays awake */
+/* Every block that is a thing on its own. A <ul> moves as one list; its <li>s
+   move among themselves; both are reachable, because the grip picks whichever
+   is nearest the pointer. */
+const MOVABLE=/^(P|H1|H2|H3|H4|H5|H6|UL|OL|PRE|BLOCKQUOTE|TABLE|HR|LI|DIV)$/;
+
+function movableAt(node){
+  let n=node&&node.nodeType===3?node.parentElement:node;
+  let best=null;
+  while(n&&n!==editor){
+    if(MOVABLE.test(n.tagName)&&(n.parentElement===editor||n.parentElement.tagName==="UL"||
+       n.parentElement.tagName==="OL"||n.parentElement.tagName==="BLOCKQUOTE")){
+      best=best||n;                    /* innermost wins */
+    }
+    n=n.parentElement;
+  }
+  return best;
+}
+/* siblings this block can be reordered against — same parent, same kind of thing */
+function dropSibs(el){
+  return [...el.parentElement.children].filter(c=>MOVABLE.test(c.tagName)&&
+    (el.tagName==="LI"?c.tagName==="LI":c.tagName!=="LI"));
+}
 
 function gripHide(){
   if(dragging)return;
   gripItem=null;dragUI.classList.remove("on");
 }
-function gripShow(li){
-  const r=li.getBoundingClientRect();
-  /* first line only: a wrapped item should not put the grip halfway down it */
-  const first=li.getClientRects()[0]||r;
-  gripItem=li;
+function gripShow(el){
+  const r=el.getBoundingClientRect();
+  /* first line only: a block that wraps should not put the grip halfway down it */
+  const first=el.getClientRects()[0]||r;
+  gripItem=el;
   dragUI.classList.add("on");
-  dragGrip.style.top=Math.round(first.top+(Math.min(first.height,26)-20)/2)+"px";
-  dragGrip.style.left=Math.round(r.left-24)+"px";
+  dragGrip.style.top=Math.round(first.top+(Math.min(first.height,28)-22)/2)+"px";
+  dragGrip.style.left=Math.round(r.left-26)+"px";
 }
-/* the item under the pointer, but only when the pointer is in the gutter to its
-   left or over the item itself — never for a click in the middle of the text */
-function itemNear(x,y){
-  for(const li of editor.querySelectorAll("li")){
-    if(li.querySelector("ul,ol"))continue;            /* a wrapper of a sublist */
-    const r=li.getBoundingClientRect();
+/* the block under the pointer, including the gutter to its left — so the grip
+   is reachable without the pointer having to be over the text itself */
+function blockNear(x,y){
+  let hit=null;
+  for(const el of editor.children){
+    const r=el.getBoundingClientRect();
     if(y<r.top-2||y>r.bottom+2)continue;
-    if(x>=r.left-REACH&&x<=r.right)return li;
+    if(x<r.left-REACH||x>r.right+8)continue;
+    hit=el;break;
   }
-  return null;
+  if(!hit)return null;
+  /* inside a list or a quote, aim at the individual row rather than the whole
+     container — that is the unit anyone means by "move this line" */
+  for(const kid of hit.querySelectorAll("li,blockquote>p,blockquote>h1,blockquote>h2,blockquote>h3")){
+    if(kid.querySelector("ul,ol"))continue;           /* a wrapper of a sublist */
+    const r=kid.getBoundingClientRect();
+    if(y>=r.top-1&&y<=r.bottom+1&&x>=r.left-REACH)return kid;
+  }
+  return hit;
 }
-editor.addEventListener("mousemove",e=>{
-  if(dragging)return;
-  const li=itemNear(e.clientX,e.clientY);
-  if(li)gripShow(li);else gripHide();
-});
+/* One handler, and it works off coordinates rather than off e.target.
+   The grip sits in the page margin, which is *outside* #editor — so a rule
+   like "hide whenever the pointer is not over the editor" hid it in the few
+   pixels between the text and the grip, and the grip vanished just as you
+   reached for it. Nothing to click, no grab cursor, no way in. */
+const GRACE=14;               /* keep-alive halo around the grip itself */
 document.addEventListener("mousemove",e=>{
-  if(dragging||!gripItem)return;
-  if(e.target===dragGrip||dragGrip.contains(e.target))return;
-  if(!editor.contains(e.target))gripHide();
-},true);
-editor.addEventListener("mouseleave",()=>{if(!dragging)gripHide()});
+  if(dragging)return;
+  if(gripItem){
+    const g=dragGrip.getBoundingClientRect();
+    if(e.clientX>=g.left-GRACE&&e.clientX<=g.right+GRACE&&
+       e.clientY>=g.top-GRACE&&e.clientY<=g.bottom+GRACE)return;   /* on or near it */
+  }
+  const w=$("#editorWrap").getBoundingClientRect();
+  if(e.clientX<w.left||e.clientX>w.right||e.clientY<w.top||e.clientY>w.bottom)return gripHide();
+  const el=blockNear(e.clientX,e.clientY);
+  if(el)gripShow(el);else gripHide();
+});
 $("#editorWrap").addEventListener("scroll",()=>{if(!dragging)gripHide()});
 
 /* ---- the drag itself ---- */
-function siblingsOf(li){return [...li.parentElement.children].filter(c=>c.tagName==="LI")}
 function paintDrop(y){
-  const list=dragging.parentElement;
-  const sibs=siblingsOf(dragging);
+  const parent=dragging.parentElement;
+  const sibs=dropSibs(dragging);
   let before=null;
   for(const s of sibs){
+    if(s===dragging)continue;
     const r=s.getBoundingClientRect();
     if(y<r.top+r.height/2){before=s;break;}
   }
-  dropAt={parent:list,before};
-  const lr=list.getBoundingClientRect();
-  let top;
-  if(before)top=before.getBoundingClientRect().top;
-  else{const last=sibs[sibs.length-1];top=last?last.getBoundingClientRect().bottom:lr.top;}
-  dropLine.style.left=Math.round(lr.left)+"px";
-  dropLine.style.width=Math.round(lr.width)+"px";
+  dropAt={parent,before};
+  const others=sibs.filter(s=>s!==dragging);
+  let top,left,width;
+  const box=(before||others[others.length-1]||parent).getBoundingClientRect();
+  left=box.left;width=box.width;
+  top=before?box.top:(others.length?box.bottom:box.top);
+  dropLine.style.left=Math.round(left)+"px";
+  dropLine.style.width=Math.round(Math.max(width,40))+"px";
   dropLine.style.top=Math.round(top-1)+"px";
+}
+/* would this drop leave everything exactly where it was? */
+function dropIsNoop(){
+  if(!dropAt)return true;
+  if(dropAt.before===dragging)return true;
+  return dragging.nextElementSibling===dropAt.before&&dropAt.parent===dragging.parentElement;
+}
+function endDrag(commit){
+  document.removeEventListener("mousemove",dragMove,true);
+  document.removeEventListener("mouseup",dragUp,true);
+  document.removeEventListener("keydown",dragKey,true);
+  dragUI.classList.remove("dragging");
+  const moved=dragging;
+  if(!moved)return;
+  moved.classList.remove("drag-src");
+  if(!moved.getAttribute("class"))moved.removeAttribute("class");
+  if(commit&&!dropIsNoop()){
+    histPush();
+    dropAt.parent.insertBefore(moved,dropAt.before);
+    scheduleSave();
+    placeCaret(moved.querySelector(".task-text")||moved,false);
+  }
+  dragging=null;dropAt=null;gripHide();
+}
+function dragMove(ev){
+  ev.preventDefault();
+  paintDrop(ev.clientY);
+  dragGhost.style.top=Math.round(ev.clientY-14)+"px";
+  autoScroll(ev.clientY);
+}
+function dragUp(){endDrag(true)}
+function dragKey(ev){if(ev.key==="Escape"){ev.preventDefault();endDrag(false);}}
+/* a long list is taller than the window, so the drag has to be able to reach
+   past the edge of it */
+function autoScroll(y){
+  const wrap=$("#editorWrap"),r=wrap.getBoundingClientRect(),edge=48;
+  if(y<r.top+edge)wrap.scrollTop-=Math.ceil((r.top+edge-y)/4);
+  else if(y>r.bottom-edge)wrap.scrollTop+=Math.ceil((y-(r.bottom-edge))/4);
 }
 dragGrip.addEventListener("mousedown",e=>{
   if(!gripItem)return;
   e.preventDefault();e.stopPropagation();
   dragging=gripItem;
+  dragging.classList.add("drag-src");
   const r=dragging.getBoundingClientRect();
   dragGhost.style.left=Math.round(r.left)+"px";
   dragGhost.style.top=Math.round(r.top)+"px";
-  dragGhost.style.width=Math.round(r.width)+"px";
-  dragGhost.style.height=Math.round(r.height)+"px";
+  dragGhost.style.width=Math.round(Math.min(r.width,420))+"px";
+  dragGhost.textContent=(dragging.innerText||dragging.textContent||"").trim().slice(0,90)||
+    (dragging.tagName==="HR"?"— divider —":dragging.tagName.toLowerCase());
   dragUI.classList.add("dragging");
   paintDrop(e.clientY);
-  const move=ev=>{
-    ev.preventDefault();
-    paintDrop(ev.clientY);
-    const rr=dragging.getBoundingClientRect();
-    dragGhost.style.top=Math.round(ev.clientY-rr.height/2)+"px";
-  };
-  const up=()=>{
-    document.removeEventListener("mousemove",move,true);
-    document.removeEventListener("mouseup",up,true);
-    dragUI.classList.remove("dragging");
-    const moved=dragging;dragging=null;
-    if(dropAt&&dropAt.before!==moved&&!(dropAt.before===null&&moved===siblingsOf(moved).slice(-1)[0])){
-      histPush();
-      dropAt.parent.insertBefore(moved,dropAt.before);
-      scheduleSave();
-      placeCaret(moved.querySelector(".task-text")||moved,false);
-    }
-    dropAt=null;gripHide();
-  };
-  document.addEventListener("mousemove",move,true);
-  document.addEventListener("mouseup",up,true);
+  document.addEventListener("mousemove",dragMove,true);
+  document.addEventListener("mouseup",dragUp,true);
+  document.addEventListener("keydown",dragKey,true);
 });
 
+/* The same move from the keyboard. Dragging is the discoverable way; this is
+   the one you can use without taking a hand off the keys, and the one that
+   works when the block you want is three screens away. */
+function nudgeBlock(dir){
+  const el=movableAt(window.getSelection().anchorNode);
+  if(!el)return false;
+  const sibs=dropSibs(el),i=sibs.indexOf(el);
+  if(i<0)return false;
+  const target=sibs[i+dir];
+  if(!target)return false;
+  histPush();
+  if(dir<0)target.before(el);else target.after(el);
+  scheduleSave();
+  placeCaret(el.querySelector(".task-text")||el,false);
+  return true;
+}
+/* Alt+Shift rather than plain Alt+Arrow: bare Alt+Arrow is browser
+   back/forward on Windows and Linux, and losing the note is a bad trade for
+   one fewer modifier. */
+editor.addEventListener("keydown",e=>{
+  if(!e.altKey||!e.shiftKey||e.ctrlKey||e.metaKey||e.defaultPrevented)return;
+  const dir=e.key==="ArrowUp"?-1:e.key==="ArrowDown"?1:0;
+  if(!dir)return;
+  if(nudgeBlock(dir)){e.preventDefault();e.stopPropagation();}
+});
+
+/* ---------- test seam ----------
+   Everything else the regression suite needs is a function declaration, which
+   is already on window. These are consts, which are not. Exposing three
+   read-only values is a smaller price than making the suite re-derive them and
+   then quietly test its own copy instead of the app's. */
+window.__typewell={WELCOME_HTML,FONTS,BLOCKS,version:"2026-08-07"};
 </script>
 </body>
 </html>

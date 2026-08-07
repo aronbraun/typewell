@@ -1,0 +1,18 @@
+{
+  "name": "Typewell — markdown notes",
+  "short_name": "Typewell",
+  "description": "Markdown notes that live in your own browser. No account, no server, no tracking, with optional sync to a folder of .md files in your own Google Drive.",
+  "id": "/",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#F6F0E2",
+  "theme_color": "#F6F0E2",
+  "categories": ["productivity", "utilities"],
+  "icons": [
+    { "src": "icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}

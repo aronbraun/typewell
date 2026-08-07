@@ -1,0 +1,27 @@
+name: Tests
+
+# The same suite the deploy job gates on, run on pull requests so a change is
+# red before it is merged rather than after. Nothing is published from here.
+
+on:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: Regression suite
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Run the suite in headless Chrome
+        # No install step and no node_modules: the runner image ships Chrome,
+        # and the runner script talks to it over the DevTools Protocol with
+        # node's own global WebSocket.
+        run: node tests/run.mjs
