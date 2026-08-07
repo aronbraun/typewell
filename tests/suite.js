@@ -584,6 +584,116 @@ export function suite(win) {
     ok("serviceWorker" in win.navigator, "no service worker support to register with");
   });
 
+  /* ═════════ pasting ═════════
+     A synthetic paste event cannot trigger the browser's own paste, so these
+     only mean anything because the app now handles the plain-text case itself
+     rather than leaving it to the default action. That is the point of the
+     change: behaviour we decide is behaviour we can check. */
+  const paste = (data) => {
+    const dt = new win.DataTransfer();
+    for (const [k, v] of Object.entries(data)) dt.setData(k, v);
+    return ed.dispatchEvent(new win.ClipboardEvent("paste",
+      { clipboardData: dt, bubbles: true, cancelable: true }));
+  };
+
+  test("plain text keeps the formatting it is pasted into", () => {
+    setHTML('<p><b><span style="color:#C0392B">bold red tail</span></b></p>');
+    caret(ed.querySelector("span").firstChild, 9);
+    paste({ "text/plain": "PASTED" });
+    const sp = ed.querySelector("span");
+    has(sp.textContent, "PASTED", "the text never arrived");
+    ok(sp.closest("b"), "the paste landed outside the bold it was dropped into");
+    has(ed.innerHTML, "PASTED", "");
+    ok(/<b><span[^>]*>[^<]*PASTED/.test(ed.innerHTML),
+      `the text arrived unformatted instead of matching the line — ${ed.innerHTML}`);
+  });
+
+  test("plain text pasted into a heading stays in the heading", () => {
+    setHTML("<h1>Title</h1>");
+    caret(ed.querySelector("h1").firstChild, 5);
+    paste({ "text/plain": "more" });
+    eq(tag(ed.firstElementChild), "H1", "the paste broke the heading apart");
+    eq(ed.querySelector("h1").textContent, "Titlemore");
+  });
+
+  test("pasting plain text does not drop characters", () => {
+    setHTML("<p>abcdef</p>");
+    caret(ed.firstChild.firstChild, 3);
+    paste({ "text/plain": "XY" });
+    eq(ed.querySelector("p").textContent, "abcXYdef");
+  });
+
+  test("pasting over a selection replaces it", () => {
+    setHTML("<p>one two three</p>");
+    range(ed.firstChild.firstChild, 4, 7);
+    paste({ "text/plain": "TWO" });
+    eq(ed.querySelector("p").textContent, "one TWO three");
+  });
+
+  test("a rich paste is still left to the browser", () => {
+    setHTML("<p>abc</p>");
+    caret(ed.firstChild.firstChild, 3);
+    ok(paste({ "text/plain": "x", "text/html": "<i>x</i>" }),
+      "formatted paste was intercepted and flattened — only text/plain should be");
+  });
+
+  test("a pasted URL still becomes a link", () => {
+    setHTML("<p>see </p>");
+    caret(ed.firstChild.firstChild, 4);
+    paste({ "text/plain": "https://example.com" });
+    const a = ed.querySelector("a");
+    ok(a, "a lone URL stopped linking itself");
+    eq(a.getAttribute("href"), "https://example.com");
+  });
+
+  test("one undo takes a whole paste back out", () => {
+    setHTML("<p>keep</p>");
+    caret(ed.firstChild.firstChild, 4);
+    paste({ "text/plain": "gone" });
+    has(ed.innerHTML, "gone", "nothing was pasted to undo");
+    press(ed, "z", { key: "z", code: "KeyZ", ctrlKey: true });
+    ok(!/gone/.test(ed.innerHTML), "undo left part of the paste behind");
+  });
+
+  /* ═════════ where the caret is ═════════ */
+
+  const pos = () => { win.updateCaretPos(); return $("#curpos").textContent; };
+
+  test("the status bar says which line and column the caret is on", () => {
+    setHTML("<p>first line</p><h2>second</h2><p>third</p>");
+    caret(ed.firstChild.firstChild, 3);
+    eq(pos(), "Ln 1, Col 4");
+    caret(ed.querySelector("h2").firstChild, 6);
+    eq(pos(), "Ln 2, Col 7");
+    caret(ed.querySelectorAll("p")[1].firstChild, 0);
+    eq(pos(), "Ln 3, Col 1");
+  });
+
+  test("a block that only wraps another is not counted as its own line", () => {
+    setHTML("<p>one</p><blockquote><p>two</p></blockquote><p>three</p>");
+    caret(ed.querySelector("blockquote p").firstChild, 0);
+    eq(pos(), "Ln 2, Col 1", "the quote counted as a line of its own");
+    caret(ed.querySelectorAll("p")[2].firstChild, 0);
+    eq(pos(), "Ln 3, Col 1");
+  });
+
+  test("a list item above a sub-list is still its own line", () => {
+    setHTML("<ul><li>one</li><li>two<ul><li>three</li></ul></li></ul>");
+    const li = ed.querySelectorAll("li");
+    caret(li[1].firstChild, 0);
+    eq(pos(), "Ln 2, Col 1");
+    caret(li[2].firstChild, 0);
+    eq(pos(), "Ln 3, Col 1", "the nested item did not get its own line number");
+  });
+
+  test("selecting text shows how much is selected", () => {
+    setHTML("<p>abcdefghij</p>");
+    caret(ed.firstChild.firstChild, 0);
+    ok(!/selected/.test(pos()), "a bare caret claims a selection");
+    range(ed.firstChild.firstChild, 2, 7);
+    has(pos(), "(5 selected)", "a selection of five characters was not reported");
+  });
+
   /* ═════════ the Drive token ═════════
      No Google account in the loop: these drive the token's own lifetime, which
      is the part that decides whether an auth window opens. Each one puts the

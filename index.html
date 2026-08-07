@@ -772,6 +772,7 @@ body.zen #zenExit{display:grid}
       <span class="st" id="wcount" title="Words in this note">0 words</span>
       <span class="st" id="ccount" title="Characters in this note">0 chars</span>
       <span class="st" id="rtime" title="Estimated reading time  (~200 wpm)">~0 min</span>
+      <span class="st" id="curpos" title="Where the caret is  (line, column)">Ln 1, Col 1</span>
       <span class="grow"></span>
       <span class="st" id="editStamp" title="Last edited"></span>
       <span class="st"><span class="beacon local" id="beacon2"></span><span id="syncLabel2">local</span></span>
@@ -1388,6 +1389,38 @@ function updateCounts(){
   $("#wcount").textContent=words+" words";
   $("#ccount").textContent=txt.replace(/\n/g,"").length+" chars";
   $("#rtime").textContent="~"+Math.max(1,Math.round(words/220))+" min";
+  updateCaretPos();
+}
+
+/* ---------- where the caret is ----------
+   A line here is a block that renders as one: every leaf block counts, and so
+   does a list item that carries text of its own above a nested list. What does
+   not count is a wrapper that only holds another block - a <blockquote> around
+   a <p> is one line on screen, and counting both would make the number drift
+   away from what you can see. */
+const LINEY="p,h1,h2,h3,h4,h5,h6,li,pre,blockquote,td,th,div";
+const isLine=el=>!el.querySelector(LINEY)||
+  [...el.childNodes].some(n=>n.nodeType===3&&n.nodeValue.trim());
+function updateCaretPos(){
+  const out=$("#curpos");if(!out)return;
+  const s=window.getSelection();
+  if(!s.rangeCount||!editor.contains(s.anchorNode)){out.textContent="Ln 1, Col 1";return;}
+  const r=s.getRangeAt(0);
+  let b=r.startContainer.nodeType===1?r.startContainer:r.startContainer.parentElement;
+  b=b&&b.closest(LINEY);
+  if(b&&!editor.contains(b))b=null;
+  let col=1;
+  if(b){
+    const pre=document.createRange();
+    pre.selectNodeContents(b);
+    try{pre.setEnd(r.startContainer,r.startOffset);col=pre.toString().length+1;}catch(_){}
+  }
+  const lines=[...editor.querySelectorAll(LINEY)].filter(isLine);
+  const line=b?Math.max(1,lines.indexOf(b)+1):1;
+  /* a selection length is the other half of the question "where am I" - the
+     same place VS Code puts it, for the same reason */
+  const sel=s.isCollapsed?0:r.toString().length;
+  out.textContent=`Ln ${line}, Col ${col}`+(sel?` (${sel} selected)`:"");
 }
 
 /* ---------- undo / redo (snapshot history, grouped) ---------- */
@@ -1755,7 +1788,7 @@ function syncToolbar(){
 }
 let syncT=null;
 document.addEventListener("selectionchange",()=>{
-  clearTimeout(syncT);syncT=setTimeout(syncToolbar,80);
+  clearTimeout(syncT);syncT=setTimeout(()=>{syncToolbar();updateCaretPos();},80);
 });
 /* ---------- colour palette ----------
    The old control was a bare <input type="color">: the only way to reach any
@@ -2145,6 +2178,23 @@ editor.addEventListener("paste",e=>{
       `<a href="${esc(ptxt)}" target="_blank" rel="noopener">${esc(ptxt)}</a>&nbsp;`);
     editor.querySelectorAll("a").forEach(x=>{x.target="_blank";x.rel="noopener";});
     scheduleSave();
+    return;
+  }
+  /* Paste as plain text - Ctrl+Shift+V, or anything copied from a plain source
+     - hands over text/plain and no text/html. Left to the browser, the text
+     lands stripped of everything *including the formatting it landed in*: drop
+     it into a bold red line and you get plain black, which is the opposite of
+     what "match style" means everywhere else.
+
+     insertText puts the characters exactly where typing them would put them,
+     so they inherit the bold, the colour and the size already at the caret,
+     and one undo takes the whole paste back out. */
+  if(![...(e.clipboardData.types||[])].includes("text/html")){
+    const txt=e.clipboardData.getData("text/plain");
+    if(!txt)return;
+    e.preventDefault();histPush();
+    document.execCommand("insertText",false,txt);
+    scheduleSave();updateCounts();
   }
 });
 

@@ -48,7 +48,9 @@ repository is actually deployed.
 - **Task lists** with real checkboxes; checked state persists, Enter/Backspace behave like Notion
 - **Code blocks done right** — Enter stays inside the block, Enter on an empty last line exits, Tab/Shift+Tab indent and dedent, Backspace on an empty block converts back to a paragraph, and pasting into a block is always plain text
 - **Inline code** with an escape hatch: Space or → at the end of a code span steps outside it. Both inline code and code blocks have toolbar buttons that light up when the caret is inside one
+- **Paste as plain text matches the line it lands in** — `Ctrl+Shift+V` (and anything copied from a plain source) inserts the characters where typing them would go, so they pick up the bold, colour and size already at the caret instead of arriving as bare black text. A formatted paste is still a formatted paste.
 - **Font and inline code behave like bold** — with a selection they change the selection; with nothing selected they apply to what you type next, and the toolbar shows it armed. Neither one silently restyles the paragraph you happen to be standing in.
+- **A status bar that says where you are** — words, characters, reading time, and `Ln 4, Col 12` for the caret, with `(86 selected)` when there is a selection. A line is what you see as a line: a quote wrapping a paragraph counts once, a list item above a sub-list counts on its own.
 - **Move any block** — hover a paragraph, heading, bullet, quote, code block or table and a grip appears in the margin. Drag it and a line shows where it will land; `Alt+Shift+↑/↓` does the same from the keyboard. A block reorders among its own siblings and never silently turns into something else.
 - **Smart links** — URLs you type or paste become links automatically (punctuation-aware); pasting a URL over selected text links the selection
 - **Find & replace** with live highlighting, previous/next, replace one/all
