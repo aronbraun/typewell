@@ -1270,14 +1270,14 @@ function setBeacon(state,label){
   $("#syncLabel2").textContent=label;
 }
 function refreshBeacon(){
-  const connected=drive.connected||settings.gistId;
+  const connected=drive.linked||settings.gistId;
   if(connected)setBeacon(dirtySinceBackup?"dirty":"synced",dirtySinceBackup?"not backed up":"backed up");
   else setBeacon("local","local");
   renderFoot();
 }
 function renderFoot(){
   const f=$("#sbFoot");
-  if(drive.connected){
+  if(drive.linked){
     f.innerHTML=`<span class="beacon ${dirtySinceBackup?"dirty":"synced"}"></span>
       <span class="grow">${dirtySinceBackup?"Changes not backed up":"Drive · synced "+(drive.lastBackup?fmtDate(drive.lastBackup):"")}</span>
       <button class="ibtn" id="footBackup" title="Back up now  Ctrl+S">${I("cloudUp")}</button>`;
@@ -1376,7 +1376,7 @@ function flushSave(){
 }
 function markDirty(){
   dirtySinceBackup=true;refreshBeacon();
-  if(settings.autoBackup&&drive.connected)drive.scheduleAuto();
+  if(settings.autoBackup&&drive.linked)drive.scheduleAuto();
 }
 editor.addEventListener("input",()=>{scheduleSave();updateCounts();});
 fileName.addEventListener("input",scheduleSave);
@@ -1478,12 +1478,12 @@ $$("#toolbar [data-cmd]").forEach(b=>b.addEventListener("mousedown",e=>{e.preven
    So carry it here instead. Arm a format, and the next character typed is
    wrapped in it; after that the caret is *inside* the element and the browser
    takes over naturally. Anything that moves the caret disarms. */
-let armed=null;               /* {font, code, at:{node,offset}} */
+let armed=null;               /* {font, size, code, at:{node,offset}} */
 function armFormat(patch){
   const s=window.getSelection();
   if(!s.rangeCount||!editor.contains(s.anchorNode))return;
   const r=s.getRangeAt(0);
-  armed=Object.assign({font:null,code:false},armed,patch,
+  armed=Object.assign({font:null,size:null,code:false},armed,patch,
     {at:{node:r.startContainer,offset:r.startOffset}});
   syncToolbar();
 }
@@ -1515,6 +1515,11 @@ editor.addEventListener("beforeinput",e=>{
   }
   if(armed.code){
     const c=document.createElement("code");c.appendChild(outer);outer=c;
+  }
+  if(armed.size){
+    /* outermost, so <code>'s relative size still scales off it */
+    const z=document.createElement("span");
+    z.style.fontSize=armed.size+"px";z.appendChild(outer);outer=z;
   }
   const r=s.getRangeAt(0);
   r.insertNode(outer);
@@ -1745,7 +1750,7 @@ function syncToolbar(){
   if(armed&&armed.font)fontDD.set(armed.font);
   else if(hit)fontDD.set(hit.value);
   /* current size → stepper display */
-  const px=parseFloat(getComputedStyle(n).fontSize);
+  const px=armed&&armed.size?armed.size:parseFloat(getComputedStyle(n).fontSize);
   if(px){curSize=Math.round(px);$("#sizeVal").textContent=curSize;}
 }
 let syncT=null;
@@ -1864,18 +1869,97 @@ makeColorControl({btn:$("#hiliteBtn"),bar:$("#hiliteBar"),
 $("#hrBtn").addEventListener("mousedown",e=>{e.preventDefault();cmd("insertHorizontalRule");});
 $("#clearFmtBtn").addEventListener("mousedown",e=>{e.preventDefault();cmd("removeFormat");cmd("formatBlock","P");});
 
+/* ---------- size stepper ----------
+   execCommand("fontSize") was doing this, and over anything larger than one run
+   of plain text it lied. It wraps the selection in a *new* element and leaves
+   every font-size already inside it alone, so the inner one keeps winning and
+   that part of the selection visibly does not change - select a list you have
+   resized once, press +, and only the untouched rows move. It also never
+   touches the <li> itself, so bullets and numbers stayed at the old size while
+   their text grew. So walk the selection instead: a block covered end to end
+   gets the size on the block (marker included) with the stale ones inside it
+   stripped, and a partial run gets a span. */
+const SIZE_BLOCK="p,h1,h2,h3,h4,h5,h6,li,pre,blockquote,td,th";
+function stripSizes(root){
+  root.querySelectorAll('[style*="font-size"]').forEach(el=>{
+    el.style.removeProperty("font-size");
+    if(!el.getAttribute("style"))el.removeAttribute("style");
+  });
+  root.querySelectorAll("font[size]").forEach(f=>f.removeAttribute("size"));
+}
+/* split the end points so the range begins and ends on node boundaries - then
+   every text node it touches is wholly inside it and can be handled as a unit */
+function splitEnds(r){
+  const e=r.endContainer,eo=r.endOffset,s=r.startContainer,so=r.startOffset;
+  if(e.nodeType===3&&eo>0&&eo<e.length)e.splitText(eo);
+  if(s.nodeType===3&&so>0&&so<s.length){
+    const rest=s.splitText(so);
+    r.setStart(rest,0);
+    if(e===s)r.setEnd(rest,eo-so);      /* both ends in one node: rebase the end */
+  }
+}
+function textNodesUnder(root){
+  const out=[];
+  if(root.nodeType===3)return root.nodeValue.trim()?[root]:out;
+  const w=document.createTreeWalker(root,NodeFilter.SHOW_TEXT,null);
+  while(w.nextNode())if(w.currentNode.nodeValue.trim())out.push(w.currentNode);
+  return out;
+}
+function textNodesIn(r){
+  return textNodesUnder(r.commonAncestorContainer)
+    .filter(n=>r.comparePoint(n,0)===0&&r.comparePoint(n,n.length)===0);
+}
 let curSize=14;
 function applySize(px){
   curSize=Math.min(48,Math.max(10,px));$("#sizeVal").textContent=curSize;
+  editor.focus();
   const sel=window.getSelection();
-  if(!sel.rangeCount||sel.isCollapsed){editor.style.fontSize=curSize+"px";return;}
+  if(!sel.rangeCount||!editor.contains(sel.anchorNode))return;
+  if(sel.isCollapsed)return armFormat({size:curSize});
   histPush();
-  document.execCommand("fontSize",false,"7");
-  editor.querySelectorAll('font[size="7"]').forEach(f=>{
-    const s=document.createElement("span");s.style.fontSize=curSize+"px";
-    while(f.firstChild)s.appendChild(f.firstChild);f.replaceWith(s);
+  const r=sel.getRangeAt(0);
+  splitEnds(r);
+  const picked=textNodesIn(r);
+  if(!picked.length)return;
+  const inSel=new Set(picked);
+  /* the range's own end points stop being trustworthy the moment we start
+     moving nodes around, so remember two text nodes and rebuild from them */
+  const first=picked[0],last=picked[picked.length-1];
+  const byBlock=new Map();
+  picked.forEach(n=>{
+    const b=n.parentElement&&n.parentElement.closest(SIZE_BLOCK);
+    const key=b&&editor.contains(b)?b:null;
+    if(!byBlock.has(key))byBlock.set(key,[]);
+    byBlock.get(key).push(n);
   });
-  scheduleSave();
+  /* "covered" means every word in the block is selected - not that the range
+     boundaries sit outside it. A <li> holding a sub-list ends after the </ul>,
+     so a selection running to the last sub-item stops just short of that point
+     and the boundary test would call the row partial, leaving its own bullet
+     at the old size while everything around it moved. */
+  const full=[...byBlock.keys()].filter(b=>b&&textNodesUnder(b).every(t=>inSel.has(t)));
+  const done=[];
+  full.sort((a,b)=>a.compareDocumentPosition(b)&Node.DOCUMENT_POSITION_FOLLOWING?-1:1)
+      .forEach(b=>{
+        if(done.some(d=>d.contains(b)))return;   /* an ancestor already cascades */
+        stripSizes(b);b.style.fontSize=curSize+"px";done.push(b);
+      });
+  byBlock.forEach((nodes,b)=>{
+    if(b&&done.some(d=>d===b||d.contains(b)))return;
+    nodes.forEach(n=>{
+      const p=n.parentElement;
+      /* reuse a span we put here last time rather than nesting a new one */
+      if(p&&p!==b&&p.tagName==="SPAN"&&p.childNodes.length===1&&p.style.fontSize){
+        p.style.fontSize=curSize+"px";return;
+      }
+      const s=document.createElement("span");
+      s.style.fontSize=curSize+"px";
+      n.replaceWith(s);s.appendChild(n);
+    });
+  });
+  r.setStart(first,0);r.setEnd(last,last.length);
+  sel.removeAllRanges();sel.addRange(r);
+  scheduleSave();syncToolbar();
 }
 $("#sizeUp").addEventListener("mousedown",e=>{e.preventDefault();applySize(curSize+1)});
 $("#sizeDown").addEventListener("mousedown",e=>{e.preventDefault();applySize(curSize-1)});
@@ -2890,7 +2974,12 @@ function mdToNote(f,text,knownId){
 }
 
 const drive={
-  connected:false,token:null,tokenExp:0,lastBackup:0,autoTimer:null,
+  /* connected: we are holding a live access token right now.
+     linked:    the user granted access at some point and wants Drive on.
+     They are not the same thing, and treating them as one is what made
+     the app pop an auth window on load to prove something it had already
+     written down. */
+  connected:false,linked:false,token:null,tokenExp:0,lastBackup:0,autoTimer:null,
   async loadGis(){
     if(window.google?.accounts?.oauth2)return;
     await new Promise((ok,bad)=>{
@@ -2900,7 +2989,14 @@ const drive={
       document.head.appendChild(s);
     });
   },
-  async connect(interactive=true){
+  /* GIS has no silent path. initTokenClient().requestAccessToken() ALWAYS
+     opens a popup window - when consent already exists it closes itself after
+     a blink, which is exactly the flash people saw on every single refresh,
+     because the old load-time "resume silently" call did this unconditionally.
+     There is no prompt value that avoids it; the implicit silent refresh was
+     removed from the platform. So a token is only ever fetched inside a real
+     user gesture, and being linked is remembered separately from holding one. */
+  async connect(){
     if(!GOOGLE_CLIENT_ID)throw new Error("No Client ID configured");
     await this.loadGis();
     return new Promise((resolve,reject)=>{
@@ -2911,18 +3007,18 @@ const drive={
           if(res.error){reject(new Error(res.error));return;}
           this.token=res.access_token;
           this.tokenExp=now()+((res.expires_in||3600)-60)*1000;
-          this.connected=true;
+          this.connected=true;this.linked=true;
           settings.driveGranted=true;saveSettings();
-          syncSettingsUI();refreshBeacon();resolve();
+          syncSettingsUI();renderFoot();refreshBeacon();resolve();
         },
         error_callback:e=>reject(new Error(e?.type||"popup closed")),
       });
-      tc.requestAccessToken({prompt:interactive?"":""}); /* silent if already granted */
+      tc.requestAccessToken();
     });
   },
   async ensureToken(){
     if(this.token&&now()<this.tokenExp)return;
-    await this.connect(false);
+    await this.connect();
   },
   async api(path,opts={},tries=0){
     await this.ensureToken();
@@ -3080,14 +3176,18 @@ const drive={
   scheduleAuto(){
     clearTimeout(this.autoTimer);
     this.autoTimer=setTimeout(async()=>{
+      /* A timer is not a user gesture, so asking for a token here would open a
+         popup the browser then blocks. Skip quietly; the next Ctrl+S or Back
+         up now runs inside a gesture and re-authorises then. */
+      if(!this.token||now()>=this.tokenExp)return;
       try{await this.backup();}catch(e){setBeacon("error","backup failed");}
     },45000);
   },
   disconnect(){
     if(this.token&&window.google?.accounts?.oauth2)google.accounts.oauth2.revoke(this.token,()=>{});
-    this.token=null;this.connected=false;
+    this.token=null;this.connected=false;this.linked=false;
     settings.driveGranted=false;saveSettings();
-    syncSettingsUI();refreshBeacon();
+    syncSettingsUI();renderFoot();refreshBeacon();
   }
 };
 
@@ -3098,7 +3198,7 @@ async function connectDriveFlow(){
     return;
   }
   try{
-    await drive.connect(true);
+    await drive.connect();
     toast("Google Drive connected","ok");
     const fresh=!settings.driveFolderId;
     await drive.folder();
@@ -3165,13 +3265,18 @@ function syncSettingsUI(){
   const pill=$("#drivePill");
   if(!GOOGLE_CLIENT_ID){pill.textContent="not configured";pill.className="pill off";
     $("#driveCfgHint").innerHTML=" <b>To enable:</b> open this HTML file and paste your OAuth Client ID into the <code>CONFIG</code> block at the very top of the <code>&lt;script&gt;</code> — one line, then redeploy.";
-  }else if(drive.connected){pill.textContent="connected";pill.className="pill ok";$("#driveCfgHint").textContent="";}
+  }else if(drive.linked){pill.textContent="connected";pill.className="pill ok";$("#driveCfgHint").textContent="";}
   else{pill.textContent="ready — one click";pill.className="pill";$("#driveCfgHint").textContent="";}
-  const on=drive.connected;
+  const on=drive.linked;
   $("#driveBackupBtn").disabled=!on;
   $("#driveRestoreBtn").disabled=!on;
   $("#driveDisconnectBtn").disabled=!on;
+  /* "Connect" next to a pill that already reads "connected" is the app
+     asking you to do something it has done. Reconnecting is not a thing
+     you have to ask for either - Back up and Sync re-authorise on their
+     own if the token has expired. */
   $("#driveConnectBtn").disabled=!GOOGLE_CLIENT_ID;
+  $("#driveConnectBtn").style.display=on?"none":"";
 }
 function openOverlay(id){
   $("#"+id).classList.add("open");
@@ -3236,7 +3341,7 @@ document.addEventListener("keydown",e=>{
   const mod=e.ctrlKey||e.metaKey;
   if(mod&&!e.shiftKey&&!e.altKey&&e.key.toLowerCase()==="s"){
     e.preventDefault();flushSave();
-    if(drive.connected)doDriveBackup();
+    if(drive.linked)doDriveBackup();
     else if(settings.ghToken)$("#gistBackupBtn").click();
     else openOverlay("settingsOverlay");
   }
@@ -3276,8 +3381,13 @@ pickFirst();
 refreshBeacon();
 updateCounts();
 editor.focus();
-/* resume Drive silently if it was granted before */
-if(GOOGLE_CLIENT_ID&&settings.driveGranted)drive.connect(false).catch(()=>{});
+/* Restore the remembered link - the state, not a token. Asking Google for a
+   token here is what flashed a popup open and shut on every refresh, and there
+   is nothing to gain by it: the first thing that actually needs Drive fetches
+   one, inside the click that asked for it. */
+if(GOOGLE_CLIENT_ID&&settings.driveGranted){
+  drive.linked=true;renderFoot();refreshBeacon();
+}
 console.log("%cTypewell","font-weight:bold;font-size:15px","single file · localStorage first · a folder of .md in your Drive, one .json in a gist");
 
 /* ---------- tooltips: one floating chip, delegated, works for injected nodes ----------
@@ -3760,19 +3870,43 @@ function gripHide(){
   if(dragging)return;
   gripItem=null;dragUI.classList.remove("on");
 }
-/* Where the block's leftmost *ink* starts, which is not always its own left
-   edge. A list item's bullet or number is painted in the parent list's padding,
-   outside the <li> box entirely, and a quote's coloured rule is on the
-   <blockquote>. Measuring the li or the inner <p> puts the grip on top of the
-   bullet, so a bulleted row looked crowded next to a plain one. */
-function gripAnchor(el){
-  const p=el.parentElement;
-  if(!p||p===editor)return el;
-  if(el.tagName==="LI"&&/^(UL|OL)$/.test(p.tagName))return p;
-  if(p.tagName==="BLOCKQUOTE")return p;
-  return el;
+/* Where the block's leftmost *ink* starts, which is often not its own left
+   edge — and the two wrong answers are both visible:
+
+   - measure the <li> and the grip lands on top of the bullet;
+   - measure the parent <ul> and the grip sits a whole 1.5em indent away,
+     because a bullet occupies only the right end of that padding.
+
+   So measure the marker itself. getComputedStyle(li,"::marker").width is the
+   marker box; the browser then sets it down a fixed gap to the left of the
+   text. That gap is not exposed anywhere, so it was read off a rasterised
+   list once: at 14px, a disc box is 6px wide and its ink starts 15px left of
+   the text, which puts the gap at 0.65em. "10." is wider than "1.", so it is
+   measured per item, and only when the grip actually moves to a new row. */
+const MARKER_GAP=0.65;             /* of the item's own font size */
+function markerWidth(li){
+  const list=li.parentElement,cs=getComputedStyle(li);
+  if(cs.listStyleType==="none"||getComputedStyle(list).listStyleType==="none")return 0;
+  let w=0;
+  try{w=parseFloat(getComputedStyle(li,"::marker").width)||0}catch(_){}
+  if(!(w>0&&w<80))return 14;       /* a nonsense measurement is worse than a default */
+  return w+MARKER_GAP*(parseFloat(cs.fontSize)||14);
 }
-const GRIP_GAP=6;         /* clear space between the grip and whatever it labels */
+/* the leftmost painted pixel of the row */
+function inkLeft(el){
+  const p=el.parentElement,r=el.getBoundingClientRect();
+  if(el.tagName==="LI"&&p&&/^(UL|OL)$/.test(p.tagName)){
+    /* never further left than the list's own edge: a wide marker like "10."
+       would otherwise drag the grip out past where a paragraph's sits, and
+       the column would visibly jump as you scrolled a numbered list */
+    return Math.max(p.getBoundingClientRect().left,r.left-markerWidth(el));
+  }
+  /* a quote's coloured rule and padding live on the <blockquote>, not on the
+     paragraph inside it */
+  if(p&&p.tagName==="BLOCKQUOTE")return p.getBoundingClientRect().left;
+  return r.left;
+}
+const GRIP_GAP=7;         /* clear space between the grip and whatever it labels */
 function gripShow(el){
   const r=el.getBoundingClientRect();
   /* first line only: a block that wraps should not put the grip halfway down it */
@@ -3780,8 +3914,7 @@ function gripShow(el){
   gripItem=el;
   dragUI.classList.add("on");
   dragGrip.style.top=Math.round(first.top+(Math.min(first.height,28)-22)/2)+"px";
-  const left=gripAnchor(el).getBoundingClientRect().left;
-  dragGrip.style.left=Math.round(left-dragGrip.offsetWidth-GRIP_GAP)+"px";
+  dragGrip.style.left=Math.round(inkLeft(el)-dragGrip.offsetWidth-GRIP_GAP)+"px";
 }
 /* the block under the pointer, including the gutter to its left — so the grip
    is reachable without the pointer having to be over the text itself */

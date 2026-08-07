@@ -1,4 +1,4 @@
-/* Run tests.html in headless Chrome and exit non-zero if anything is red.
+/* Run tests/index.html in headless Chrome and exit non-zero if anything is red.
  *
  * No dependencies, on purpose: Typewell is a single HTML file with no build
  * step and no node_modules, and a test runner that drags in a package tree
@@ -123,7 +123,7 @@ async function main() {
 
   await send("Runtime.enable");
   await send("Page.enable");
-  await send("Page.navigate", { url: `${base}/tests.html` });
+  await send("Page.navigate", { url: `${base}/tests/index.html` });
 
   /* poll for the results the page hangs on window, rather than sleeping blind */
   let results = null;
@@ -140,7 +140,7 @@ async function main() {
   ws.close(); chrome.kill(); server?.close();
 
   if (!results) {
-    console.error("The suite never reported. Is tests.html reachable at " + base + "?");
+    console.error("The suite never reported. Is tests/index.html reachable at " + base + "?");
     process.exit(2);
   }
 

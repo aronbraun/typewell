@@ -11,7 +11,7 @@
  * I believed at the time, which is exactly the failure mode.
  *
  * Runs two ways, same code both times:
- *   tests.html in any browser   — open it, read the list
+ *   tests/index.html in a browser — open it, read the list
  *   node tests/run.mjs          — headless Chrome over CDP, exit code 1 on red
  */
 export function suite(win) {
@@ -160,6 +160,64 @@ export function suite(win) {
     caret(ed.lastChild.firstChild, 1);           /* fires selectionchange */
     type("Z");
     ok(!/Courier New/.test(ed.innerHTML), "an armed font followed the caret to another line");
+  });
+
+  /* ═════════ size ═════════ */
+
+  const bump = (n) => { for (let i = 0; i < n; i++) mouse($("#sizeUp"), "mousedown"); };
+  const size = (el) => Math.round(parseFloat(win.getComputedStyle(el).fontSize));
+
+  test("the size stepper steps once per click", () => {
+    setHTML("<p>abc</p>");
+    range(ed.firstChild.firstChild, 0, 3);
+    bump(1);
+    const from = Number($("#sizeVal").textContent);
+    bump(2);
+    eq($("#sizeVal").textContent, String(from + 2), "clicks after the first were swallowed");
+    eq(size(ed.querySelector("p span") || ed.querySelector("p")), from + 2,
+      "the readout moved but the text did not");
+  });
+
+  test("resizing a nested list moves every row, markers included", () => {
+    setHTML("<p>before</p><ul><li>top one</li><li>top two" +
+      '<ul><li><span style="font-size:20px">already 20</span></li><li>plain</li></ul>' +
+      "</li></ul><p>after</p>");
+    const li = ed.querySelectorAll("li");
+    const base = size(ed.querySelector("p"));
+    /* one selection running from the first top-level row into the last sub-item */
+    const r = doc.createRange();
+    r.setStart(li[0].firstChild, 0);
+    r.setEnd(li[3].firstChild, li[3].firstChild.length);
+    const s = win.getSelection(); s.removeAllRanges(); s.addRange(r); ed.focus();
+    bump(2);
+    const want = size(li[0]);
+    ok(want > base, `nothing moved — still ${want}px`);
+    [...ed.querySelectorAll("li")].forEach((el, i) => {
+      eq(size(el), want, `row ${i} stayed at ${size(el)}px while the rest went to ${want}px`);
+    });
+    /* the size already sitting on "already 20" would otherwise outrank the new
+       one and that row alone would refuse to move */
+    ok(!/font-size:\s*20px/.test(ed.innerHTML), "a stale inline size survived and still wins");
+    eq(size(ed.querySelector("p")), base, "text outside the selection was resized too");
+  });
+
+  test("resizing the same words twice does not nest spans", () => {
+    setHTML("<p>alpha bravo charlie</p>");
+    range(ed.firstChild.firstChild, 6, 11);
+    bump(1);
+    const once = (ed.innerHTML.match(/<span/g) || []).length;
+    bump(1);
+    eq((ed.innerHTML.match(/<span/g) || []).length, once, "a second click wrapped another span");
+  });
+
+  test("the size stepper with no selection does not resize the document", () => {
+    setHTML("<p>hello</p>");
+    const base = size(ed.querySelector("p"));
+    caret(ed.firstChild.firstChild, 5);
+    bump(2);
+    eq(size(ed.querySelector("p")), base, "a bare caret resized text that was already there");
+    type("X");
+    has(ed.innerHTML, "font-size", "the armed size never landed on what was typed");
   });
 
   test("font on a task line is not silently refused", () => {
@@ -366,20 +424,31 @@ export function suite(win) {
       ["quote", ed.querySelector("blockquote p")],
     ].map(([label, el]) => {
       const g = at(el);
-      /* the marker is painted in the parent list's padding, outside the <li>,
-         so the thing the grip must not crowd is the list box, not the item */
+      /* A bullet is painted in the parent list's padding, outside the <li>, so
+         the grip has to clear the *marker*, not the item box. Both naive
+         answers were shipped and both were rejected on sight: measure the <li>
+         and the grip lands on the bullet, measure the <ul> and it sits an
+         indent away with a visible hole between it and the row. The gap below
+         is the one the row's own leftmost ink gets. */
       const own = el.getBoundingClientRect();
-      const box = (el.tagName === "LI" || el.parentElement.tagName === "BLOCKQUOTE"
-        ? el.parentElement : el).getBoundingClientRect();
-      return { label, left: g.left, gap: box.left - g.right, ownGap: own.left - g.right };
+      const box = (el.parentElement.tagName === "BLOCKQUOTE" ? el.parentElement : el)
+        .getBoundingClientRect();
+      return { label, left: g.left, right: g.right, gap: box.left - g.right };
     });
     for (const r of rows) {
       ok(r.gap >= 4, `${r.label}: only ${Math.round(r.gap)}px between the grip and the row — it reads as attached`);
+      ok(r.gap <= 30, `${r.label}: ${Math.round(r.gap)}px between the grip and the row — it reads as unrelated to it`);
     }
-    const spread = Math.max(...rows.map((r) => r.left)) - Math.min(...rows.map((r) => r.left));
-    ok(spread < 2,
-      `the grip sits in a different column per row type (${Math.round(spread)}px apart) — ` +
-      rows.map((r) => `${r.label} ${Math.round(r.left)}`).join(", "));
+    /* one loose column, not one exact column: a bullet row's grip steps right
+       to hug its marker, but nothing may stick out further left than a plain
+       paragraph's, or the gutter looks ragged as you run down the page */
+    const p = rows[0].right;
+    for (const r of rows.slice(1)) {
+      ok(r.right >= p - 1,
+        `${r.label}: the grip sits ${Math.round(p - r.right)}px further left than a paragraph's`);
+      ok(r.right - p <= 10,
+        `${r.label}: the grip sits ${Math.round(r.right - p)}px right of a paragraph's — the column is ragged`);
+    }
   });
 
   test("dragging a row past the next one reorders it", () => {

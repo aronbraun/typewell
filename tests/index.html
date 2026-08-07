@@ -36,10 +36,10 @@
   <ol id="list"></ol>
 </div>
 <!-- the real app, in a real frame, driven by real events -->
-<iframe id="frame" src="index.html" title="Typewell under test"></iframe>
+<iframe id="frame" src="../index.html" title="Typewell under test"></iframe>
 
 <script type="module">
-import { suite } from "./tests/suite.js";
+import { suite } from "./suite.js";
 
 const frame = document.getElementById("frame");
 const list  = document.getElementById("list");

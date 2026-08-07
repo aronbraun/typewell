@@ -19,7 +19,9 @@
  * revalidates THIS file on every register() call rather than trusting its own
  * HTTP cache for up to 24 hours.
  */
-const CACHE = "typewell-v1";
+/* Bump when the SHELL list changes: activate deletes every cache that is not
+ * this one, which is what evicts entries for paths that no longer exist. */
+const CACHE = "typewell-v2";
 
 /* Precached so a first-run offline visit works at all. Deliberately short:
  * fonts and everything else are handled opportunistically below. */
@@ -29,8 +31,8 @@ const SHELL = [
   "/privacy.html",
   "/terms.html",
   "/manifest.webmanifest",
-  "/icon-192.png",
-  "/icon-512.png",
+  "/icons/icon-192.png",
+  "/icons/icon-512.png",
 ];
 
 self.addEventListener("install", (e) => {
