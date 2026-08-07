@@ -349,6 +349,39 @@ export function suite(win) {
     }
   });
 
+  test("the grip keeps clear of bullets, numbers and checkboxes", () => {
+    setHTML(
+      "<p>plain</p>" +
+      "<ul><li>bullet</li></ul>" +
+      "<ol><li>numbered</li></ol>" +
+      '<ul class="tasks"><li><input type="checkbox" contenteditable="false"><span class="task-text">task</span></li></ul>' +
+      "<blockquote><p>quoted</p></blockquote>");
+    const grip = doc.querySelector("#dragUI .dragh");
+    const at = (el) => { hover(el, 15, 5); return grip.getBoundingClientRect(); };
+    const rows = [
+      ["paragraph", ed.querySelector("p")],
+      ["bullet", ed.querySelector("ul:not(.tasks) li")],
+      ["numbered", ed.querySelector("ol li")],
+      ["task", ed.querySelector("ul.tasks li")],
+      ["quote", ed.querySelector("blockquote p")],
+    ].map(([label, el]) => {
+      const g = at(el);
+      /* the marker is painted in the parent list's padding, outside the <li>,
+         so the thing the grip must not crowd is the list box, not the item */
+      const own = el.getBoundingClientRect();
+      const box = (el.tagName === "LI" || el.parentElement.tagName === "BLOCKQUOTE"
+        ? el.parentElement : el).getBoundingClientRect();
+      return { label, left: g.left, gap: box.left - g.right, ownGap: own.left - g.right };
+    });
+    for (const r of rows) {
+      ok(r.gap >= 4, `${r.label}: only ${Math.round(r.gap)}px between the grip and the row — it reads as attached`);
+    }
+    const spread = Math.max(...rows.map((r) => r.left)) - Math.min(...rows.map((r) => r.left));
+    ok(spread < 2,
+      `the grip sits in a different column per row type (${Math.round(spread)}px apart) — ` +
+      rows.map((r) => `${r.label} ${Math.round(r.left)}`).join(", "));
+  });
+
   test("dragging a row past the next one reorders it", () => {
     setHTML("<ul><li>alpha</li><li>beta</li><li>gamma</li></ul>");
     const li = ed.querySelectorAll("li")[1];

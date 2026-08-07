@@ -415,29 +415,6 @@ body.mod-down #editor a{cursor:pointer}   /* Ctrl/Cmd held = click will open */
 #statusbar .st{display:flex;align-items:center;gap:6px;white-space:nowrap}
 body.zen #statusbar{opacity:.3}body.zen #statusbar:hover{opacity:1}
 
-/* ================= site footer =================
-   Google's OAuth brand verification reads the home page the way a visitor sees
-   it, and wants three things on it: the app's name, a sentence saying what the
-   app does and why it wants Drive, and a visible privacy-policy link. All three
-   already existed here - inside a panel you have to click open, which does not
-   count. One muted line under the status bar is the smallest thing that says
-   them out loud without taking a pixel from the writing area. Hidden in zen
-   mode and when printing, like every other piece of chrome. */
-#sitefoot{
-  flex:none;display:flex;align-items:center;gap:14px;padding:5px 12px;
-  background:var(--panel);border-top:1px solid var(--line-soft);
-  font-size:10.5px;line-height:1.5;color:var(--faint);
-}
-#sitefoot p{margin:0;flex:1 1 auto;min-width:0}
-#sitefoot b{font-weight:600;color:var(--muted)}
-#sitefoot nav{display:flex;gap:11px;flex:none}
-#sitefoot a{color:var(--faint);text-decoration:none;border-bottom:1px solid transparent}
-#sitefoot a:hover{color:var(--accent);border-bottom-color:var(--accent)}
-body.zen #sitefoot{display:none}
-/* wrap rather than clip: text-overflow would hide the very sentence this line
-   exists to show, on exactly the narrow screens a reviewer might use */
-@media(max-width:760px){#sitefoot{flex-wrap:wrap;gap:3px 12px;font-size:10px;padding:4px 10px}}
-
 /* ================= overlays & dialogs ================= */
 .overlay{
   position:fixed;inset:0;background:rgba(6,10,16,.5);display:none;
@@ -535,7 +512,7 @@ kbd{font-family:var(--font-mono);font-size:10.5px;background:var(--panel-2);bord
 }
 @media print{
   body{overflow:visible;background:#fff;color:#000}
-  #sidebar,#topbar,#toolbar,#findbar,#statusbar,#sitefoot,#toasts,.overlay,.menu,#zenExit,#linkPop{display:none!important}
+  #sidebar,#topbar,#toolbar,#findbar,#statusbar,#toasts,.overlay,.menu,#zenExit,#linkPop{display:none!important}
   #app{display:block}#editorWrap{overflow:visible}#page{width:100%;padding:0}#editor{min-height:0}
 }
 
@@ -799,20 +776,6 @@ body.zen #zenExit{display:grid}
       <span class="st" id="editStamp" title="Last edited"></span>
       <span class="st"><span class="beacon local" id="beacon2"></span><span id="syncLabel2">local</span></span>
     </div>
-
-    <!-- The one place the page says out loud what it is, why it asks for Drive,
-         and where the policies are. See the #sitefoot rule for why it has to be
-         visible on load rather than tucked into the settings panel. -->
-    <footer id="sitefoot">
-      <p><b>Typewell</b> — a free markdown notepad. Notes stay in this browser; connect Google
-         Drive to save each as a <b>.md</b> file in your own <b>Typewell</b> folder.</p>
-      <nav>
-        <a href="privacy.html" title="Privacy policy  What leaves your browser">Privacy</a>
-        <a href="terms.html" title="Terms &amp; conditions">Terms</a>
-        <a href="https://github.com/aronbraun/typewell" target="_blank" rel="noopener"
-           title="Source code on GitHub">Source</a>
-      </nav>
-    </footer>
   </div>
 </div>
 
@@ -3797,6 +3760,19 @@ function gripHide(){
   if(dragging)return;
   gripItem=null;dragUI.classList.remove("on");
 }
+/* Where the block's leftmost *ink* starts, which is not always its own left
+   edge. A list item's bullet or number is painted in the parent list's padding,
+   outside the <li> box entirely, and a quote's coloured rule is on the
+   <blockquote>. Measuring the li or the inner <p> puts the grip on top of the
+   bullet, so a bulleted row looked crowded next to a plain one. */
+function gripAnchor(el){
+  const p=el.parentElement;
+  if(!p||p===editor)return el;
+  if(el.tagName==="LI"&&/^(UL|OL)$/.test(p.tagName))return p;
+  if(p.tagName==="BLOCKQUOTE")return p;
+  return el;
+}
+const GRIP_GAP=6;         /* clear space between the grip and whatever it labels */
 function gripShow(el){
   const r=el.getBoundingClientRect();
   /* first line only: a block that wraps should not put the grip halfway down it */
@@ -3804,7 +3780,8 @@ function gripShow(el){
   gripItem=el;
   dragUI.classList.add("on");
   dragGrip.style.top=Math.round(first.top+(Math.min(first.height,28)-22)/2)+"px";
-  dragGrip.style.left=Math.round(r.left-26)+"px";
+  const left=gripAnchor(el).getBoundingClientRect().left;
+  dragGrip.style.left=Math.round(left-dragGrip.offsetWidth-GRIP_GAP)+"px";
 }
 /* the block under the pointer, including the gutter to its left — so the grip
    is reachable without the pointer having to be over the text itself */
