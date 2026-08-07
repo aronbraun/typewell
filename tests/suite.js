@@ -646,6 +646,54 @@ export function suite(win) {
     eq(a.getAttribute("href"), "https://example.com");
   });
 
+  /* A formatted paste is still the browser's to perform, and a synthetic event
+     cannot make it perform one — so these build the markup Word and Docs are
+     known to produce and check what the app does with it afterwards. */
+  const pasted = (html) => {
+    setHTML(html);
+    ed.dispatchEvent(new win.InputEvent("input",
+      { inputType: "insertFromPaste", bubbles: true }));
+    return ed.innerHTML;
+  };
+
+  test("a paste does not bring the source page's white background with it", () => {
+    const html = pasted('<p><span style="background-color:#ffffff;color:#000000;font-weight:700">x</span></p>');
+    ok(!/background/i.test(html), `a white background survived the paste — ${html}`);
+    has(html, "font-weight", "the scrub took the bold with it");
+  });
+
+  test("the same in the rgb() form Word writes, including table cells", () => {
+    const html = pasted('<p><span style="background-color:rgb(255, 255, 255)">x</span></p>' +
+      '<table><tr><td bgcolor="#FFFFFF">a</td><td bgcolor="#FFFF00">b</td></tr></table>');
+    ok(!/background-color/i.test(html), `rgb(255,255,255) survived — ${html}`);
+    ok(!/bgcolor="#FFFFFF"/i.test(html), "a white cell background survived");
+    has(html, 'bgcolor="#FFFF00"', "a yellow cell background was stripped as well");
+  });
+
+  test("a highlight someone chose survives a paste", () => {
+    const html = pasted('<p><span style="background-color:#F5E6A8">keep</span>' +
+      '<span style="background-color:rgb(255,255,255)">drop</span></p>');
+    has(html, "#F5E6A8", "a real highlight was scrubbed off");
+    ok(!/255,\s*255,\s*255|#ffffff/i.test(html), "the white one stayed");
+  });
+
+  test("black text is only dropped when it came with a white background", () => {
+    /* the pair is the signature of a page-colour dump; black on its own may
+       well be deliberate, and in a light theme it is invisible either way */
+    ok(!/color:\s*#?0{3,6}|rgb\(0,\s*0,\s*0\)/i.test(
+      pasted('<p><span style="background-color:#fff;color:#000">x</span></p>')),
+      "black text survived alongside the white background it came with");
+    has(pasted('<p><span style="color:#000000">x</span></p>'), "#000000",
+      "a black colour with no white background was thrown away too");
+  });
+
+  test("typing is not scrubbed — only a paste is", () => {
+    setHTML('<p><span style="background-color:#ffffff">typed</span></p>');
+    ed.dispatchEvent(new win.InputEvent("input",
+      { inputType: "insertText", data: "x", bubbles: true }));
+    has(ed.innerHTML, "background-color", "an ordinary keystroke ran the paste scrub");
+  });
+
   test("one undo takes a whole paste back out", () => {
     setHTML("<p>keep</p>");
     caret(ed.firstChild.firstChild, 4);

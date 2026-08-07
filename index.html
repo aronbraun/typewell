@@ -1379,7 +1379,12 @@ function markDirty(){
   dirtySinceBackup=true;refreshBeacon();
   if(settings.autoBackup&&drive.linked)drive.scheduleAuto();
 }
-editor.addEventListener("input",()=>{scheduleSave();updateCounts();});
+editor.addEventListener("input",e=>{
+  /* after the browser has done the paste, not instead of it - the markup it
+     produces is better than anything reconstructed from the HTML string */
+  if(e.inputType==="insertFromPaste"||e.inputType==="insertFromDrop")scrubPasted();
+  scheduleSave();updateCounts();
+});
 fileName.addEventListener("input",scheduleSave);
 fileName.addEventListener("keydown",e=>{if(e.key==="Enter"){e.preventDefault();editor.focus();}});
 window.addEventListener("beforeunload",flushSave);
@@ -2156,6 +2161,55 @@ async function insertImageFile(f){
   const rd=new FileReader();
   rd.onload=()=>{editor.focus();histPush();document.execCommand("insertImage",false,rd.result);scheduleSave();};
   rd.readAsDataURL(f);
+}
+/* ---------- scrubbing a paste ----------
+   A formatted paste is still handed to the browser, because it parses Word's
+   and Docs' markup far better than anything written here would. What it also
+   does is keep the colours of the page it came from: both write
+   background-color:#ffffff onto every span they emit, which is invisible on a
+   white page and lands here as a white slab behind the text in the middle of a
+   cream one - and stays white in the dark themes, where it is worse.
+
+   A highlight someone chose is worth keeping, a copy of the source's page
+   background is not, so only near-white and fully transparent go. Where one is
+   dropped, a near-black text colour on the same element goes with it: it is
+   the other half of the same page-colour dump, it is what makes a paste
+   unreadable in a dark theme, and on its own it is not something anyone set
+   deliberately. A black colour that arrives *without* a white background is
+   left alone - that one might well be meant. */
+function isWhiteish(v){
+  if(!v)return false;
+  const s=String(v).trim().toLowerCase();
+  if(s==="transparent"||s==="white"||s==="#fff"||s==="#ffffff")return true;
+  const m=s.match(/^rgba?\(([^)]+)\)/);
+  if(!m)return false;
+  const p=m[1].split(/[\s,/]+/).filter(Boolean).map(parseFloat);
+  if(p.length>3&&p[3]===0)return true;               /* fully transparent */
+  return p.length>2&&p[0]>=240&&p[1]>=240&&p[2]>=240;
+}
+function isBlackish(v){
+  if(!v)return false;
+  const s=String(v).trim().toLowerCase();
+  if(s==="black"||s==="#000"||s==="#000000")return true;
+  const m=s.match(/^rgba?\(([^)]+)\)/);
+  if(!m)return false;
+  const p=m[1].split(/[\s,/]+/).filter(Boolean).map(parseFloat);
+  return p.length>2&&p[0]<=32&&p[1]<=32&&p[2]<=32;
+}
+function scrubPasted(){
+  editor.querySelectorAll("[style]").forEach(el=>{
+    if(!isWhiteish(el.style.backgroundColor))return;
+    el.style.removeProperty("background-color");
+    el.style.removeProperty("background");
+    if(isBlackish(el.style.color))el.style.removeProperty("color");
+    if(!el.getAttribute("style"))el.removeAttribute("style");
+  });
+  editor.querySelectorAll("[bgcolor]").forEach(el=>{
+    if(isWhiteish(el.getAttribute("bgcolor")))el.removeAttribute("bgcolor");
+  });
+  /* a <span> that carried nothing but the background is now pure noise */
+  editor.querySelectorAll("span:not([style]):not([class])")
+    .forEach(el=>el.replaceWith(...el.childNodes));
 }
 editor.addEventListener("paste",e=>{
   const f=[...(e.clipboardData?.files||[])].find(x=>x.type.startsWith("image/"));
