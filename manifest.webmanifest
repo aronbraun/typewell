@@ -1,7 +1,7 @@
 {
-  "name": "Typewell — markdown notes",
+  "name": "Typewell — rich text notes",
   "short_name": "Typewell",
-  "description": "Markdown notes that live in your own browser. No account, no server, no tracking, with optional sync to a folder of .md files in your own Google Drive.",
+  "description": "Rich text notes that live in your own browser. No account, no server, no tracking, with optional sync to a folder of .md files in your own Google Drive.",
   "id": "/",
   "start_url": "/",
   "scope": "/",

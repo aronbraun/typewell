@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Typewell — your notes, your browser, your Drive</title>
-<meta name="description" content="Markdown notes that live in your own browser. No account, no server, no tracking, with optional sync to a folder of .md files in your own Google Drive, or a secret Gist.">
+<meta name="description" content="Rich text notes that live in your own browser. No account, no server, no tracking, with optional sync to a folder of .md files in your own Google Drive, or a secret Gist.">
 <link rel="canonical" href="https://typewell.net/">
 <link rel="manifest" href="manifest.webmanifest">
 <meta name="application-name" content="Typewell">
@@ -25,7 +25,7 @@
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="Typewell">
 <meta property="og:title" content="Typewell — your notes, your browser, your Drive">
-<meta property="og:description" content="Markdown notes that live in your own browser — tables, task lists, code blocks, three themes. No account, no server, no tracking. Optional backup to your own Google Drive or a secret GitHub Gist.">
+<meta property="og:description" content="Rich text notes that live in your own browser — headings, colours, tables, task lists, callouts, code blocks. No account, no server, no tracking. Optional backup to your own Google Drive or a secret Gist.">
 <meta property="og:url" content="https://typewell.net/">
 <!-- No og:image. The deploy workflow copies only index.html, privacy.html and
      terms.html into dist/, so a 1200x630 raster committed here would 404 at
@@ -37,7 +37,7 @@
      summary_large_image. -->
 <meta name="twitter:card" content="summary">
 <meta name="twitter:title" content="Typewell — your notes, your browser, your Drive">
-<meta name="twitter:description" content="Markdown notes that live in your own browser — tables, task lists, code blocks, three themes. No account, no server, no tracking. Optional backup to your own Google Drive or a secret GitHub Gist.">
+<meta name="twitter:description" content="Rich text notes that live in your own browser — headings, colours, tables, task lists, callouts, code blocks. No account, no server, no tracking. Optional backup to your own Google Drive or a secret Gist.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:ital,wght@0,400;0,500;0,700;1,400&family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
@@ -1112,7 +1112,7 @@ let notes=[],activeId=null,tab="notes",dirtySinceBackup=false;
 const CB='<input type="checkbox" contenteditable="false">';
 const TASK=t=>`<li>${CB}<span class="task-text">${t}</span></li>`;
 const WELCOME_HTML=
-  '<p>Typewell is a notepad that lives entirely in this browser. There is no account '+
+  '<p>Typewell is a rich text notepad that lives entirely in this browser. There is no account '+
   'and no server: what you type is saved to this browser as you go. Everything below '+
   'is a real note — edit it, try things in it, delete it when you are done.</p>'+
 
