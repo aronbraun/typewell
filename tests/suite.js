@@ -584,5 +584,64 @@ export function suite(win) {
     ok("serviceWorker" in win.navigator, "no service worker support to register with");
   });
 
+  /* ═════════ the Drive token ═════════
+     No Google account in the loop: these drive the token's own lifetime, which
+     is the part that decides whether an auth window opens. Each one puts the
+     stored token back exactly as it found it — the suite shares localStorage
+     with whatever notes are open in this browser. */
+  const withToken = (fn) => {
+    const { drive, LS_DTOK } = win.__typewell;
+    const keep = win.localStorage.getItem(LS_DTOK);
+    const was = { t: drive.token, e: drive.tokenExp, c: drive.connected, l: drive.linked };
+    try { fn(drive, LS_DTOK); }
+    finally {
+      drive.token = was.t; drive.tokenExp = was.e;
+      drive.connected = was.c; drive.linked = was.l;
+      if (keep === null) win.localStorage.removeItem(LS_DTOK);
+      else win.localStorage.setItem(LS_DTOK, keep);
+    }
+  };
+
+  test("a live token survives a reload instead of costing another auth window", () => {
+    withToken((drive, key) => {
+      drive.token = "tok-live"; drive.tokenExp = Date.now() + 30 * 60000;
+      drive.saveToken();
+      has(win.localStorage.getItem(key) || "", "tok-live", "the token was never written down");
+      drive.token = null; drive.tokenExp = 0; drive.connected = false;   /* as after a reload */
+      ok(drive.restoreToken(), "a token with half an hour left was not restored");
+      eq(drive.token, "tok-live");
+      ok(drive.connected, "restored the token but still reports disconnected");
+    });
+  });
+
+  test("an expired token is dropped rather than sent", () => {
+    withToken((drive, key) => {
+      win.localStorage.setItem(key, JSON.stringify({ t: "tok-stale", e: Date.now() - 1000 }));
+      drive.token = null; drive.tokenExp = 0;
+      ok(!drive.restoreToken(), "an expired token was restored and would 401");
+      eq(win.localStorage.getItem(key), null, "the expired token was left lying in storage");
+    });
+  });
+
+  test("a token about to expire is not restored either", () => {
+    withToken((drive, key) => {
+      /* inside the margin: it would expire between here and the response */
+      win.localStorage.setItem(key, JSON.stringify({ t: "tok-edge", e: Date.now() + 2000 }));
+      drive.token = null; drive.tokenExp = 0;
+      ok(!drive.restoreToken(), "a token with 2s left was restored");
+    });
+  });
+
+  test("disconnecting removes the stored token", () => {
+    withToken((drive, key) => {
+      drive.token = "tok-bye"; drive.tokenExp = Date.now() + 30 * 60000;
+      drive.linked = true; drive.saveToken();
+      drive.disconnect();
+      eq(win.localStorage.getItem(key), null, "the token outlived the disconnect");
+      eq(drive.token, null);
+      ok(!drive.linked, "still linked after disconnecting");
+    });
+  });
+
   return results;
 }

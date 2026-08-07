@@ -165,13 +165,14 @@ information to be sent to or stored. Specifically, Typewell does <strong>not</st
 </ul>
 
 <h2>3. Where your notes are kept</h2>
-<p>Your notes and preferences are saved in your browser's <code>localStorage</code>, under two keys:</p>
+<p>Your notes and preferences are saved in your browser's <code>localStorage</code>, under these keys:</p>
 <div class="scroller">
 <table>
   <tr><th>Key</th><th>Contents</th></tr>
   <tr><td><code>typewell.notes.v1</code></td><td>Your notes: titles, contents and timestamps.</td></tr>
   <tr><td><code>typewell.settings.v1</code></td><td>Preferences — theme, default font, auto-backup, plus the backup identifiers described below.</td></tr>
   <tr><td><code>typewell.drive.v1</code></td><td>Only if you connect Drive: which Drive file corresponds to which note, and when each was last synced. No note contents.</td></tr>
+  <tr><td><code>typewell.drive.token.v1</code></td><td>Only if you connect Drive: the current Google access token and the time it expires, so that syncing after a reload does not have to reopen the Google sign-in window. It is removed when it expires and when you disconnect.</td></tr>
 </table>
 </div>
 <p>This data never leaves your device on its own. It is tied to that one browser on that one
@@ -187,10 +188,15 @@ they match the app's appearance; they store nothing.</p>
 <code>drive.file</code> scope. That scope is limited to files the app itself creates — it grants no
 ability to see, open or list anything else in your Drive. Your notes are written to a
 <code>Typewell</code> folder in your own Drive account, one ordinary Markdown file per note, which
-you can read, edit or delete with any tool you like. The access token is held in memory for the
-duration of the session and is never written to disk; only the file identifiers described above and
-the fact that you granted access are saved locally. Data handled by Google under your own account is
-governed by
+you can read, edit or delete with any tool you like. The access token Google issues lasts about an
+hour, and Typewell keeps it in <code>localStorage</code> until then, so that reloading the page does
+not force the sign-in window open again to be handed a token that is still valid. It is discarded
+once it expires, and immediately if you disconnect Drive or erase everything. Like the GitHub token
+below, anything with access to that browser profile can read it while it lasts; it is limited to the
+<code>drive.file</code> scope, so it reaches the files Typewell created and nothing else. You can
+revoke it at any time from your
+<a href="https://myaccount.google.com/permissions" target="_blank" rel="noopener">Google account
+permissions</a> page. Data handled by Google under your own account is governed by
 <a href="https://policies.google.com/privacy" target="_blank" rel="noopener">Google's Privacy Policy</a>.</p>
 
 <h3>GitHub Gist</h3>

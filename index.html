@@ -2879,7 +2879,7 @@ $("#wipeBtn").addEventListener("click",async()=>{
     message:"Delete ALL notes and settings from this browser? Backups in Drive or Gist are not touched."});
   if(!ok)return;
   localStorage.removeItem(LS_NOTES);localStorage.removeItem(LS_SET);
-  localStorage.removeItem(LS_DMAP);
+  localStorage.removeItem(LS_DMAP);localStorage.removeItem(LS_DTOK);
   location.reload();
 });
 
@@ -2890,7 +2890,7 @@ $("#wipeBtn").addEventListener("click",async()=>{
 const BACKUP_NAME="typewell-backup.json";
 const DRIVE_FOLDER="Typewell";
 const FOLDER_MIME="application/vnd.google-apps.folder";
-const LS_DMAP="typewell.drive.v1";
+const LS_DMAP="typewell.drive.v1", LS_DTOK="typewell.drive.token.v1";
 
 /* noteId → {fid,name,mtime,lmtime,trashed}
    mtime  = Drive modifiedTime at the last sync   (the remote sync point)
@@ -2980,6 +2980,39 @@ const drive={
      the app pop an auth window on load to prove something it had already
      written down. */
   connected:false,linked:false,token:null,tokenExp:0,lastBackup:0,autoTimer:null,
+
+  /* Keep the access token across reloads. Google's token client returns one
+     that lasts about an hour and no refresh token - there is no such thing as
+     a refresh token in this flow - so without this, every reload threw the
+     live token away and the next sync had to open the auth window again to be
+     handed one that was still perfectly valid a second ago.
+
+     It is stored beside the notes, in this origin's localStorage. It is scoped
+     to drive.file, so it reaches the files this app created and nothing else
+     in the Drive, and it expires on its own within the hour. Anything able to
+     read it can already read every note in the same store, so this does not
+     open a door that was not already the same door. */
+  saveToken(){
+    try{
+      if(this.token&&this.tokenExp>now())
+        localStorage.setItem(LS_DTOK,JSON.stringify({t:this.token,e:this.tokenExp}));
+      else localStorage.removeItem(LS_DTOK);
+    }catch(_){}                       /* private mode, quota - not worth failing over */
+  },
+  restoreToken(){
+    try{
+      const r=JSON.parse(localStorage.getItem(LS_DTOK)||"null");
+      if(r&&r.t&&r.e>now()+5000){     /* ignore one about to expire mid-request */
+        this.token=r.t;this.tokenExp=r.e;this.connected=true;return true;
+      }
+    }catch(_){}
+    localStorage.removeItem(LS_DTOK);
+    return false;
+  },
+  dropToken(){
+    this.token=null;this.tokenExp=0;this.connected=false;
+    try{localStorage.removeItem(LS_DTOK)}catch(_){}
+  },
   async loadGis(){
     if(window.google?.accounts?.oauth2)return;
     await new Promise((ok,bad)=>{
@@ -3008,6 +3041,7 @@ const drive={
           this.token=res.access_token;
           this.tokenExp=now()+((res.expires_in||3600)-60)*1000;
           this.connected=true;this.linked=true;
+          this.saveToken();
           settings.driveGranted=true;saveSettings();
           syncSettingsUI();renderFoot();refreshBeacon();resolve();
         },
@@ -3018,13 +3052,21 @@ const drive={
   },
   async ensureToken(){
     if(this.token&&now()<this.tokenExp)return;
+    if(this.restoreToken())return;    /* still good from an earlier page load */
     await this.connect();
   },
-  async api(path,opts={},tries=0){
+  async api(path,opts={},tries=0,reauthed=false){
     await this.ensureToken();
     const res=await fetch("https://www.googleapis.com"+path,{...opts,
       headers:{Authorization:"Bearer "+this.token,...(opts.headers||{})}});
-    if(res.status===401){this.token=null;await this.ensureToken();return this.api(path,opts,tries);}
+    if(res.status===401){
+      /* a stored token can be revoked from the Google account page while we
+         still think it is good. Throw it away and ask once - but only once,
+         or a token Google keeps refusing becomes an endless auth window. */
+      this.dropToken();
+      if(reauthed)throw new Error("Drive rejected the sign-in — try connecting again");
+      return this.api(path,opts,tries,true);
+    }
     /* one file per note means N requests per sync — back off rather than fail */
     if((res.status===429||res.status===403)&&tries<4){
       const t=await res.clone().text();
@@ -3177,15 +3219,17 @@ const drive={
     clearTimeout(this.autoTimer);
     this.autoTimer=setTimeout(async()=>{
       /* A timer is not a user gesture, so asking for a token here would open a
-         popup the browser then blocks. Skip quietly; the next Ctrl+S or Back
-         up now runs inside a gesture and re-authorises then. */
-      if(!this.token||now()>=this.tokenExp)return;
+         popup the browser then blocks. A stored one is fair game though, which
+         is what lets an auto-backup go through after a reload. If there is
+         none, skip quietly; the next Ctrl+S or Back up runs inside a gesture
+         and re-authorises then. */
+      if(!this.token||now()>=this.tokenExp)if(!this.restoreToken())return;
       try{await this.backup();}catch(e){setBeacon("error","backup failed");}
     },45000);
   },
   disconnect(){
     if(this.token&&window.google?.accounts?.oauth2)google.accounts.oauth2.revoke(this.token,()=>{});
-    this.token=null;this.connected=false;this.linked=false;
+    this.dropToken();this.linked=false;
     settings.driveGranted=false;saveSettings();
     syncSettingsUI();renderFoot();refreshBeacon();
   }
@@ -3381,12 +3425,13 @@ pickFirst();
 refreshBeacon();
 updateCounts();
 editor.focus();
-/* Restore the remembered link - the state, not a token. Asking Google for a
-   token here is what flashed a popup open and shut on every refresh, and there
-   is nothing to gain by it: the first thing that actually needs Drive fetches
-   one, inside the click that asked for it. */
+/* Restore the remembered link, and the token if the one from last time has not
+   expired yet. What is never done here is *asking Google* for a token: that is
+   what flashed a popup open and shut on every refresh. Reading back a token we
+   were already given costs nothing and is why a sync straight after a reload
+   no longer opens a window. */
 if(GOOGLE_CLIENT_ID&&settings.driveGranted){
-  drive.linked=true;renderFoot();refreshBeacon();
+  drive.linked=true;drive.restoreToken();renderFoot();refreshBeacon();
 }
 console.log("%cTypewell","font-weight:bold;font-size:15px","single file · localStorage first · a folder of .md in your Drive, one .json in a gist");
 
@@ -4062,8 +4107,9 @@ editor.addEventListener("keydown",e=>{
    Everything else the regression suite needs is a function declaration, which
    is already on window. These are consts, which are not. Exposing three
    read-only values is a smaller price than making the suite re-derive them and
-   then quietly test its own copy instead of the app's. */
-window.__typewell={WELCOME_HTML,FONTS,BLOCKS,version:"2026-08-07"};
+   then quietly test its own copy instead of the app's. `drive` is here so the
+   token's lifetime can be tested without a Google account in the loop. */
+window.__typewell={WELCOME_HTML,FONTS,BLOCKS,drive,LS_DTOK,version:"2026-08-07"};
 </script>
 </body>
 </html>
