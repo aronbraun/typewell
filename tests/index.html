@@ -77,16 +77,33 @@ function run() {
   render(results);
 }
 
-/* The app builds its UI on load; give the frame a turn to finish before poking
-   it. A module script is deferred, so the frame may already be loaded by the
-   time this runs and the load event will never fire again — check for that
-   rather than waiting for an event that has been and gone. */
-/* setTimeout, not requestAnimationFrame: a headless or backgrounded tab is not
-   compositing, so rAF never fires and the suite would hang forever. */
+/* Wait for the app itself, not for an event.
+   - the load event is no help on its own: this is a module script, so it is
+     deferred and the frame may already have fired load before we could listen;
+   - readyState is no help either, because an <iframe> that has not navigated
+     yet is about:blank, and about:blank is "complete" from the first tick. So
+     that check would happily run the whole suite against an empty document,
+     which is exactly what it did once - 44 red, every one of them "#editor is
+     null";
+   - setTimeout, not requestAnimationFrame: a headless or backgrounded tab is
+     not compositing, so rAF never fires and this would hang forever.
+   Poll for the editor the suite needs, and say so plainly if it never turns up
+   rather than reporting a failure for every check. */
 let armed = false;
-const armRun = () => { if (!armed) { armed = true; setTimeout(run, 120); } };
-frame.addEventListener("load", armRun);
-if (frame.contentDocument && frame.contentDocument.readyState === "complete") armRun();
+function whenReady(tries = 200) {
+  if (armed) return;
+  const d = frame.contentDocument;
+  if (d && d.querySelector("#editor") && frame.contentWindow.__typewell) {
+    armed = true; run(); return;
+  }
+  if (tries <= 0) {
+    render([{ name: "the app never loaded in the frame", pass: false,
+      error: `${frame.src} did not produce an #editor - is the server serving the repo root?` }]);
+    return;
+  }
+  setTimeout(() => whenReady(tries - 1), 50);
+}
+whenReady();
 document.getElementById("again").addEventListener("click", () => { armed = false; run(); });
 </script>
 </body>
