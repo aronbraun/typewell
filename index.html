@@ -3,7 +3,12 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Typewell — your notes, your browser, your Drive</title>
+<!-- The blue clickable line in search results. Google cuts it around 60
+     characters; this is 56, so all of it shows. The lyrical version - "your
+     notes, your browser, your Drive" - lives on in og:title below, where it is
+     read by a person seeing a shared link rather than by someone scanning a
+     results page for the words they just typed. -->
+<title>Typewell — free open source rich text notepad, no sign-up</title>
 <!-- The one sentence that shows under the title in search results. Google
      truncates around 155 characters, so the words that matter go first. It is
      not a ranking input, but it is the whole pitch a stranger reads before
@@ -1169,7 +1174,7 @@ let notes=[],activeId=null,tab="notes",dirtySinceBackup=false;
 const CB='<input type="checkbox" contenteditable="false">';
 const TASK=t=>`<li>${CB}<span class="task-text">${t}</span></li>`;
 const WELCOME_HTML=
-  '<p>Typewell is a free rich text notepad that lives entirely in this browser. No account, '+
+  '<p>Typewell is a free, open source rich text notepad that lives entirely in this browser. No account, '+
   'no sign-up, no server, no tracking. It works offline, it understands Markdown as you '+
   'type, and what you write is saved to this browser as you go. Everything below '+
   'is a real note — edit it, try things in it, delete it when you are done.</p>'+
