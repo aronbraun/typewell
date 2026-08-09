@@ -4,7 +4,12 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Typewell — your notes, your browser, your Drive</title>
-<meta name="description" content="Rich text notes that live in your own browser. No account, no server, no tracking, with optional sync to a folder of .md files in your own Google Drive, or a secret Gist.">
+<!-- The one sentence that shows under the title in search results. Google
+     truncates around 155 characters, so the words that matter go first. It is
+     not a ranking input, but it is the whole pitch a stranger reads before
+     deciding to click, and it is the only place "free notepad" and "no sign-up"
+     appear early enough to be read. -->
+<meta name="description" content="Free online notepad — rich text and Markdown, no sign-up, no tracking. Works offline in your browser, with optional backup to your own Google Drive.">
 <link rel="canonical" href="https://typewell.net/">
 <link rel="manifest" href="manifest.webmanifest">
 <meta name="application-name" content="Typewell">
@@ -57,7 +62,7 @@
   "applicationCategory": "ProductivityApplication",
   "operatingSystem": "Web Browser",
   "browserRequirements": "Requires JavaScript. Works offline once loaded.",
-  "description": "Rich text notes that live in your own browser. No account, no server, no tracking, with optional sync to a folder of .md files in your own Google Drive, or a secret Gist.",
+  "description": "Free online notepad — rich text and Markdown, no sign-up, no tracking. Works offline in your browser, with optional backup to your own Google Drive.",
   "license": "https://opensource.org/licenses/MIT",
   "isAccessibleForFree": true,
   "offers": {
@@ -1164,8 +1169,9 @@ let notes=[],activeId=null,tab="notes",dirtySinceBackup=false;
 const CB='<input type="checkbox" contenteditable="false">';
 const TASK=t=>`<li>${CB}<span class="task-text">${t}</span></li>`;
 const WELCOME_HTML=
-  '<p>Typewell is a rich text notepad that lives entirely in this browser. There is no account '+
-  'and no server: what you type is saved to this browser as you go. Everything below '+
+  '<p>Typewell is a free rich text notepad that lives entirely in this browser. No account, '+
+  'no sign-up, no server, no tracking. It works offline, it understands Markdown as you '+
+  'type, and what you write is saved to this browser as you go. Everything below '+
   'is a real note — edit it, try things in it, delete it when you are done.</p>'+
 
   '<blockquote class="alert" data-alert="tip">'+
