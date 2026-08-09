@@ -70,6 +70,14 @@
 /* navy's --accent IS the amber of --warn; move Note to the theme's blue-grey so
    Note and Warning can never collapse onto one hue. */
 html[data-theme="navy"]{ --al-note:var(--muted); }
+html[data-theme="white"]{
+  --bg:#FFFFFF; --panel:#FFFFFF; --panel-2:#F4F5F7; --hover:#EDEFF2;
+  --ink:#1B1F24; --muted:#6B7280; --faint:#9CA3AF;
+  --line:#E3E6EA; --line-soft:#EFF1F4;
+  --accent:#0E9E9E; --accent-soft:#0E9E9E1C; --on-accent:#FFF;
+  --gold:#B8791F; --danger:#C4554D; --ok:#3E9B62; --warn:#B8791F;
+  --code-bg:#F4F5F7; --sel:#0E9E9E2E; --scroll:#D3D8DE;
+}
 html[data-theme="paper"]{
   --bg:#F6F0E2; --panel:#FCF8EE; --panel-2:#F0E8D3; --hover:#EDE4CC;
   --ink:#26323D; --muted:#7D8494; --faint:#ABB1BD;
@@ -203,6 +211,7 @@ a.btn{color:var(--ink);text-decoration:none}
 .tdot{width:15px;height:15px;border-radius:50%;border:1.5px solid var(--line);transition:transform .12s;padding:0}
 .tdot:hover{transform:scale(1.15)}
 .tdot.on{border-color:var(--accent);box-shadow:0 0 0 2px var(--accent-soft)}
+.tdot[data-theme="white"]{background:#FFFFFF}
 .tdot[data-theme="paper"]{background:#F6F0E2}
 .tdot[data-theme="dark"]{background:#15181C}
 .tdot[data-theme="navy"]{background:#0D1E35}
@@ -704,6 +713,7 @@ body.zen #zenExit{display:grid}
       <input id="fileName" placeholder="Untitled" autocomplete="off" spellcheck="false" title="File name">
       <div class="spacer"></div>
       <div class="theme-dots" id="themeDots" title="Theme">
+        <button class="tdot" data-theme="white" title="White"></button>
         <button class="tdot" data-theme="paper" title="Paper"></button>
         <button class="tdot" data-theme="dark" title="Dark"></button>
         <button class="tdot" data-theme="navy" title="Navy"></button>
@@ -916,6 +926,7 @@ body.zen #zenExit{display:grid}
       <div class="row">
         <label>Theme</label>
         <div class="theme-dots" id="themeDots2" title="Theme" style="padding:0">
+          <button class="tdot" data-theme="white" title="White"></button>
           <button class="tdot" data-theme="paper" title="Paper"></button>
           <button class="tdot" data-theme="dark" title="Dark"></button>
           <button class="tdot" data-theme="navy" title="Navy"></button>
@@ -1031,7 +1042,7 @@ body.zen #zenExit{display:grid}
       GOOGLE_CLIENT_ID at deploy time. If it is never substituted — this
       file opened directly, or served without the workflow — it falls
       back to "" and Drive just reports "not configured", as before.
-   2. DEFAULT_THEME — paper | dark | navy
+   2. DEFAULT_THEME — white | paper | dark | navy
    ═════════════════════════════════════════════════════════════ */
 const GOOGLE_CLIENT_ID_RAW = "__GOOGLE_CLIENT_ID__";   // ← or paste yours here
 const GOOGLE_CLIENT_ID = /^__.+__$/.test(GOOGLE_CLIENT_ID_RAW) ? "" : GOOGLE_CLIENT_ID_RAW;
@@ -2211,6 +2222,61 @@ function scrubPasted(){
   editor.querySelectorAll("span:not([style]):not([class])")
     .forEach(el=>el.replaceWith(...el.childNodes));
 }
+/* ---------- copying out ----------
+   The same problem as pasting in, pointing the other way. Left to itself the
+   browser serialises a copy out of a contenteditable by inlining the computed
+   style of everything the selection sits inside - which includes the page it
+   is painted on. Paste that into Docs and every word carries this app's cream
+   behind it, as though it had been highlighted, and the editor's monospace
+   with it. Neither is something anyone chose; they are the room, not the text.
+
+   So write the clipboard ourselves, from the document rather than from the
+   rendering. What travels is what is actually marked up: bold, italics, links,
+   a highlight or a colour someone applied, a font someone picked. */
+const COPY_INLINE=/^(B|STRONG|I|EM|U|S|STRIKE|CODE|A|FONT|SPAN|SUB|SUP|MARK|SMALL)$/;
+function selectionMarkup(){
+  const sel=window.getSelection();
+  if(!sel.rangeCount||sel.isCollapsed||!editor.contains(sel.anchorNode))return null;
+  const r=sel.getRangeAt(0);
+  const host=document.createElement("div");
+  host.appendChild(r.cloneContents());
+  /* cloneContents keeps only what is *inside* the selection: grab three words
+     from the middle of a bold line and the clone is bare text. Put the inline
+     ancestors back, or copying out would quietly strip the formatting. */
+  let n=r.commonAncestorContainer;
+  if(n.nodeType===3)n=n.parentElement;
+  while(n&&n!==editor&&editor.contains(n)){
+    if(COPY_INLINE.test(n.tagName)){
+      const w=n.cloneNode(false);
+      while(host.firstChild)w.appendChild(host.firstChild);
+      host.appendChild(w);
+    }
+    n=n.parentElement;
+  }
+  /* a white highlight is invisible here and a white slab anywhere else */
+  host.querySelectorAll("[style]").forEach(el=>{
+    if(!isWhiteish(el.style.backgroundColor))return;
+    el.style.removeProperty("background-color");
+    el.style.removeProperty("background");
+    if(!el.getAttribute("style"))el.removeAttribute("style");
+  });
+  return {html:host.innerHTML,text:sel.toString()};
+}
+function writeClipboard(e){
+  const m=selectionMarkup();
+  if(!m||!e.clipboardData)return false;
+  e.preventDefault();
+  e.clipboardData.setData("text/html",m.html);
+  e.clipboardData.setData("text/plain",m.text);
+  return true;
+}
+editor.addEventListener("copy",writeClipboard);
+editor.addEventListener("cut",e=>{
+  if(!writeClipboard(e))return;
+  histPush();
+  document.execCommand("delete");
+  scheduleSave();updateCounts();
+});
 editor.addEventListener("paste",e=>{
   const f=[...(e.clipboardData?.files||[])].find(x=>x.type.startsWith("image/"));
   if(f){e.preventDefault();insertImageFile(f);return;}
@@ -3457,7 +3523,12 @@ $("#autoBackupChk").addEventListener("change",e=>{settings.autoBackup=e.target.c
 $("#ghToken").addEventListener("change",e=>{settings.ghToken=e.target.value.trim();saveSettings();});
 
 /* ---------- theme ---------- */
+const THEMES=["white","paper","dark","navy"];
 function setTheme(t){
+  /* an unrecognised name matches no html[data-theme=...] block, so every custom
+     property stays unset and the whole app renders as black on white. A stale
+     value in saved settings should not be able to do that. */
+  if(!THEMES.includes(t))t=DEFAULT_THEME;
   settings.theme=t;saveSettings();
   document.documentElement.dataset.theme=t;
   $$(".tdot").forEach(b=>b.classList.toggle("on",b.dataset.theme===t));

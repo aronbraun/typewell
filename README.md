@@ -48,6 +48,7 @@ repository is actually deployed.
 - **Task lists** with real checkboxes; checked state persists, Enter/Backspace behave like Notion
 - **Code blocks done right** — Enter stays inside the block, Enter on an empty last line exits, Tab/Shift+Tab indent and dedent, Backspace on an empty block converts back to a paragraph, and pasting into a block is always plain text
 - **Inline code** with an escape hatch: Space or → at the end of a code span steps outside it. Both inline code and code blocks have toolbar buttons that light up when the caret is inside one
+- **Copying out carries the text, not the room it was in** — the browser serialises a copy by inlining the computed style of everything the selection sits inside, so pasting into Docs used to arrive with Typewell's paper colour behind every word and its monospace forced on top. The clipboard is written from the document instead: bold, italics, links, colours and highlights someone actually applied travel; the page they were sitting on does not.
 - **A paste does not repaint the page** — Word and Google Docs write `background-color:#ffffff` onto every span they emit. Invisible on a white page, a white slab on a cream one, and worse in the dark themes. Those are stripped on arrival, along with the matching black text colour they come paired with, so pasted text takes your theme's ink. A highlight you actually chose survives, and so does a black you set yourself.
 - **Paste as plain text matches the line it lands in** — `Ctrl+Shift+V` (and anything copied from a plain source) inserts the characters where typing them would go, so they pick up the bold, colour and size already at the caret instead of arriving as bare black text. A formatted paste is still a formatted paste.
 - **Font and inline code behave like bold** — with a selection they change the selection; with nothing selected they apply to what you type next, and the toolbar shows it armed. Neither one silently restyles the paragraph you happen to be standing in.
@@ -68,7 +69,7 @@ repository is actually deployed.
 - Compact two-row note items with inline dates (time if today)
 
 ### Look & feel
-- Three themes — **Paper** (warm cream), **Dark**, **Navy** — one click to switch
+- Four themes — **White**, **Paper** (warm cream, the default), **Dark**, **Navy** — one click to switch
 - **JetBrains Mono** as the default editor font (changeable per note or as default)
 - **Zen mode** (Ctrl+Shift+F) for distraction-free writing, with a floating exit and Esc
 - **Installable, and offline** — add it to your home screen or dock and it runs like an app. The service worker is deliberately network-first: online you always get the current build, and the cache is only ever a fallback for when the network is not there. A new version announces itself with a *Reload* toast rather than waiting for a cache to expire.

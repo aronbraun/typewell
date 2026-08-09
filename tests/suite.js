@@ -703,6 +703,103 @@ export function suite(win) {
     ok(!/gone/.test(ed.innerHTML), "undo left part of the paste behind");
   });
 
+  /* ═════════ copying out ═════════ */
+
+  const copyHTML = (evName = "copy") => {
+    const dt = new win.DataTransfer();
+    ed.dispatchEvent(new win.ClipboardEvent(evName,
+      { clipboardData: dt, bubbles: true, cancelable: true }));
+    return { html: dt.getData("text/html"), text: dt.getData("text/plain") };
+  };
+  const selectIn = (fn) => {
+    const r = doc.createRange(); fn(r);
+    sel().removeAllRanges(); sel().addRange(r); ed.focus();
+  };
+
+  test("copying does not carry the page's own background out with it", () => {
+    /* left to itself the browser inlines the computed style of everything the
+       selection sits inside, so every word arrives in another editor with this
+       app's paper colour behind it, as though it had been highlighted */
+    setHTML("<p>one two three</p>");
+    selectIn((r) => r.selectNodeContents(ed.querySelector("p")));
+    const { html } = copyHTML();
+    ok(html, "nothing was written to the clipboard at all");
+    ok(!/background/i.test(html), `a background came along for the ride — ${html}`);
+    ok(!/font-family/i.test(html), `the editor's own font was forced on the paste — ${html}`);
+  });
+
+  test("copying part of a formatted line keeps that formatting", () => {
+    setHTML('<p><b><span style="color:#C0392B">one two three</span></b></p>');
+    selectIn((r) => {
+      const t = ed.querySelector("span").firstChild;
+      r.setStart(t, 4); r.setEnd(t, 7);
+    });
+    const { html, text } = copyHTML();
+    eq(text, "two");
+    has(html, "two", "the text itself did not make it");
+    ok(/<b>/i.test(html), `the bold it was sitting inside was dropped — ${html}`);
+    has(html, "#C0392B", "the colour it was sitting inside was dropped");
+  });
+
+  test("a highlight someone applied still travels", () => {
+    setHTML('<p><span style="background-color:#F5E6A8">lit</span></p>');
+    selectIn((r) => r.selectNodeContents(ed.querySelector("p")));
+    has(copyHTML().html, "#F5E6A8", "a real highlight was stripped on the way out");
+  });
+
+  test("copying across blocks keeps the blocks", () => {
+    setHTML("<h2>Title</h2><ul><li>a</li><li>b</li></ul>");
+    selectIn((r) => {
+      r.setStart(ed.querySelector("h2").firstChild, 0);
+      r.setEnd(ed.querySelectorAll("li")[1].firstChild, 1);
+    });
+    const { html } = copyHTML();
+    has(html, "<h2>", "the heading flattened");
+    has(html, "<li>", "the list flattened");
+  });
+
+  test("cut writes the clipboard and removes the text", () => {
+    setHTML("<p>keep this gone</p>");
+    selectIn((r) => {
+      const t = ed.querySelector("p").firstChild;
+      r.setStart(t, 10); r.setEnd(t, 14);
+    });
+    const { text } = copyHTML("cut");
+    eq(text, "gone");
+    ok(!/gone/.test(ed.textContent), "cut copied but left the text behind");
+  });
+
+  test("a collapsed caret is left to the browser", () => {
+    setHTML("<p>abc</p>");
+    caret(ed.firstChild.firstChild, 1);
+    eq(copyHTML().html, "", "an empty selection still wrote to the clipboard");
+  });
+
+  /* ═════════ themes ═════════ */
+
+  test("white is offered, and offered first", () => {
+    const dots = [...doc.querySelectorAll("#themeDots .tdot")].map((b) => b.dataset.theme);
+    eq(dots[0], "white", `themes are ordered ${dots.join(", ")}`);
+    has(dots.join(","), "paper", "paper went missing");
+    eq(dots.length, 4);
+  });
+
+  test("every offered theme actually styles the app", () => {
+    /* a name with no matching rule leaves every custom property unset and the
+       whole app renders black on white — so each dot must resolve to real ink */
+    const before = doc.documentElement.dataset.theme;
+    for (const t of [...doc.querySelectorAll("#themeDots .tdot")].map((b) => b.dataset.theme)) {
+      win.setTheme(t);
+      eq(doc.documentElement.dataset.theme, t, `${t} did not apply`);
+      ok(win.getComputedStyle(doc.documentElement).getPropertyValue("--ink").trim(),
+        `${t} leaves --ink unset — the theme has no rule of its own`);
+    }
+    win.setTheme("not-a-theme");
+    ok(doc.documentElement.dataset.theme !== "not-a-theme",
+      "an unknown theme name was applied and left the app unstyled");
+    win.setTheme(before);
+  });
+
   /* ═════════ where the caret is ═════════ */
 
   const pos = () => { win.updateCaretPos(); return $("#curpos").textContent; };
