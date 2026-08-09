@@ -89,6 +89,10 @@ jobs:
           # PWA: the manifest, the worker and the icons it names. sw.js must
           # sit at the root or its scope cannot cover the whole site.
           cp manifest.webmanifest sw.js "$out/"
+          # Crawlers. robots.txt and sitemap.xml are only read at the root, and
+          # sitemap.xml lists exactly the three pages copied above - if that
+          # list changes, change the sitemap too.
+          cp robots.txt sitemap.xml llms.txt "$out/"
           cp -R icons "$out/"
 
           if [ -z "$GOOGLE_CLIENT_ID" ]; then

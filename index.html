@@ -38,6 +38,46 @@
 <meta name="twitter:card" content="summary">
 <meta name="twitter:title" content="Typewell — your notes, your browser, your Drive">
 <meta name="twitter:description" content="Rich text notes that live in your own browser — headings, colours, tables, task lists, callouts, code blocks. No account, no server, no tracking. Optional backup to your own Google Drive or a secret Gist.">
+
+<!-- What this is, in the form a machine can read. Google is explicit that no
+     structured data is needed to appear in AI Overviews or AI Mode; this is
+     here for the ordinary app rich result and so that "Typewell" resolves to a
+     thing rather than to a word.
+
+     Deliberately no aggregateRating: Typewell has no real reviews, and a
+     fabricated ratingCount is a manual-action risk, not a shortcut to stars.
+     Every claim below is also visible in the page, which is the one rule
+     Google does enforce. -->
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "SoftwareApplication",
+  "name": "Typewell",
+  "url": "https://typewell.net/",
+  "applicationCategory": "ProductivityApplication",
+  "operatingSystem": "Web Browser",
+  "browserRequirements": "Requires JavaScript. Works offline once loaded.",
+  "description": "Rich text notes that live in your own browser. No account, no server, no tracking, with optional sync to a folder of .md files in your own Google Drive, or a secret Gist.",
+  "license": "https://opensource.org/licenses/MIT",
+  "isAccessibleForFree": true,
+  "offers": {
+    "@type": "Offer",
+    "price": "0",
+    "priceCurrency": "USD"
+  },
+  "featureList": [
+    "Headings, bold, italic, underline, text and highlight colours",
+    "Bulleted, numbered and task lists with drag handles",
+    "Tables, code blocks, blockquotes and callouts",
+    "Multiple notes with search, word count and caret position",
+    "Four themes: white, paper, dark and navy",
+    "Export and import as Markdown or HTML",
+    "Optional backup to Google Drive or a secret GitHub Gist",
+    "Works offline"
+  ]
+}
+</script>
+
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:ital,wght@0,400;0,500;0,700;1,400&family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">

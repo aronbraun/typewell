@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Every page the deploy workflow publishes. If you add one to the `cp` line
+     in .github/workflows/deploy.yml, add it here too - this file and that line
+     are the same list written twice, and a sitemap that names a 404 is worse
+     than no sitemap at all.
+
+     lastmod is the date the page's content last changed, not the date of the
+     deploy. Bumping it on every push teaches crawlers to ignore it. -->
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+  <url>
+    <loc>https://typewell.net/</loc>
+    <lastmod>2026-08-09</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>1.0</priority>
+  </url>
+  <url>
+    <loc>https://typewell.net/privacy.html</loc>
+    <lastmod>2026-08-07</lastmod>
+    <changefreq>yearly</changefreq>
+    <priority>0.3</priority>
+  </url>
+  <url>
+    <loc>https://typewell.net/terms.html</loc>
+    <lastmod>2026-08-06</lastmod>
+    <changefreq>yearly</changefreq>
+    <priority>0.3</priority>
+  </url>
+</urlset>

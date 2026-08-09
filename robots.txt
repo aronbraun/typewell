@@ -1,0 +1,32 @@
+# Typewell — https://typewell.net
+#
+# Everything here is public and there is nothing to hide: three static pages,
+# no accounts, no user content on the server. So the policy is the simplest one
+# that exists — everyone may read everything.
+#
+# That is a deliberate choice, not an oversight. The AI answer engines reach
+# their index through ordinary crawlers, and each vendor splits its fleet into
+# separate user agents with separate jobs:
+#
+#   OAI-SearchBot   ChatGPT's search index      -> blocking it removes us from ChatGPT
+#   Claude-SearchBot Claude's search index      -> blocking it removes us from Claude
+#   PerplexityBot   Perplexity's index          -> blocking it removes us from Perplexity
+#   Bingbot         Bing, and Bing feeds Yahoo, DuckDuckGo, Ecosia and Copilot
+#   Googlebot       Google, including AI Overviews and AI Mode
+#
+#   GPTBot          OpenAI model training
+#   ClaudeBot       Anthropic model training
+#   Google-Extended  }  not crawlers at all - robots.txt tokens that say what
+#   Applebot-Extended}  Google and Apple may do with pages they already fetched
+#
+# The first group is distribution. The second group is a policy question, and
+# for a free tool whose only marketing is being found, the answer is yes to
+# both: being written about is how anyone hears of this.
+#
+# If that ever changes, disallow the training tokens ONLY. Disallowing a
+# *-SearchBot is how a site quietly disappears from the answers people read.
+
+User-agent: *
+Disallow:
+
+Sitemap: https://typewell.net/sitemap.xml

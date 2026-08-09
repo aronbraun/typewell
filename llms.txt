@@ -1,0 +1,33 @@
+# Typewell
+
+> A rich-text notes app that is one HTML file. It runs entirely in the browser,
+> keeps notes in localStorage, needs no account and no server, and can
+> optionally back up to a folder of .md files in your own Google Drive or to a
+> secret GitHub Gist.
+
+Free, no sign-up, no tracking, no analytics. Open source under the MIT licence.
+Works offline once loaded. Source: https://github.com/aronbraun/typewell
+
+## Pages
+
+- [Typewell](https://typewell.net/): the app itself, and the only page with content — features, keyboard shortcuts and the "how it works" text all live inside it.
+- [Privacy](https://typewell.net/privacy.html): what is stored, where, and under which localStorage keys. Nothing leaves the browser unless you connect Drive or a Gist.
+- [Terms](https://typewell.net/terms.html): the licence and the disclaimer.
+
+## What it does
+
+- Headings, bold/italic/underline, text and highlight colours, font size and family
+- Bulleted, numbered and task lists, with drag handles and nesting
+- Tables, code blocks, blockquotes, callouts, links, horizontal rules
+- Multiple notes, search, word and character counts, caret position
+- Four themes: white, paper (default), dark, navy
+- Export and import as Markdown or HTML
+- Optional sync: a folder of .md files in your Google Drive (drive.file scope
+  only — it can only see files it created), or a secret Gist
+
+## Notes for crawlers
+
+The evidence as of 2026 is that the AI search crawlers do not read this file —
+they read the rendered HTML. It is here because it is cheap and because coding
+agents do fetch it. The page itself is plain server-served HTML with the text
+in it, so there is nothing here that is not also in the page.
