@@ -529,13 +529,36 @@ export function suite(win) {
   const taskBtn = () => mouse($("#taskBtn"), "mousedown");
   /* the readable shape of the editor: task rows as "[ ] text", everything else
      as its tag, so a failure prints something a person can act on */
+  /* one row per item, a ">" per level of indent, so a nesting bug prints as a
+     row in the wrong column rather than as a wall of HTML */
+  const taskRows = (ul, depth) => {
+    const rows = [];
+    const row = (li) => rows.push(">".repeat(depth) +
+      "[" + (li.querySelector(":scope > input")?.hasAttribute("checked") ? "x" : " ") + "]" +
+      (li.querySelector(":scope > .task-text")?.textContent ?? "?"));
+    for (const ch of ul.children) {
+      if (ch.matches("ul.tasks")) { rows.push(...taskRows(ch, depth + 1)); continue; }
+      if (ch.tagName !== "LI") continue;
+      row(ch);
+      for (const sub of ch.children) if (sub.matches("ul.tasks")) rows.push(...taskRows(sub, depth + 1));
+    }
+    return rows;
+  };
+  const bulletRows = (ul, depth) => {
+    const rows = [];
+    for (const ch of ul.children) {
+      if (ch.matches("ul,ol")) { rows.push(...bulletRows(ch, depth + 1)); continue; }
+      if (ch.tagName !== "LI") continue;
+      const subs = [...ch.children].filter((c) => c.matches("ul,ol"));
+      const own = [...ch.childNodes].filter((n) => !subs.includes(n)).map((n) => n.textContent).join("");
+      rows.push(">".repeat(depth) + own);
+      for (const sub of subs) rows.push(...bulletRows(sub, depth + 1));
+    }
+    return rows;
+  };
   const describe = (el) => {
-    if (el.matches("ul.tasks"))
-      return "TASKS(" + [...el.children]
-        .map((li) => "[" + (li.querySelector("input")?.hasAttribute("checked") ? "x" : " ") + "]" +
-          (li.querySelector(".task-text")?.textContent ?? "?")).join("|") + ")";
-    if (el.matches("ul,ol"))
-      return el.tagName + "(" + [...el.children].map((li) => li.textContent).join("|") + ")";
+    if (el.matches("ul.tasks")) return "TASKS(" + taskRows(el, 0).join("|") + ")";
+    if (el.matches("ul,ol")) return el.tagName + "(" + bulletRows(el, 0).join("|") + ")";
     /* a wrapper the browser left around a list is part of the shape, not noise:
        a task list buried in one is exactly the bug */
     const inner = [...el.children].filter((c) => c.matches("ul,ol"));
@@ -646,11 +669,11 @@ export function suite(win) {
     eq(shape(), "TASKS([ ]intro|[ ]a|[ ]b)");
   });
 
-  test("a sub-list is flattened in, not thrown away", () => {
+  test("a sub-list comes along and keeps its indent", () => {
     setHTML("<ul><li>outer<ul><li>inner</li></ul></li><li>after</li></ul>");
     caret(ed.querySelector("li").firstChild, 2);
     taskBtn();
-    eq(shape(), "TASKS([ ]outer|[ ]inner) UL(after)");
+    eq(shape(), "TASKS([ ]outer|>[ ]inner) UL(after)");
   });
 
   test("a list inside a quote stays inside the quote", () => {
@@ -677,6 +700,87 @@ export function suite(win) {
     eq(shape(), "P(alpha) P(beta)");
   });
 
+  /* ---- the shapes that come back after un-bulleting, and indented ones ---- */
+
+  /* Un-bulleting does not hand the paragraphs back: the browser collapses the
+     whole list into one <p>a<br>b<br>c</p>. Press the checkbox button on that
+     and the old code made a single enormous checkbox holding all three lines. */
+  test("the bullet button really does collapse an un-bulleted list into one block", () => {
+    listFromButton("insertUnorderedList", ["alpha", "beta", "gamma"]);
+    selectAll(ed);
+    mouse($('[data-cmd="insertUnorderedList"]'), "mousedown");
+    eq(ed.children.length, 1, "un-bulleting no longer leaves one block — re-read the checks below");
+    eq(ed.querySelectorAll("br").length, 2, "the lines are no longer <br>-separated");
+  });
+
+  test("bullets, then no bullets, then checkboxes gives one box per line", () => {
+    listFromButton("insertUnorderedList", ["alpha", "beta", "gamma"]);
+    selectAll(ed);
+    mouse($('[data-cmd="insertUnorderedList"]'), "mousedown");
+    selectAll(ed);
+    taskBtn();
+    eq(shape(), "TASKS([ ]alpha|[ ]beta|[ ]gamma)",
+      "the three lines did not come out as three checkboxes");
+  });
+
+  test("indented bullets become indented checkboxes", () => {
+    listFromButton("insertUnorderedList", ["one", "two", "three", "four"]);
+    const li = ed.querySelectorAll("li");
+    caret(li[1].firstChild, 0); press(ed, "Tab");
+    caret(ed.querySelectorAll("li")[2].firstChild, 0); press(ed, "Tab"); press(ed, "Tab");
+    eq(shape(), "P[UL(one|>two|>>three|four)]", "Tab did not indent the bullets as expected");
+    selectAll(ed);
+    taskBtn();
+    eq(shape(), "TASKS([ ]one|>[ ]two|>>[ ]three|[ ]four)");
+  });
+
+  test("Tab indents a checkbox and Shift+Tab brings it back", () => {
+    setHTML("<p>alpha</p><p>beta</p>");
+    selectAll(ed); taskBtn();
+    const rows = ed.querySelectorAll("ul.tasks li");
+    caret(rows[1].querySelector(".task-text").firstChild, 1);
+    press(ed, "Tab");
+    eq(shape(), "TASKS([ ]alpha|>[ ]beta)");
+    press(ed, "Tab", { shiftKey: true });
+    eq(shape(), "TASKS([ ]alpha|[ ]beta)", "Shift+Tab did not undo the indent");
+    eq(ed.querySelectorAll("ul.tasks").length, 1, "an empty sub-list was left behind");
+  });
+
+  test("Enter under an indented checkbox stays at that level", () => {
+    setHTML("<p>alpha</p><p>beta</p>");
+    selectAll(ed); taskBtn();
+    const rows = ed.querySelectorAll("ul.tasks li");
+    caret(rows[1].querySelector(".task-text").firstChild, 4);
+    press(ed, "Tab");
+    press(ed, "Enter");
+    type("gamma");
+    eq(shape(), "TASKS([ ]alpha|>[ ]beta|>[ ]gamma)");
+  });
+
+  test("Enter on an empty indented checkbox steps back out a level", () => {
+    setHTML("<p>alpha</p><p>beta</p>");
+    selectAll(ed); taskBtn();
+    const rows = ed.querySelectorAll("ul.tasks li");
+    caret(rows[1].querySelector(".task-text").firstChild, 4);
+    press(ed, "Tab");
+    press(ed, "Enter");                       /* new sub-item, empty */
+    press(ed, "Enter");                       /* … so this one outdents it */
+    eq(shape(), "TASKS([ ]alpha|>[ ]beta|[ ])");
+    press(ed, "Enter");                       /* and now it leaves the list */
+    eq(shape(), "TASKS([ ]alpha|>[ ]beta) P()");
+  });
+
+  test("an indented list toggles off to bullets and straight back again", () => {
+    setHTML("<ul><li>outer<ul><li>inner</li></ul></li></ul>");
+    selectAll(ed);
+    taskBtn();
+    eq(shape(), "TASKS([ ]outer|>[ ]inner)");
+    selectAll(ed); taskBtn();
+    eq(shape(), "UL(outer|>inner)", "the indent was lost on the way back to bullets");
+    selectAll(ed); taskBtn();
+    eq(shape(), "TASKS([ ]outer|>[ ]inner)", "the second conversion was not the same as the first");
+  });
+
   test("a converted list exports as markdown checkboxes", () => {
     setHTML("<ul><li>alpha</li><li>beta</li></ul>");
     selectAll(ed.querySelector("ul"));
@@ -686,6 +790,23 @@ export function suite(win) {
     holder.innerHTML = ed.innerHTML;
     eq(win.htmlToMd(holder).trim(), "- [x] alpha\n- [ ] beta",
       "the converted list did not survive the trip out to a .md file");
+  });
+
+  test("an indented checkbox list round-trips through markdown", () => {
+    setHTML("<ul><li>outer<ul><li>inner<ul><li>deeper</li></ul></li></ul></li><li>last</li></ul>");
+    selectAll(ed);
+    taskBtn();
+    eq(shape(), "TASKS([ ]outer|>[ ]inner|>>[ ]deeper|[ ]last)");
+    const holder = doc.createElement("div");
+    holder.innerHTML = ed.innerHTML;
+    const md = win.htmlToMd(holder).trim();
+    eq(md, "- [ ] outer\n  - [ ] inner\n    - [ ] deeper\n- [ ] last",
+      "the indent did not reach the .md file");
+    const back = doc.createElement("div");
+    back.innerHTML = win.mdToHtml(md);
+    setHTML(back.innerHTML);
+    eq(shape(), "TASKS([ ]outer|>[ ]inner|>>[ ]deeper|[ ]last)",
+      "the indent did not survive coming back in");
   });
 
   /* ═════════ things that were fixed before and must stay fixed ═════════ */

@@ -462,6 +462,9 @@ body.zen #page{padding-top:52px}
 #editor a{color:var(--accent);text-underline-offset:2px;cursor:text}
 body.mod-down #editor a{cursor:pointer}   /* Ctrl/Cmd held = click will open */
 #editor ul.tasks{list-style:none;padding-left:.3em}
+/* a sub-list sits beside the item it belongs to, so the indent is all it has
+   to say so — and it must not open a gap the way a fresh list would */
+#editor ul.tasks ul.tasks{padding-left:1.55em;margin:0}
 #editor ul.tasks li{display:flex;align-items:flex-start;gap:9px;margin:.18em 0}
 #editor ul.tasks input[type="checkbox"]{
   appearance:none;width:15px;height:15px;flex:none;margin-top:.34em;cursor:pointer;
@@ -1201,7 +1204,9 @@ const WELCOME_HTML=
   '<ul class="tasks">'+
   TASK('<code>#</code> through <code>######</code> — headings, six levels')+
   TASK('<code>-</code> or <code>*</code> — a bullet list. <code>1.</code> — a numbered list')+
-  TASK('<code>[]</code> — a task list, with a real checkbox like this one')+
+  TASK('<code>[]</code> — a task list, with a real checkbox like this one. '+
+       '<b>Tab</b> indents an item under the one above, <b>Shift+Tab</b> brings it back — '+
+       'the same as bullets')+
   TASK('<code>&gt;</code> — a quote. <code>&gt; [!warning]</code> — a coloured callout')+
   TASK('<code>```</code> then Enter — a code block. <code>```js</code> keeps the language')+
   TASK('<code>---</code> or <code>***</code> — a divider line')+
@@ -2591,23 +2596,101 @@ function selectedBlocks(){
   if(!hit.length){const b=getBlock();return b?[b]:[];}
   return hit;
 }
-/* An <li> can hold a whole list of its own. Those items are blocks in their
-   own right and have to come along, or converting the parent would delete
-   them — task lists are flat (so is their markdown), so a nested one flattens. */
-function withNestedItems(blocks){
-  const out=new Set();
-  for(const b of blocks){
-    out.add(b);
-    if(b.tagName==="LI")b.querySelectorAll("li").forEach(li=>out.add(li));
-  }
-  return [...out];
+const isTaskUl=el=>!!el&&el.tagName==="UL"&&el.classList.contains("tasks");
+/* the outermost task list `el` sits in, so that toggling a sub-item off takes
+   the whole list with it rather than orphaning the level it was nested under */
+function outerTaskUl(el){
+  let found=null;
+  for(let n=el;n&&n!==editor;n=n.parentElement)if(isTaskUl(n))found=n;
+  return found;
 }
-/* an <li>'s own content, without the sublist hanging off it */
-function blockHTML(b){
-  if(b.tagName!=="LI")return b.innerHTML.replace(/^<br>$/,"");
-  const own=document.createElement("div");
-  for(const n of b.childNodes)if(!/^(UL|OL)$/.test(n.tagName||""))own.appendChild(n.cloneNode(true));
-  return own.innerHTML.replace(/^<br>$/,"");
+/* How deep in lists a block sits. A Tab-indented sublist is a sibling <ul>
+   inside its parent <ul>; an imported one lives inside the <li>. Counting
+   list ancestors gets the same answer from both shapes. */
+function listDepth(el){
+  let d=-1;
+  for(let n=el.parentElement;n&&n!==editor;n=n.parentElement)
+    if(/^(UL|OL)$/.test(n.tagName))d++;
+  return d<0?0:d;
+}
+/* A block's own content — no sublist hanging off it — split into one line per
+   top-level <br>. Un-bulleting a list does not give the paragraphs back: it
+   collapses the whole thing into a single <p>a<br>b<br>c</p>. The bullet button
+   splits that back into three items, so the checkbox button has to agree, or
+   pressing it on a just-un-bulleted list makes one enormous checkbox. */
+function blockLines(b){
+  const lines=[];let cur=document.createElement("div");
+  for(const n of b.childNodes){
+    if(/^(UL|OL)$/.test(n.tagName||""))continue;
+    if(n.tagName==="BR"){lines.push(cur);cur=document.createElement("div");continue;}
+    cur.appendChild(n.cloneNode(true));
+  }
+  lines.push(cur);
+  const html=lines.map(d=>d.innerHTML.trim());
+  while(html.length>1&&!html[html.length-1])html.pop();   /* a trailing <br> is padding, not a line */
+  return html;
+}
+/* Every line the new task list will hold, in order, each with the depth it
+   should keep. An <li> can hold a whole list of its own; those items are lines
+   in their own right and have to come along, or converting the parent would
+   delete them. A level may only ever be one deeper than the line above it —
+   select just the sub-bullets and they become a list in their own right. */
+function taskLines(blocks){
+  const seen=new Set(),out=[];
+  const push=b=>{
+    if(seen.has(b))return;seen.add(b);
+    const d=listDepth(b);
+    for(const html of blockLines(b))out.push({depth:d,html});
+    for(const sub of b.children||[])
+      if(/^(UL|OL)$/.test(sub.tagName))
+        for(const li of sub.children)if(li.tagName==="LI")push(li);
+  };
+  for(const b of blocks)push(b);
+  let prev=-1;
+  for(const line of out){line.depth=Math.min(line.depth,prev+1);prev=line.depth;}
+  return out;
+}
+/* Sublists sit beside the item they belong to, inside the parent list — the
+   same shape Tab makes for bullets, so the markdown writer already knows it. */
+function buildTaskList(lines){
+  const root=document.createElement("ul");root.className="tasks";
+  const stack=[root];
+  for(const {depth,html} of lines){
+    while(stack.length>depth+1)stack.pop();
+    while(stack.length<depth+1){
+      const sub=document.createElement("ul");sub.className="tasks";
+      stack[stack.length-1].appendChild(sub);stack.push(sub);
+    }
+    const li=document.createElement("li");
+    li.innerHTML=`${CHECK}<span class="task-text">${html||"<br>"}</span>`;
+    stack[stack.length-1].appendChild(li);
+  }
+  return root;
+}
+const taskOwnText=li=>li.querySelector(":scope > .task-text");
+/* the same tree with bullets instead of boxes, indentation intact */
+function taskUlToBullets(ul){
+  const out=document.createElement("ul");
+  for(const ch of ul.children){
+    if(ch.tagName==="UL"){out.appendChild(taskUlToBullets(ch));continue;}
+    if(ch.tagName!=="LI")continue;
+    const li=document.createElement("li");
+    li.innerHTML=taskOwnText(ch)?.innerHTML||ch.innerHTML;
+    for(const sub of ch.children)if(sub.tagName==="UL")li.appendChild(taskUlToBullets(sub));
+    out.appendChild(li);
+  }
+  return out;
+}
+/* Taking the boxes off a flat list leaves you with the lines. An indented one
+   becomes a bullet list instead, because a paragraph has no way to say "this
+   one sits under that one" — and pressing the button again brings the
+   checkboxes straight back, indentation and all. */
+function untaskUl(ul){
+  if(ul.querySelector("ul.tasks")){ul.replaceWith(taskUlToBullets(ul));return;}
+  const frag=document.createDocumentFragment();
+  ul.querySelectorAll("li").forEach(l=>{const p=document.createElement("p");
+    p.innerHTML=taskOwnText(l)?.innerHTML||l.innerHTML;frag.appendChild(p);});
+  ul.replaceWith(frag);
 }
 /* Where a new sibling block goes so it appears exactly where `el` sits. An <li>
    is not a place a <ul class="tasks"> may stand, so the lists above it are split:
@@ -2632,30 +2715,51 @@ function splitListsAbove(el){
   }
   return node;
 }
+/* Tab and Shift+Tab, the same as they work on bullets. execCommand cannot do
+   this one: it would wrap the item in a plain <ul> (or a blockquote) and the
+   checkbox would come off with the class. */
+function taskIndent(li){
+  const prev=li.previousElementSibling;
+  /* the item above already has children — join them rather than start a rival list */
+  let sub=isTaskUl(prev)?prev:null;
+  if(!sub){sub=document.createElement("ul");sub.className="tasks";li.before(sub);}
+  sub.appendChild(li);
+  return true;
+}
+function taskOutdent(li){
+  const sub=li.parentElement,outer=sub?.parentElement;
+  if(!isTaskUl(sub)||!isTaskUl(outer))return false;   /* already as far left as it goes */
+  const after=[];for(let n=li.nextSibling;n;n=n.nextSibling)after.push(n);
+  sub.after(li);
+  /* what followed it stays one level in — those items were its peers, and now
+     they read as its children, which is what every other list does too */
+  if(after.length){
+    const tail=document.createElement("ul");tail.className="tasks";
+    for(const n of after)tail.appendChild(n);
+    li.after(tail);
+  }
+  if(!sub.children.length)sub.remove();
+  return true;
+}
+/* a list left with nothing in it, and every now-childless list above it */
+function pruneTaskUl(ul){
+  while(isTaskUl(ul)&&!ul.children.length){const up=ul.parentElement;ul.remove();ul=up;}
+}
+const lastTaskText=el=>{const all=el.querySelectorAll(".task-text");return all[all.length-1]||null;};
 function toggleTaskList(){
   editor.focus();histPush();
-  const blocks=withNestedItems(selectedBlocks());if(!blocks.length)return;
+  const blocks=selectedBlocks();if(!blocks.length)return;
   /* already task lists anywhere in the selection → unwrap all of them */
-  const uls=[...new Set(blocks.map(b=>b.closest?.("ul.tasks")).filter(Boolean))];
+  const uls=[...new Set(blocks.map(outerTaskUl).filter(Boolean))];
   const anchorUl=(()=>{let n=window.getSelection().anchorNode;
-    if(n&&n.nodeType===3)n=n.parentElement;return n?.closest?.("ul.tasks")||null;})();
+    if(n&&n.nodeType===3)n=n.parentElement;return n?outerTaskUl(n):null;})();
   if(anchorUl&&!uls.includes(anchorUl))uls.push(anchorUl);
   if(uls.length){
-    for(const ul of uls){
-      const frag=document.createDocumentFragment();
-      ul.querySelectorAll("li").forEach(l=>{const p=document.createElement("p");
-        p.innerHTML=l.querySelector(".task-text")?.innerHTML||l.innerHTML;frag.appendChild(p);});
-      ul.replaceWith(frag);
-    }
+    for(const ul of uls)untaskUl(ul);
     scheduleSave();return;
   }
-  /* one list holding one item per selected block, rather than one list each */
-  const t=document.createElement("ul");t.className="tasks";
-  for(const b of blocks){
-    const li=document.createElement("li");
-    li.innerHTML=`${CHECK}<span class="task-text">${blockHTML(b)||"<br>"}</span>`;
-    t.appendChild(li);
-  }
+  /* one list holding one item per selected line, rather than one list each */
+  const t=buildTaskList(taskLines(blocks));
   splitListsAbove(blocks[0]).before(t);
   const emptied=new Set();
   for(const b of blocks){
@@ -2900,10 +3004,21 @@ editor.addEventListener("keydown",e=>{
     scheduleSave();return;
   }
 
-  /* ----- Tab indents regular list items ----- */
+  /* ----- Tab indents list items, checkboxes included ----- */
   if(e.key==="Tab"&&!preEl){
     const li=anchorEl&&anchorEl.closest("li");
-    if(li&&!taskLi){e.preventDefault();
+    if(taskLi){
+      e.preventDefault();histPush();
+      const at=sel.anchorNode,off=sel.anchorOffset;
+      if(e.shiftKey?taskOutdent(taskLi):taskIndent(taskLi)){
+        /* the item moved house; the caret was inside it and should still be */
+        try{const r=document.createRange();r.setStart(at,off);r.collapse(true);
+          sel.removeAllRanges();sel.addRange(r);}catch{placeCaret(taskOwnText(taskLi));}
+        scheduleSave();
+      }
+      return;
+    }
+    if(li){e.preventDefault();
       document.execCommand(e.shiftKey?"outdent":"indent");scheduleSave();return;}
   }
 
@@ -2914,28 +3029,37 @@ editor.addEventListener("keydown",e=>{
   /* ----- task list Enter / Backspace ----- */
   if(taskLi&&e.key==="Enter"&&!e.shiftKey&&!e.ctrlKey&&!e.metaKey){
     e.preventDefault();
-    const txt=taskLi.querySelector(".task-text");
+    const txt=taskOwnText(taskLi);
     if(!txt||!txt.textContent.trim()){
+      /* an empty indented item steps back out a level first; only at the far
+         left does Enter leave the list altogether */
+      if(taskOutdent(taskLi)){placeCaret(taskOwnText(taskLi),true);scheduleSave();return;}
       const p=document.createElement("p");p.innerHTML="<br>";
       const ul=taskLi.parentElement;ul.after(p);taskLi.remove();
-      if(!ul.children.length)ul.remove();
+      pruneTaskUl(ul);
       placeCaret(p,true);
     }else{
       const nl=document.createElement("li");
       nl.innerHTML=CHECK+'<span class="task-text"><br></span>';
-      taskLi.after(nl);placeCaret(nl.querySelector(".task-text"),true);
+      /* past its own sub-items: the new line is its sibling, not its child */
+      let at=taskLi;while(isTaskUl(at.nextElementSibling))at=at.nextElementSibling;
+      at.after(nl);placeCaret(taskOwnText(nl),true);
     }
     scheduleSave();return;
   }
   if(taskLi&&e.key==="Backspace"){
-    const txt=taskLi.querySelector(".task-text");
+    const txt=taskOwnText(taskLi);
     if(txt&&!txt.textContent.length){
       e.preventDefault();
       const prev=taskLi.previousElementSibling,ul=taskLi.parentElement;
+      const above=ul.previousElementSibling;                 /* only matters once ul is gone */
       taskLi.remove();
-      if(prev)placeCaret(prev.querySelector(".task-text")||prev);
+      /* what sits above may be a sub-list, and then it is its last item you
+         were about to type into, not its first */
+      if(prev)placeCaret(isTaskUl(prev)?lastTaskText(prev)||prev:taskOwnText(prev)||prev);
+      else if(isTaskUl(ul.parentElement)&&above){pruneTaskUl(ul);placeCaret(taskOwnText(above)||above);}
       else{const p=document.createElement("p");p.innerHTML="<br>";ul.before(p);placeCaret(p,true);}
-      if(!ul.children.length)ul.remove();
+      pruneTaskUl(ul);
       scheduleSave();return;
     }
   }
@@ -3062,6 +3186,21 @@ $("#findBtn").addEventListener("click",openFind);
 $("#findClose").addEventListener("click",closeFind);
 
 /* ---------- markdown export / import ---------- */
+/* Sub-items indent two spaces a level, the same column a "- " bullet's children
+   sit in, so anything that reads markdown sees the nesting we meant. The sublist
+   may sit beside its item (Tab indents it there) or inside it (an import puts it
+   there); both shapes have to serialize. */
+function tasksMd(ul,pad){
+  let s="";
+  for(const li of ul.children){
+    if(li.tagName==="UL"){s+=tasksMd(li,pad+"  ");continue;}
+    if(li.tagName!=="LI")continue;
+    const done=li.querySelector(":scope > input")?.hasAttribute("checked");
+    s+=pad+"- ["+(done?"x":" ")+"] "+(li.querySelector(":scope > .task-text")?.textContent||"").trim()+"\n";
+    for(const sub of li.children)if(sub.tagName==="UL")s+=tasksMd(sub,pad+"  ");
+  }
+  return s;
+}
 function htmlToMd(root){
   function walk(node){
     let out="";
@@ -3105,12 +3244,7 @@ function htmlToMd(root){
            silent data loss the moment a note was edited outside the app */
         case "img":out+="!["+(ch.getAttribute("alt")||"")+"]("+(ch.getAttribute("src")||"")+")";break;
         case "ul":case "ol":{
-          if(tag==="ul"&&ch.classList.contains("tasks")){
-            for(const li of ch.children){
-              const done=li.querySelector("input")?.hasAttribute("checked");
-              out+="- ["+(done?"x":" ")+"] "+(li.querySelector(".task-text")?.textContent||"").trim()+"\n";
-            }out+="\n";break;
-          }
+          if(tag==="ul"&&ch.classList.contains("tasks")){out+=tasksMd(ch,"")+"\n";break;}
           /* clone-based: an exporter must never mutate the live DOM.
              2-space indent under "- ", 3 under "1. " — the CommonMark content column */
           const ord=tag==="ol",pad=ord?"   ":"  ";
@@ -3161,7 +3295,11 @@ function htmlToMd(root){
    closure over one, so the blockquote branch can recurse for nested callouts. */
 function mdToHtml(md){
   const lines=md.replace(/\r/g,"").split("\n");
-  let html="",inCode=false,inTask=false;
+  let html="",inCode=false;
+  /* one entry per open task level, holding the indent that opened it — the same
+     job `stack` does for bullets, so "  - [ ] sub" comes back in as a sub-item */
+  const taskInd=[];
+  const closeTasks=()=>{while(taskInd.length){html+="</ul>";taskInd.pop();}};
   /* one stack instead of inUl/inOl flags, so indentation can nest lists.
      liOpen: the deepest <li> is still open, because a sublist goes inside it. */
   const stack=[];let liOpen=false;
@@ -3173,7 +3311,7 @@ function mdToHtml(md){
   const closeLists=()=>{
     while(stack.length)popList();
     liOpen=false;
-    if(inTask){html+="</ul>";inTask=false}
+    closeTasks();
   };
   const url=s=>s.replace(/&amp;/g,"&");      /* inline() escapes first; URLs must not stay escaped */
   const inline=s=>esc(s)
@@ -3229,12 +3367,19 @@ function mdToHtml(md){
         i--;html+=t+"</table>";continue;
       }
     }
-    if(m=l.match(/^\s*[-*+]\s+\[( |x|X)\]\s+(.*)/)){
-      if(!inTask){closeLists();html+='<ul class="tasks">';inTask=true;}
-      const ck=m[1].toLowerCase()==="x";
-      html+=`<li${ck?' class="done"':""}><input type="checkbox" contenteditable="false"${ck?" checked":""}><span class="task-text">${inline(m[2])}</span></li>`;continue;}
+    if(m=l.match(/^(\s*)[-*+]\s+\[( |x|X)\]\s+(.*)/)){
+      const ind=m[1].replace(/\t/g,"  ").length;
+      if(!taskInd.length){closeLists();html+='<ul class="tasks">';taskInd.push(ind);}
+      else{
+        while(taskInd.length>1&&ind<taskInd[taskInd.length-1]){html+="</ul>";taskInd.pop();}
+        /* a sublist opens after the item it belongs to, which is exactly where
+           the writing head is — so the nesting shape matches what Tab makes */
+        if(ind>taskInd[taskInd.length-1]){html+='<ul class="tasks">';taskInd.push(ind);}
+      }
+      const ck=m[2].toLowerCase()==="x";
+      html+=`<li${ck?' class="done"':""}><input type="checkbox" contenteditable="false"${ck?" checked":""}><span class="task-text">${inline(m[3])}</span></li>`;continue;}
     if(m=l.match(/^(\s*)([-*+]|\d+[.)])\s+(.*)/)){
-      if(inTask){html+="</ul>";inTask=false;}
+      closeTasks();
       const ind=m[1].replace(/\t/g,"  ").length,ord=/\d/.test(m[2]);
       while(stack.length&&ind<stack[stack.length-1].ind)popList();
       const top=stack[stack.length-1];
