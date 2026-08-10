@@ -508,6 +508,186 @@ export function suite(win) {
     eq([...ed.children].map(tag).join(","), "P,H2");
   });
 
+  /* ═════════ the checkbox button ═════════
+   *
+   * The button used to reach for editor.children, so a <ul> came back as one
+   * "block" and its whole "<li>a</li><li>b</li>" was pushed into a single
+   * checkbox line — from which the items promptly escaped and sat in the
+   * document as stray bullets. With a caret inside an item instead, the new
+   * task list was planted *inside* the bullet list, a <ul> as the direct child
+   * of a <ul>.
+   *
+   * The first fix for that was checked against hand-written `<ul>` fixtures and
+   * shipped still broken, because that is not the markup the app produces:
+   * select some paragraphs, press the bullet button, and Chrome's own
+   * insertUnorderedList leaves the list INSIDE the paragraph it was made from —
+   * `<p><ul><li>…</li></ul></p>`. Every check below that starts from a list
+   * therefore builds it by pressing the real button, not by assigning HTML. The
+   * hand-written shapes are still worth having (that is what an import or a
+   * paste looks like), so both are covered. */
+
+  const taskBtn = () => mouse($("#taskBtn"), "mousedown");
+  /* the readable shape of the editor: task rows as "[ ] text", everything else
+     as its tag, so a failure prints something a person can act on */
+  const describe = (el) => {
+    if (el.matches("ul.tasks"))
+      return "TASKS(" + [...el.children]
+        .map((li) => "[" + (li.querySelector("input")?.hasAttribute("checked") ? "x" : " ") + "]" +
+          (li.querySelector(".task-text")?.textContent ?? "?")).join("|") + ")";
+    if (el.matches("ul,ol"))
+      return el.tagName + "(" + [...el.children].map((li) => li.textContent).join("|") + ")";
+    /* a wrapper the browser left around a list is part of the shape, not noise:
+       a task list buried in one is exactly the bug */
+    const inner = [...el.children].filter((c) => c.matches("ul,ol"));
+    if (inner.length && !el.textContent.replace(inner.map((i) => i.textContent).join(""), "").trim())
+      return el.tagName + "[" + inner.map(describe).join(" ") + "]";
+    return el.tagName + "(" + el.textContent + ")";
+  };
+  const shape = () => [...ed.children].map(describe).join(" ");
+  const selectItems = (a, b) => {
+    const r = doc.createRange();
+    r.setStart(a.firstChild, 0);
+    r.setEnd(b.firstChild, b.firstChild.length);
+    sel().removeAllRanges(); sel().addRange(r); ed.focus();
+  };
+  /* the route a person actually takes: type lines, select them, press the
+     button in the toolbar — whatever markup that leaves behind is the markup
+     the checkbox button has to cope with */
+  const listFromButton = (cmd, lines) => {
+    setHTML(lines.map((l) => `<p>${l}</p>`).join(""));
+    selectAll(ed);
+    mouse($(`[data-cmd="${cmd}"]`), "mousedown");
+  };
+
+  test("the bullet button really does leave the list inside a paragraph", () => {
+    listFromButton("insertUnorderedList", ["alpha", "beta"]);
+    /* Not a wish — a guard. If a future Chrome stops doing this, the checks
+       below quietly stop testing the case they were written for, and this one
+       goes red to say so. */
+    eq(shape(), "P[UL(alpha|beta)]",
+      "the browser no longer wraps a new list in a <p> — re-read the checkbox tests, they were written for that shape");
+  });
+
+  test("a bullet list made with the toolbar becomes checkboxes, one per bullet", () => {
+    listFromButton("insertUnorderedList", ["alpha", "beta", "gamma"]);
+    selectAll(ed);
+    taskBtn();
+    eq(shape(), "TASKS([ ]alpha|[ ]beta|[ ]gamma)");
+  });
+
+  test("a numbered list made with the toolbar becomes checkboxes too", () => {
+    listFromButton("insertOrderedList", ["one", "two"]);
+    selectAll(ed);
+    taskBtn();
+    eq(shape(), "TASKS([ ]one|[ ]two)");
+  });
+
+  test("the toolbar list survives being toggled back and forth", () => {
+    listFromButton("insertUnorderedList", ["alpha", "beta", "gamma"]);
+    selectAll(ed); taskBtn();
+    selectAll(ed); taskBtn();
+    eq(shape(), "P(alpha) P(beta) P(gamma)", "toggling off left a copy behind");
+    selectAll(ed); taskBtn();
+    eq(shape(), "TASKS([ ]alpha|[ ]beta|[ ]gamma)", "the second conversion was not the same as the first");
+  });
+
+  test("one item of a toolbar list converts without disturbing the others", () => {
+    listFromButton("insertUnorderedList", ["a", "b", "c"]);
+    const li = ed.querySelectorAll("li")[1];
+    caret(li.firstChild, 1);
+    taskBtn();
+    eq(shape(), "P[UL(a)] TASKS([ ]b) P[UL(c)]");
+  });
+
+  test("a bullet list becomes checkboxes, one per bullet", () => {
+    setHTML("<ul><li>alpha</li><li>beta</li><li>gamma</li></ul>");
+    selectAll(ed.querySelector("ul"));
+    taskBtn();
+    eq(shape(), "TASKS([ ]alpha|[ ]beta|[ ]gamma)");
+  });
+
+  test("a numbered list becomes checkboxes too", () => {
+    setHTML("<ol><li>one</li><li>two</li></ol>");
+    selectAll(ed.querySelector("ol"));
+    taskBtn();
+    eq(shape(), "TASKS([ ]one|[ ]two)");
+  });
+
+  test("no task list is ever planted inside a bullet list", () => {
+    setHTML("<ul><li>alpha</li><li>beta</li></ul>");
+    caret(ed.querySelector("li").firstChild, 2);
+    taskBtn();
+    eq(ed.querySelector("ul ul"), null, "a <ul> ended up as the child of a <ul>");
+    eq(shape(), "TASKS([ ]alpha) UL(beta)");
+  });
+
+  test("converting some of a list leaves the rest of it alone", () => {
+    setHTML("<ul><li>alpha</li><li>beta</li><li>gamma</li></ul>");
+    const li = ed.querySelectorAll("li");
+    selectItems(li[1], li[2]);
+    taskBtn();
+    eq(shape(), "UL(alpha) TASKS([ ]beta|[ ]gamma)");
+  });
+
+  test("a split numbered list carries on counting", () => {
+    setHTML("<ol><li>one</li><li>two</li><li>three</li></ol>");
+    const li = ed.querySelectorAll("li");
+    selectItems(li[1], li[1]);
+    taskBtn();
+    eq(shape(), "OL(one) TASKS([ ]two) OL(three)");
+    eq(ed.querySelectorAll("ol")[1].getAttribute("start"), "2",
+      "the second half restarted at 1, so the document counts 1, 1");
+  });
+
+  test("paragraphs and a list convert together, in order", () => {
+    setHTML("<p>intro</p><ul><li>a</li><li>b</li></ul>");
+    selectAll(ed);
+    taskBtn();
+    eq(shape(), "TASKS([ ]intro|[ ]a|[ ]b)");
+  });
+
+  test("a sub-list is flattened in, not thrown away", () => {
+    setHTML("<ul><li>outer<ul><li>inner</li></ul></li><li>after</li></ul>");
+    caret(ed.querySelector("li").firstChild, 2);
+    taskBtn();
+    eq(shape(), "TASKS([ ]outer|[ ]inner) UL(after)");
+  });
+
+  test("a list inside a quote stays inside the quote", () => {
+    setHTML("<blockquote><ul><li>a</li><li>b</li></ul></blockquote>");
+    selectAll(ed.querySelector("ul"));
+    taskBtn();
+    eq(shape(), "BLOCKQUOTE[TASKS([ ]a|[ ]b)]");
+    ok(ed.querySelector("blockquote > ul.tasks"), "the task list was lifted out of the quote");
+  });
+
+  test("bold and links survive the conversion", () => {
+    setHTML("<ul><li><b>bold</b> and <i>it</i></li></ul>");
+    selectAll(ed.querySelector("ul"));
+    taskBtn();
+    has(ed.querySelector(".task-text").innerHTML, "<b>bold</b>", "inline marks were flattened away");
+  });
+
+  test("the button toggles back off to plain paragraphs", () => {
+    setHTML("<ul><li>alpha</li><li>beta</li></ul>");
+    selectAll(ed.querySelector("ul"));
+    taskBtn();
+    selectAll(ed.querySelector("ul.tasks"));
+    taskBtn();
+    eq(shape(), "P(alpha) P(beta)");
+  });
+
+  test("a converted list exports as markdown checkboxes", () => {
+    setHTML("<ul><li>alpha</li><li>beta</li></ul>");
+    selectAll(ed.querySelector("ul"));
+    taskBtn();
+    ed.querySelector("input").setAttribute("checked", "");
+    const holder = doc.createElement("div");
+    holder.innerHTML = ed.innerHTML;
+    eq(win.htmlToMd(holder).trim(), "- [x] alpha\n- [ ] beta",
+      "the converted list did not survive the trip out to a .md file");
+  });
+
   /* ═════════ things that were fixed before and must stay fixed ═════════ */
 
   test("--- plus a space is a divider", () => {
@@ -895,6 +1075,185 @@ export function suite(win) {
       eq(win.localStorage.getItem(key), null, "the token outlived the disconnect");
       eq(drive.token, null);
       ok(!drive.linked, "still linked after disconnecting");
+    });
+  });
+
+  /* ═════════ dragging the sidebar into order ═════════
+     The order of the notes array IS the order of the sidebar, so these drive
+     real pointer events at real cards and then read the array back. Same deal
+     as the token tests: the suite shares localStorage with whatever notes are
+     open in this browser, so every one of them puts the real list back. */
+  const noteList = $("#noteList");
+  const withNotes = (seed, fn) => {
+    const keep = win.__typewell.notes();
+    const stored = win.localStorage.getItem(win.__typewell.LS_NOTES);
+    const openId = noteList.querySelector(".note-item.active")?.dataset.id;
+    try {
+      win.__typewell.setNotes(seed.map((o, i) => Object.assign(
+        { id: "t" + i, html: "<p>x</p>", created: 1, updated: 100 - i, pinned: false, deleted: false }, o)));
+      win.renderList();
+      $("#fileName").value = "";        /* so "did this open a note?" has an answer */
+      fn();
+    } finally {
+      win.__typewell.setNotes(keep);
+      if (stored === null) win.localStorage.removeItem(win.__typewell.LS_NOTES);
+      else win.localStorage.setItem(win.__typewell.LS_NOTES, stored);
+      win.renderList();
+      if (openId && keep.some((n) => n.id === openId)) win.openNote(openId);
+    }
+  };
+  const shownTitles = () => [...noteList.children]
+    .map((el) => el.querySelector(".tt")?.textContent).filter(Boolean).join(",");
+  const storedTitles = () => win.__typewell.notes()
+    .map((n) => (n.deleted ? "#" : "") + (n.pinned ? "*" : "") + n.title).join(",");
+  const pointer = (el, type, y, init = {}) => el.dispatchEvent(new win.PointerEvent(type, Object.assign(
+    { bubbles: true, cancelable: true, pointerType: "mouse", button: 0,
+      clientX: (el.getBoundingClientRect ? el.getBoundingClientRect().left : 0) + 40, clientY: y }, init)));
+  /* the destination is fixed before the first move: once the card is under the
+     pointer, asking the list where its top is again gives an answer that moves
+     with you, and the walk never arrives */
+  const dragCard = (from, toY, opts = {}) => {
+    const card = noteList.children[from], r = card.getBoundingClientRect();
+    const sy = r.top + r.height / 2;
+    pointer(card, "pointerdown", sy);
+    pointer(doc, "pointermove", sy + (toY > sy ? 6 : -6));
+    const steps = Math.max(1, Math.ceil(Math.abs(toY - sy) / 5));
+    for (let i = 1; i <= steps; i++) pointer(doc, "pointermove", sy + (toY - sy) * i / steps);
+    if (opts.hold) return card;
+    if (opts.escape) press(doc, "Escape");
+    else pointer(doc, "pointerup", toY);
+    return card;
+  };
+  const topOfList = () => noteList.children[0].getBoundingClientRect().top + 2;
+  const bottomOfList = () => noteList.children[noteList.children.length - 1]
+    .getBoundingClientRect().bottom - 2;
+
+  test("a note dragged up lands where it was dropped, and stays there", () => {
+    withNotes([{ title: "A" }, { title: "B" }, { title: "C" }, { title: "D" }], () => {
+      dragCard(3, topOfList());
+      eq(shownTitles(), "D,A,B,C");
+      eq(storedTitles(), "D,A,B,C", "the sidebar moved but the notes did not");
+      eq(JSON.parse(win.localStorage.getItem(win.__typewell.LS_NOTES)).map((n) => n.title).join(","),
+        "D,A,B,C", "the new order would not survive a reload");
+    });
+  });
+
+  /* The card is drawn at its slot's position plus an offset from the grab, and
+     changing slots mid-drag changes that position. Getting the bookkeeping
+     wrong does not show up in the final order — it still ends where you let go
+     — it shows up as the card sailing off on its own, in one case clean out of
+     the top of the sidebar, where #sidebar's overflow:hidden ate it. */
+  test("the card stays under the pointer that is dragging it", () => {
+    withNotes([{ title: "A" }, { title: "B" }, { title: "C" }, { title: "D" }, { title: "E" }], () => {
+      const toY = noteList.children[0].getBoundingClientRect().top + 20;
+      const card = dragCard(4, toY, { hold: true });
+      try {
+        const r = card.getBoundingClientRect(), list = noteList.getBoundingClientRect();
+        ok(r.top <= toY && r.bottom >= toY,
+          `the pointer is at ${Math.round(toY)} but the card it is holding is at ${Math.round(r.top)}–${Math.round(r.bottom)}`);
+        ok(r.top >= list.top - 1 && r.bottom <= list.bottom + 1,
+          "the dragged card was carried out of the list, where the sidebar clips it away");
+      } finally {
+        /* let go whatever happened: a drag left running blocks every render
+           after it, and one red test would turn into five */
+        pointer(doc, "pointerup", toY);
+      }
+    });
+  });
+
+  test("a note dragged down lands at the bottom", () => {
+    withNotes([{ title: "A" }, { title: "B" }, { title: "C" }], () => {
+      dragCard(0, bottomOfList());
+      eq(shownTitles(), "B,C,A");
+    });
+  });
+
+  test("a pinned note cannot be dragged out of the pinned band", () => {
+    withNotes([{ title: "P1", pinned: true }, { title: "P2", pinned: true },
+      { title: "U1" }, { title: "U2" }], () => {
+      dragCard(0, bottomOfList() + 60);
+      eq(storedTitles(), "*P2,*P1,U1,U2",
+        "a pinned note was dropped among the unpinned ones, where the next render would only snap it back");
+    });
+  });
+
+  test("an unpinned note cannot climb above the pinned ones", () => {
+    withNotes([{ title: "P1", pinned: true }, { title: "U1" }, { title: "U2" }], () => {
+      dragCard(2, topOfList() - 60);
+      eq(storedTitles(), "*P1,U2,U1");
+    });
+  });
+
+  test("notes in the trash keep their place in the list", () => {
+    withNotes([{ title: "A" }, { title: "T1", deleted: true }, { title: "B" },
+      { title: "C" }, { title: "T2", deleted: true }], () => {
+      dragCard(2, topOfList());     /* the third card shown is C, not the third note */
+      eq(shownTitles(), "C,A,B");
+      eq(storedTitles(), "C,#T1,A,B,#T2",
+        "reordering the sidebar shuffled the trash, which is not on screen to see it happen");
+    });
+  });
+
+  test("escape during a drag puts the list back", () => {
+    withNotes([{ title: "A" }, { title: "B" }, { title: "C" }], () => {
+      dragCard(2, topOfList(), { escape: true });
+      eq(shownTitles(), "A,B,C");
+      eq(storedTitles(), "A,B,C");
+    });
+  });
+
+  test("the drop does not also open the note it dropped on", () => {
+    withNotes([{ title: "A" }, { title: "B" }, { title: "C" }], () => {
+      dragCard(2, topOfList());
+      mouse(noteList.children[0], "click");
+      eq($("#fileName").value, "", "the drag ended by opening a note nobody asked for");
+    });
+  });
+
+  test("a click that is not a drag still opens the note", () => {
+    withNotes([{ title: "A" }, { title: "B" }, { title: "C" }], () => {
+      const card = noteList.children[1], y = card.getBoundingClientRect().top + 8;
+      pointer(card, "pointerdown", y);
+      pointer(doc, "pointerup", y);
+      mouse(card, "click");
+      eq($("#fileName").value, "B", "clicking a note no longer opens it");
+    });
+  });
+
+  test("the pin and delete buttons are not drag handles", () => {
+    withNotes([{ title: "A" }, { title: "B" }], () => {
+      const card = noteList.children[0];
+      const pin = card.querySelector('[data-a="pin"]');
+      const r = pin.getBoundingClientRect();
+      pointer(pin, "pointerdown", r.top + 5, { clientX: r.left + 5 });
+      pointer(doc, "pointermove", r.top + 60, { clientX: r.left + 5 });
+      ok(!noteList.querySelector(".sb-drag"), "reaching for the pin button started a drag instead");
+      pointer(doc, "pointerup", r.top + 60, { clientX: r.left + 5 });
+    });
+  });
+
+  test("a filtered list is not reorderable", () => {
+    withNotes([{ title: "Apple" }, { title: "Banana" }], () => {
+      const box = $("#searchInput");
+      const was = box.value;
+      box.value = "an"; win.renderList();
+      ok(!noteList.classList.contains("sortable"),
+        "dragging inside a search result promises an order the list cannot keep");
+      box.value = was; win.renderList();
+    });
+  });
+
+  test("a new note still arrives at the top of the list", () => {
+    withNotes([{ title: "A" }, { title: "B" }], () => {
+      win.newNote();
+      eq(win.__typewell.notes()[0].title, "Untitled", "a new note was filed at the bottom");
+    });
+  });
+
+  test("a duplicate lands next to the note it came from", () => {
+    withNotes([{ title: "A" }, { title: "B" }, { title: "C" }], () => {
+      win.noteAction("dup", win.__typewell.notes()[1].id);
+      eq(storedTitles(), "A,B,B-copy,C", "the copy was filed somewhere you were not looking");
     });
   });
 

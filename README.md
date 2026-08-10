@@ -65,6 +65,7 @@ repository is actually deployed.
 
 ### Organizing
 - Notes sidebar with **search**, **pin**, **duplicate**, and a **trash** with restore / delete-forever
+- **Drag notes up and down the sidebar** to keep them in your own order — press and hold first on a touchscreen. Pinned notes stay in their own band at the top
 - The **file name lives in the top bar**, never inside the document
 - Compact two-row note items with inline dates (time if today)
 

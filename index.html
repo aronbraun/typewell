@@ -218,6 +218,19 @@ a.btn{color:var(--ink);text-decoration:none}
 #noteList{flex:1;overflow-y:auto;padding:2px 7px 8px}
 .note-item{padding:6px 8px;border-radius:8px;cursor:pointer;position:relative;border:1px solid transparent;margin-bottom:1px}
 .note-item:hover{background:var(--hover)}
+/* Reorderable only in Notes, and only with the search box empty: dragging
+   inside a filtered list would be a promise about an order you cannot see. */
+#noteList.sortable .note-item{cursor:grab}
+#noteList.sortable .note-item.sb-drag{
+  cursor:grabbing;position:relative;z-index:2;
+  background:var(--panel);border-color:color-mix(in srgb,var(--accent) 55%,transparent);
+  box-shadow:0 6px 18px rgba(0,0,0,.18);
+}
+#noteList.sorting{user-select:none;-webkit-user-select:none}
+/* the cards it is passing slide out of the way; the dragged one must not, or
+   it would animate away from the pointer holding it */
+#noteList.sorting .note-item{transition:transform .13s ease}
+#noteList.sorting .note-item.sb-drag{transition:none}
 .note-item.active{background:var(--accent-soft);border-color:color-mix(in srgb,var(--accent) 50%,transparent)}
 .note-item .t{font-weight:600;font-size:12.5px;display:flex;align-items:center;gap:5px;line-height:1.3}
 .note-item .t svg{width:10px;height:10px;color:var(--gold);flex:none;fill:var(--gold)}
@@ -1226,6 +1239,8 @@ const WELCOME_HTML=
   TASK('Install Typewell from your browser’s address bar to run it in its own '+
        'window, offline. It still checks for a new version every time you open it')+
   TASK('Pin, duplicate or delete from the sidebar. Deleted notes wait in <b>Trash</b>')+
+  TASK('Drag a note up or down the sidebar to put the list in your own order. '+
+       'On a touchscreen, press and hold it first. Pinned notes keep to the top')+
   TASK('Export one note as Markdown, HTML, plain text or PDF from the download icon')+
   TASK('<b>Full backup (.json)</b> saves every note at once, and <b>Import backup</b> in the same menu brings it back')+
   '</ul>'+
@@ -1258,6 +1273,13 @@ function loadState(){
     notes=[{id:uid(),title:"Welcome to Typewell",html:WELCOME_HTML,
       created:now(),updated:now(),pinned:false,deleted:false}];
     saveNotes();
+  }
+  /* The list used to sort itself by last edited; it is now yours to drag, and
+     the array order is the order. Sort once on the way in so the sidebar looks
+     exactly as it did the last time you saw it, then never again. */
+  if(!settings.byHand){
+    notes.sort((a,b)=>(b.pinned-a.pinned)||(b.updated-a.updated));
+    settings.byHand=true;saveNotes();saveSettings();
   }
 }
 const saveNotes=()=>{try{localStorage.setItem(LS_NOTES,JSON.stringify(notes))}catch(e){toast("Browser storage is full — export or delete notes","err")}};
@@ -1355,16 +1377,26 @@ function renderFoot(){
 /* ---------- note list ---------- */
 function snippet(html){const d=document.createElement("div");d.innerHTML=html;
   return (d.textContent||"").trim().replace(/\s+/g," ").slice(0,90);}
+/* The order of `notes` IS the order of the sidebar — dragging a card is a
+   splice, and nothing extra has to be stored or kept in step. Pinned notes are
+   lifted into their own band at the top; within a band, your order stands.
+   A stable sort is what makes that work, and every engine's has been stable
+   since ES2019. */
+const pinnedFirst=(a,b)=>(b.pinned?1:0)-(a.pinned?1:0);
 function renderList(){
+  if(sbDrag)return;   /* a save landing mid-drag would pull the card out of your hand */
   const q=$("#searchInput").value.trim().toLowerCase();
   const pool=notes.filter(n=>tab==="trash"?n.deleted:!n.deleted)
     .filter(n=>!q||(n.title+" "+snippet(n.html)).toLowerCase().includes(q))
-    .sort((a,b)=>(b.pinned-a.pinned)||(b.updated-a.updated));
+    .sort(pinnedFirst);
   const list=$("#noteList");list.innerHTML="";
+  list.classList.toggle("sortable",tab==="notes"&&!q);
   if(!pool.length){list.innerHTML=`<div class="empty">${tab==="trash"?"Trash is empty":"No notes.<br>Press <b>New note</b> to start."}</div>`;return;}
   for(const n of pool){
     const el=document.createElement("div");
     el.className="note-item"+(n.id===activeId?" active":"");
+    el.dataset.id=n.id;
+    el.dataset.pinned=n.pinned?"1":"0";
     el.innerHTML=`<div class="t">${n.pinned?I("star"):""}<span class="tt">${esc(n.title||"Untitled")}</span><span class="td">${fmtShort(n.updated)}</span></div>
       <div class="s">${esc(snippet(n.html))||"&nbsp;"}</div>
       <div class="acts">${tab==="trash"
@@ -1375,6 +1407,7 @@ function renderList(){
     el.addEventListener("click",e=>{
       const a=e.target.closest("[data-a]")?.dataset.a;
       if(a){e.stopPropagation();noteAction(a,n.id);return;}
+      if(sbJustDropped())return;
       if(tab==="notes")openNote(n.id);
     });
     list.appendChild(el);
@@ -1383,7 +1416,9 @@ function renderList(){
 async function noteAction(a,id){
   const n=getNote(id);if(!n)return;
   if(a==="pin")n.pinned=!n.pinned;
-  if(a==="dup"){const c={...n,id:uid(),title:n.title+"-copy",created:now(),updated:now(),pinned:false};notes.push(c);}
+  /* next to the note it came from, which is where you are looking */
+  if(a==="dup"){const c={...n,id:uid(),title:n.title+"-copy",created:now(),updated:now(),pinned:false};
+    notes.splice(notes.indexOf(n)+1,0,c);}
   if(a==="del"){n.deleted=true;n.updated=now();if(activeId===id){activeId=null;pickFirst();}toast("Moved to trash");}
   if(a==="restore"){n.deleted=false;n.updated=now();}
   if(a==="purge"){
@@ -1393,9 +1428,138 @@ async function noteAction(a,id){
   saveNotes();markDirty();renderList();
 }
 function pickFirst(){
-  const first=notes.filter(n=>!n.deleted).sort((a,b)=>(b.pinned-a.pinned)||(b.updated-a.updated))[0];
+  const first=notes.filter(n=>!n.deleted).sort(pinnedFirst)[0];
   if(first)openNote(first.id);else newNote();
 }
+
+/* ---------- dragging the list into the order you want ---------- */
+/* Pointer events rather than HTML5 drag-and-drop, because dragstart never
+   fires on a touchscreen and the sidebar is the main way around on a phone.
+   Mouse arms on 4px of travel, touch on a press-and-hold — a short touch drag
+   has to stay available for scrolling the list. */
+let sbDrag=null,sbArm=null,sbDropped=false;
+const HOLD=380,SLOP=4;
+/* The click that ends a drag is not a click, and letting it through opens a
+   note nobody asked for. Armed by the drag, disarmed by the next press — so it
+   swallows exactly the one click belonging to the drag that armed it, and never
+   a later one. A time window cannot promise that in either direction. */
+document.addEventListener("pointerdown",()=>{sbDropped=false;},true);
+const sbJustDropped=()=>sbDropped;
+/* pinned notes are a band of their own: a card dropped across the divide would
+   only spring back on the next render, so it never leaves its own band */
+const sbBand=card=>[...card.parentElement.children]
+  .filter(el=>el.classList?.contains("note-item")&&el.dataset.pinned===card.dataset.pinned);
+
+function sbBegin(card,y){
+  sbArm=null;
+  const list=$("#noteList");
+  sbDrag={card,grabY:y,scroll:list.scrollTop,home:card.nextElementSibling};
+  list.classList.add("sorting");
+  card.classList.add("sb-drag");
+}
+/* how far the card has been carried from the slot it started this move in —
+   pointer travel plus anything the list scrolled under it */
+function sbCarry(y){return y-sbDrag.grabY+($("#noteList").scrollTop-sbDrag.scroll);}
+/* Move the card to a new slot without it jumping out from under the pointer.
+   The card is drawn at `slot + carry`, and changing slots changes `slot` — so
+   the grab point has to move by exactly as much, or the card sails off on its
+   own and ends up somewhere the pointer never was. Once, clean out of the top
+   of the sidebar, where #sidebar's overflow:hidden ate it. */
+function sbRelocate(peer,after,y){
+  const {card}=sbDrag;
+  const cardWas=card.offsetTop,peerWas=peer.offsetTop;
+  if(after)peer.after(card);else peer.before(card);
+  sbDrag.grabY+=card.offsetTop-cardWas;
+  sbPaint(y);
+  /* and the card that gave up the slot slides into the vacated one */
+  peer.style.transition="none";
+  peer.style.transform=`translateY(${peerWas-peer.offsetTop}px)`;
+  requestAnimationFrame(()=>{peer.style.transition="";peer.style.transform="";});
+}
+/* Draw the card where the pointer has carried it, and say where that leaves it.
+   The card cannot be carried out of the list: the sidebar clips, so a card
+   dragged past the edge does not hang over it — it vanishes out of the hand
+   holding it. */
+function sbPaint(y){
+  const {card}=sbDrag,list=$("#noteList");
+  let carry=sbCarry(y);
+  card.style.transform=`translateY(${carry}px)`;
+  const lr=list.getBoundingClientRect(),cr=card.getBoundingClientRect();
+  const off=cr.top<lr.top?lr.top-cr.top:cr.bottom>lr.bottom?lr.bottom-cr.bottom:0;
+  if(off){carry+=off;card.style.transform=`translateY(${carry}px)`;}
+  return {top:card.offsetTop+carry,bottom:card.offsetTop+carry+card.offsetHeight};
+}
+/* offsetTop and offsetHeight to compare against, never getBoundingClientRect:
+   a card part-way through its slide reports a painted position that is still on
+   its way somewhere, and every comparison against it is a comparison with a
+   number that is about to be wrong. Layout is settled the moment the DOM is. */
+function sbMove(y){
+  const {card}=sbDrag;
+  sbAutoScroll(y);                       /* first: it changes what carry means */
+  const {top,bottom}=sbPaint(y);
+  for(const peer of sbBand(card)){
+    if(peer===card)continue;
+    const mid=peer.offsetTop+peer.offsetHeight/2;
+    const above=!!(peer.compareDocumentPosition(card)&Node.DOCUMENT_POSITION_FOLLOWING);
+    if(above&&top<mid)return sbRelocate(peer,false,y);
+    if(!above&&bottom>mid)return sbRelocate(peer,true,y);
+  }
+}
+/* a list of notes is usually taller than the sidebar */
+function sbAutoScroll(y){
+  const list=$("#noteList"),r=list.getBoundingClientRect(),edge=44;
+  if(y<r.top+edge)list.scrollTop-=Math.ceil((r.top+edge-y)/3);
+  else if(y>r.bottom-edge)list.scrollTop+=Math.ceil((y-(r.bottom-edge))/3);
+}
+function sbEnd(commit){
+  if(!sbDrag)return;
+  const {card,home}=sbDrag;
+  const list=$("#noteList");
+  card.style.transform="";
+  card.classList.remove("sb-drag");
+  list.classList.remove("sorting");
+  sbDrag=null;
+  sbDropped=true;
+  if(!commit){
+    if(home&&home.isConnected)list.insertBefore(card,home);else list.appendChild(card);
+    return;
+  }
+  /* Write the shown order back into the slots the shown notes occupy, leaving
+     everything in the trash exactly where it sits — the sidebar was filtered,
+     the array is not. */
+  const moved=[...list.children].map(el=>el.dataset?.id).filter(Boolean).map(getNote).filter(Boolean);
+  if(moved.length!==notes.filter(n=>!n.deleted).length)return renderList();
+  let i=0;
+  notes=notes.map(n=>n.deleted?n:moved[i++]);
+  saveNotes();markDirty();renderList();
+}
+$("#noteList").addEventListener("pointerdown",e=>{
+  if(sbDrag||e.button>0||!$("#noteList").classList.contains("sortable"))return;
+  const card=e.target.closest?.(".note-item");
+  if(!card||e.target.closest("[data-a]"))return;
+  const touch=e.pointerType!=="mouse";
+  sbArm={card,y:e.clientY,touch,
+    timer:touch?setTimeout(()=>{if(sbArm){sbBegin(sbArm.card,sbArm.y);}},HOLD):null};
+});
+document.addEventListener("pointermove",e=>{
+  if(sbDrag)return sbMove(e.clientY);
+  if(!sbArm)return;
+  const far=Math.abs(e.clientY-sbArm.y)>SLOP;
+  /* on a touchscreen the same movement means "scroll", so it cancels instead */
+  if(sbArm.touch){if(far){clearTimeout(sbArm.timer);sbArm=null;}return;}
+  if(far)sbBegin(sbArm.card,sbArm.y);
+});
+/* a touch drag has to stop the list scrolling under it, and only a non-passive
+   listener is allowed to say so */
+document.addEventListener("touchmove",e=>{if(sbDrag)e.preventDefault();},{passive:false});
+for(const ev of ["pointerup","pointercancel"])
+  document.addEventListener(ev,()=>{
+    if(sbArm){clearTimeout(sbArm.timer);sbArm=null;}
+    sbEnd(true);
+  });
+document.addEventListener("keydown",e=>{
+  if(sbDrag&&e.key==="Escape"){e.preventDefault();sbEnd(false);}
+},true);
 
 /* ---------- open / save ---------- */
 const editor=$("#editor"),fileName=$("#fileName");
@@ -1418,7 +1582,8 @@ function openNote(id){
 function newNote(){
   flushSave();
   const n={id:uid(),title:"Untitled",html:"",created:now(),updated:now(),pinned:false,deleted:false};
-  notes.push(n);saveNotes();setTab("notes");openNote(n.id);editor.focus();
+  notes.unshift(n);   /* the top of the list, where a new note has always appeared */
+  saveNotes();setTab("notes");openNote(n.id);editor.focus();
 }
 let saveTimer=null;
 function scheduleSave(){
@@ -2394,23 +2559,84 @@ function makeTaskUl(text=""){
   ul.innerHTML=`<li>${CHECK}<span class="task-text">${text||"<br>"}</span></li>`;
   return ul;
 }
-/* Every block the selection touches, not just the one holding the caret.
-   execCommand does this for bullet and numbered lists; task lists are ours. */
+const BLOCKISH=/^(P|DIV|H[1-6]|LI|PRE|BLOCKQUOTE|UL|OL|TABLE|HR)$/;
+/* A wrapper holds blocks; a leaf IS one. The distinction cannot be a list of
+   tag names, because Chrome's own insertUnorderedList leaves the new list
+   inside the paragraph it was made from — select three paragraphs, press the
+   bullet button, and the document is `<p><ul><li>…</li></ul></p>`. A rule that
+   only ever descended into ul/ol/blockquote saw that <p> as one block and
+   pushed the entire list into a single checkbox line.
+   An <li> is never a wrapper: its own text is a block in its own right, and any
+   sub-list hanging off it is collected separately. Nor is anything holding text
+   of its own, which descending past would silently drop. */
+function isWrapper(el){
+  if(el.tagName==="LI")return false;
+  if(![...el.children].some(c=>BLOCKISH.test(c.tagName)))return false;
+  return ![...el.childNodes].some(n=>n.nodeType===3&&n.textContent.trim());
+}
+/* Every block the selection touches, not just the one holding the caret, and
+   the leaf blocks rather than whatever happens to contain them.
+   execCommand does this descent for bullet and numbered lists; task lists are ours. */
 function selectedBlocks(){
   const sel=window.getSelection();if(!sel.rangeCount)return [];
   const r=sel.getRangeAt(0);
   if(r.collapsed){const b=getBlock();return b?[b]:[];}
-  const hit=[...editor.children].filter(el=>r.intersectsNode(el));
+  const hit=[];
+  (function walk(root){
+    for(const el of root.children){
+      if(!r.intersectsNode(el))continue;
+      if(isWrapper(el))walk(el);else hit.push(el);
+    }
+  })(editor);
   if(!hit.length){const b=getBlock();return b?[b]:[];}
   return hit;
 }
+/* An <li> can hold a whole list of its own. Those items are blocks in their
+   own right and have to come along, or converting the parent would delete
+   them — task lists are flat (so is their markdown), so a nested one flattens. */
+function withNestedItems(blocks){
+  const out=new Set();
+  for(const b of blocks){
+    out.add(b);
+    if(b.tagName==="LI")b.querySelectorAll("li").forEach(li=>out.add(li));
+  }
+  return [...out];
+}
+/* an <li>'s own content, without the sublist hanging off it */
+function blockHTML(b){
+  if(b.tagName!=="LI")return b.innerHTML.replace(/^<br>$/,"");
+  const own=document.createElement("div");
+  for(const n of b.childNodes)if(!/^(UL|OL)$/.test(n.tagName||""))own.appendChild(n.cloneNode(true));
+  return own.innerHTML.replace(/^<br>$/,"");
+}
+/* Where a new sibling block goes so it appears exactly where `el` sits. An <li>
+   is not a place a <ul class="tasks"> may stand, so the lists above it are split:
+   the items before `el` stay put, `el` and the ones after move to a copy that
+   follows, and the caller inserts between the two. The bare <p> Chrome wraps a
+   new list in is split the same way, or the task list would be left buried in
+   the paragraph the bullets came from. Never a blockquote, though — a task list
+   is welcome inside a quote and belongs where you made it. */
+const splitPast=el=>/^(UL|OL)$/.test(el.tagName)||(/^(P|DIV)$/.test(el.tagName)&&isWrapper(el));
+function splitListsAbove(el){
+  let node=el;
+  while(node.parentElement&&node.parentElement!==editor&&splitPast(node.parentElement)){
+    const parent=node.parentElement,tail=parent.cloneNode(false);
+    if(tail.tagName==="OL"){
+      let kept=0;for(let n=parent.firstChild;n&&n!==node;n=n.nextSibling)if(n.tagName==="LI")kept++;
+      tail.setAttribute("start",(parseInt(parent.getAttribute("start")||"1",10)||1)+kept);
+    }
+    for(let n=node;n;){const next=n.nextSibling;tail.appendChild(n);n=next;}
+    parent.after(tail);
+    if(!parent.firstChild)parent.remove();
+    node=tail;
+  }
+  return node;
+}
 function toggleTaskList(){
   editor.focus();histPush();
-  const blocks=selectedBlocks();if(!blocks.length)return;
+  const blocks=withNestedItems(selectedBlocks());if(!blocks.length)return;
   /* already task lists anywhere in the selection → unwrap all of them */
-  const uls=[...new Set(blocks.flatMap(b=>
-    b.matches?.("ul.tasks")?[b]:[...b.querySelectorAll?.("ul.tasks")||[]]
-  ))];
+  const uls=[...new Set(blocks.map(b=>b.closest?.("ul.tasks")).filter(Boolean))];
   const anchorUl=(()=>{let n=window.getSelection().anchorNode;
     if(n&&n.nodeType===3)n=n.parentElement;return n?.closest?.("ul.tasks")||null;})();
   if(anchorUl&&!uls.includes(anchorUl))uls.push(anchorUl);
@@ -2424,14 +2650,25 @@ function toggleTaskList(){
     scheduleSave();return;
   }
   /* one list holding one item per selected block, rather than one list each */
-  const t=makeTaskUl(blocks[0].innerHTML.replace(/^<br>$/,""));
-  for(const b of blocks.slice(1)){
+  const t=document.createElement("ul");t.className="tasks";
+  for(const b of blocks){
     const li=document.createElement("li");
-    li.innerHTML=`${CHECK}<span class="task-text">${b.innerHTML.replace(/^<br>$/,"")||"<br>"}</span>`;
+    li.innerHTML=`${CHECK}<span class="task-text">${blockHTML(b)||"<br>"}</span>`;
     t.appendChild(li);
   }
-  blocks[0].replaceWith(t);
-  blocks.slice(1).forEach(b=>b.remove());
+  splitListsAbove(blocks[0]).before(t);
+  const emptied=new Set();
+  for(const b of blocks){
+    for(let p=b.parentElement;p&&p!==editor;p=p.parentElement)
+      if(splitPast(p))emptied.add(p);
+    b.remove();
+  }
+  /* Both halves of a split list are empty when every item went across, and so
+     is the paragraph the list was sitting in. Innermost first — which is the
+     order they went in — or an outer wrapper still looks occupied by the empty
+     list inside it. */
+  for(const l of emptied)
+    if(l.isConnected&&!l.textContent.trim()&&!l.querySelector("img,input,hr,table,li"))l.remove();
   placeCaret(t.querySelector(".task-text"));
   scheduleSave();
 }
@@ -4334,8 +4571,11 @@ editor.addEventListener("keydown",e=>{
    is already on window. These are consts, which are not. Exposing three
    read-only values is a smaller price than making the suite re-derive them and
    then quietly test its own copy instead of the app's. `drive` is here so the
-   token's lifetime can be tested without a Google account in the loop. */
-window.__typewell={WELCOME_HTML,FONTS,BLOCKS,drive,LS_DTOK,version:"2026-08-07"};
+   token's lifetime can be tested without a Google account in the loop.
+   `notes` is a getter and not the array itself: a drop rebuilds it rather than
+   splicing, so a reference handed out once would be testing a dead copy. */
+window.__typewell={WELCOME_HTML,FONTS,BLOCKS,drive,LS_DTOK,version:"2026-08-07",
+  notes:()=>notes,setNotes:v=>{notes=v;},LS_NOTES};
 </script>
 </body>
 </html>
