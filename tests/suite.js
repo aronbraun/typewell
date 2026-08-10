@@ -781,6 +781,105 @@ export function suite(win) {
     eq(shape(), "TASKS([ ]outer|>[ ]inner)", "the second conversion was not the same as the first");
   });
 
+  /* ---- the way back out: the list buttons, and clear formatting ---- */
+
+  /* Chrome's execCommand looks at the <ul>, decides the list it was asked for
+     is already there, and does nothing — so both buttons appeared dead. */
+  test("the bullet button turns checkboxes back into bullets", () => {
+    setHTML("<p>alpha</p><p>beta</p>");
+    selectAll(ed); taskBtn();
+    selectAll(ed);
+    mouse($('[data-cmd="insertUnorderedList"]'), "mousedown");
+    eq(shape(), "UL(alpha|beta)");
+    eq(ed.querySelectorAll("input").length, 0, "the checkboxes came along as stray inputs");
+  });
+
+  test("the numbered button turns checkboxes into a numbered list", () => {
+    setHTML("<p>alpha</p><p>beta</p>");
+    selectAll(ed); taskBtn();
+    selectAll(ed);
+    mouse($('[data-cmd="insertOrderedList"]'), "mousedown");
+    eq(shape(), "OL(alpha|beta)");
+  });
+
+  test("an indented checkbox list keeps its indent on the way back to bullets", () => {
+    setHTML("<ul><li>outer<ul><li>inner</li></ul></li></ul>");
+    selectAll(ed); taskBtn();
+    selectAll(ed);
+    mouse($('[data-cmd="insertUnorderedList"]'), "mousedown");
+    eq(shape(), "UL(outer|>inner)");
+  });
+
+  test("clear formatting on a bullet list leaves plain paragraphs", () => {
+    setHTML("<ul><li><b>alpha</b></li><li>beta</li></ul>");
+    selectAll(ed);
+    mouse($("#clearFmtBtn"), "mousedown");
+    eq(shape(), "P(alpha) P(beta)", "the list survived being cleared");
+    eq(ed.querySelector("b"), null, "the bold survived being cleared");
+  });
+
+  test("clear formatting on a numbered list leaves plain paragraphs", () => {
+    setHTML("<ol><li>one</li><li>two</li></ol>");
+    selectAll(ed);
+    mouse($("#clearFmtBtn"), "mousedown");
+    eq(shape(), "P(one) P(two)");
+  });
+
+  test("clear formatting on a checkbox list leaves plain paragraphs", () => {
+    setHTML("<p>alpha</p><p>beta</p>");
+    selectAll(ed); taskBtn();
+    selectAll(ed);
+    mouse($("#clearFmtBtn"), "mousedown");
+    eq(shape(), "P(alpha) P(beta)");
+    eq(ed.querySelectorAll("input").length, 0, "a checkbox was left sitting in the text");
+  });
+
+  test("clear formatting flattens an indented list, keeping every line", () => {
+    setHTML("<ul><li>outer<ul><li>inner</li></ul></li><li>last</li></ul>");
+    selectAll(ed);
+    mouse($("#clearFmtBtn"), "mousedown");
+    eq(shape(), "P(outer) P(inner) P(last)");
+  });
+
+  test("clear formatting keeps links and images, which are not formatting", () => {
+    setHTML('<ul><li><b><a href="https://example.com">site</a></b></li></ul>');
+    selectAll(ed);
+    mouse($("#clearFmtBtn"), "mousedown");
+    ok(ed.querySelector('a[href="https://example.com"]'), "the link was thrown away");
+    eq(ed.querySelector("b"), null, "the bold survived");
+  });
+
+  test("clearing one item of a list leaves the rest of it alone", () => {
+    setHTML("<ul><li>a</li><li>b</li><li>c</li></ul>");
+    const li = ed.querySelectorAll("li");
+    selectItems(li[1], li[1]);
+    mouse($("#clearFmtBtn"), "mousedown");
+    eq(shape(), "UL(a) P(b) UL(c)");
+  });
+
+  test("clearing a list inside a quote leaves the lines in the quote", () => {
+    setHTML("<blockquote><ul><li>q1</li><li>q2</li></ul></blockquote>");
+    selectAll(ed.querySelector("ul"));
+    mouse($("#clearFmtBtn"), "mousedown");
+    eq(shape(), "BLOCKQUOTE(q1q2)");
+    eq(ed.querySelectorAll("blockquote > p").length, 2, "the lines were lifted out of the quote");
+  });
+
+  test("the caret alone is enough to turn checkboxes back into bullets", () => {
+    setHTML("<p>alpha</p><p>beta</p>");
+    selectAll(ed); taskBtn();
+    caret(ed.querySelector(".task-text").firstChild, 2);
+    mouse($('[data-cmd="insertUnorderedList"]'), "mousedown");
+    eq(shape(), "UL(alpha|beta)");
+  });
+
+  test("clear formatting still turns a heading into a paragraph", () => {
+    setHTML("<h2>Title</h2>");
+    caret(ed.querySelector("h2").firstChild, 2);
+    mouse($("#clearFmtBtn"), "mousedown");
+    eq(shape(), "P(Title)");
+  });
+
   test("a converted list exports as markdown checkboxes", () => {
     setHTML("<ul><li>alpha</li><li>beta</li></ul>");
     selectAll(ed.querySelector("ul"));

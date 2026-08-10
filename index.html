@@ -1716,7 +1716,12 @@ $("#redoBtn").addEventListener("mousedown",e=>{e.preventDefault();doRedo();});
 /* ---------- toolbar ---------- */
 document.execCommand("styleWithCSS",false,true);
 document.execCommand("defaultParagraphSeparator",false,"p");
-function cmd(name,val=null){histPush();document.execCommand(name,false,val);editor.focus();scheduleSave();}
+function cmd(name,val=null){
+  /* the one command execCommand silently refuses: it sees a <ul> and decides
+     the list it was asked for is already there */
+  if(/^insert(Un)?orderedList$/i.test(name)&&taskListToPlainList(name))return;
+  histPush();document.execCommand(name,false,val);editor.focus();scheduleSave();
+}
 
 /* execCommand always works off the *live* selection, and by the time a menu
    item's click handler runs the caret may no longer be where the user left it.
@@ -2137,7 +2142,7 @@ makeColorControl({btn:$("#hiliteBtn"),bar:$("#hiliteBar"),
   presets:HILITE_PRESETS,cmdName:"hiliteColor",
   recentKey:"recentHilite",noneLabel:"No highlight"});
 $("#hrBtn").addEventListener("mousedown",e=>{e.preventDefault();cmd("insertHorizontalRule");});
-$("#clearFmtBtn").addEventListener("mousedown",e=>{e.preventDefault();cmd("removeFormat");cmd("formatBlock","P");});
+$("#clearFmtBtn").addEventListener("mousedown",e=>{e.preventDefault();clearFormatting();});
 
 /* ---------- size stepper ----------
    execCommand("fontSize") was doing this, and over anything larger than one run
@@ -2620,7 +2625,7 @@ function listDepth(el){
    pressing it on a just-un-bulleted list makes one enormous checkbox. */
 function blockLines(b){
   const lines=[];let cur=document.createElement("div");
-  for(const n of b.childNodes){
+  for(const n of (taskOwnText(b)||b).childNodes){
     if(/^(UL|OL)$/.test(n.tagName||""))continue;
     if(n.tagName==="BR"){lines.push(cur);cur=document.createElement("div");continue;}
     cur.appendChild(n.cloneNode(true));
@@ -2668,25 +2673,54 @@ function buildTaskList(lines){
   return root;
 }
 const taskOwnText=li=>li.querySelector(":scope > .task-text");
-/* the same tree with bullets instead of boxes, indentation intact */
-function taskUlToBullets(ul){
-  const out=document.createElement("ul");
+/* the same tree with markers instead of boxes, indentation intact */
+function taskUlToList(ul,tag){
+  const out=document.createElement(tag);
   for(const ch of ul.children){
-    if(ch.tagName==="UL"){out.appendChild(taskUlToBullets(ch));continue;}
+    if(ch.tagName==="UL"){out.appendChild(taskUlToList(ch,tag));continue;}
     if(ch.tagName!=="LI")continue;
     const li=document.createElement("li");
     li.innerHTML=taskOwnText(ch)?.innerHTML||ch.innerHTML;
-    for(const sub of ch.children)if(sub.tagName==="UL")li.appendChild(taskUlToBullets(sub));
+    for(const sub of ch.children)if(sub.tagName==="UL")li.appendChild(taskUlToList(sub,tag));
     out.appendChild(li);
   }
   return out;
+}
+/* Every task list the selection is in — the outermost one each time, so acting
+   on a sub-item acts on the list it belongs to rather than orphaning it. The
+   anchor is checked separately: a caret sitting in an empty item is inside a
+   list the block walk has no range to find it by. */
+function taskUlsInSelection(){
+  const uls=[...new Set(selectedBlocks().map(outerTaskUl).filter(Boolean))];
+  let n=window.getSelection().anchorNode;
+  if(n&&n.nodeType===3)n=n.parentElement;
+  const a=n?outerTaskUl(n):null;
+  if(a&&!uls.includes(a))uls.push(a);
+  return uls;
+}
+/* The bullet and numbered buttons are the way back out of a task list, and they
+   did nothing at all: Chrome's execCommand looks at the <ul>, decides the list
+   it was asked for is already there, and declines. */
+function taskListToPlainList(name){
+  const uls=taskUlsInSelection();
+  if(!uls.length)return false;
+  editor.focus();histPush();
+  const tag=name==="insertOrderedList"?"ol":"ul";
+  let first=null;
+  for(const ul of uls){
+    const plain=taskUlToList(ul,tag);
+    ul.replaceWith(plain);
+    first=first||plain.querySelector("li");
+  }
+  if(first)placeCaret(first);
+  scheduleSave();syncToolbar();return true;
 }
 /* Taking the boxes off a flat list leaves you with the lines. An indented one
    becomes a bullet list instead, because a paragraph has no way to say "this
    one sits under that one" — and pressing the button again brings the
    checkboxes straight back, indentation and all. */
 function untaskUl(ul){
-  if(ul.querySelector("ul.tasks")){ul.replaceWith(taskUlToBullets(ul));return;}
+  if(ul.querySelector("ul.tasks")){ul.replaceWith(taskUlToList(ul,"ul"));return;}
   const frag=document.createDocumentFragment();
   ul.querySelectorAll("li").forEach(l=>{const p=document.createElement("p");
     p.innerHTML=taskOwnText(l)?.innerHTML||l.innerHTML;frag.appendChild(p);});
@@ -2746,21 +2780,9 @@ function pruneTaskUl(ul){
   while(isTaskUl(ul)&&!ul.children.length){const up=ul.parentElement;ul.remove();ul=up;}
 }
 const lastTaskText=el=>{const all=el.querySelectorAll(".task-text");return all[all.length-1]||null;};
-function toggleTaskList(){
-  editor.focus();histPush();
-  const blocks=selectedBlocks();if(!blocks.length)return;
-  /* already task lists anywhere in the selection → unwrap all of them */
-  const uls=[...new Set(blocks.map(outerTaskUl).filter(Boolean))];
-  const anchorUl=(()=>{let n=window.getSelection().anchorNode;
-    if(n&&n.nodeType===3)n=n.parentElement;return n?outerTaskUl(n):null;})();
-  if(anchorUl&&!uls.includes(anchorUl))uls.push(anchorUl);
-  if(uls.length){
-    for(const ul of uls)untaskUl(ul);
-    scheduleSave();return;
-  }
-  /* one list holding one item per selected line, rather than one list each */
-  const t=buildTaskList(taskLines(blocks));
-  splitListsAbove(blocks[0]).before(t);
+/* Put `node` exactly where the selected blocks were and take them out. */
+function replaceBlocks(blocks,node){
+  splitListsAbove(blocks[0]).before(node);
   const emptied=new Set();
   for(const b of blocks){
     for(let p=b.parentElement;p&&p!==editor;p=p.parentElement)
@@ -2773,8 +2795,69 @@ function toggleTaskList(){
      list inside it. */
   for(const l of emptied)
     if(l.isConnected&&!l.textContent.trim()&&!l.querySelector("img,input,hr,table,li"))l.remove();
+}
+function toggleTaskList(){
+  editor.focus();histPush();
+  const blocks=selectedBlocks();if(!blocks.length)return;
+  /* already task lists anywhere in the selection → unwrap all of them */
+  const uls=taskUlsInSelection();
+  if(uls.length){
+    for(const ul of uls)untaskUl(ul);
+    scheduleSave();return;
+  }
+  /* one list holding one item per selected line, rather than one list each */
+  const t=buildTaskList(taskLines(blocks));
+  replaceBlocks(blocks,t);
   placeCaret(t.querySelector(".task-text"));
   scheduleSave();
+}
+/* Clearing the formatting of a list means the lines, plainly. Chrome's own
+   formatBlock cannot do that: asked for a <p> it leaves the bullets where they
+   were, splits the list into one list per item, and wraps the wreckage in the
+   paragraph it was told to make. Over a task list it declines outright, marks
+   and all, so the marks come off here too. Links and images stay — they are
+   content, not formatting, which is the line removeFormat draws as well. */
+const MARKUP_KEEP=/^(A|IMG|BR)$/;
+function stripMarks(node){
+  const out=document.createDocumentFragment();
+  for(const n of node.childNodes){
+    if(n.nodeType===3){out.appendChild(n.cloneNode());continue;}
+    if(n.nodeType!==1)continue;
+    if(/^(UL|OL)$/.test(n.tagName))continue;         /* a sublist is its own line, added separately */
+    if(MARKUP_KEEP.test(n.tagName)){
+      const c=n.cloneNode(false);c.removeAttribute("style");c.removeAttribute("class");
+      if(n.tagName==="A")c.appendChild(stripMarks(n));
+      out.appendChild(c);continue;
+    }
+    out.appendChild(stripMarks(n));
+  }
+  return out;
+}
+function clearFormatting(){
+  editor.focus();
+  const blocks=selectedBlocks();
+  /* headings, quotes and paragraphs are what execCommand is good at; only a
+     list has to be taken apart by hand */
+  if(!blocks.some(b=>b.tagName==="LI")){
+    cmd("removeFormat");cmd("formatBlock","P");syncToolbar();return;
+  }
+  histPush();
+  const frag=document.createDocumentFragment(),seen=new Set();
+  const add=b=>{
+    if(seen.has(b))return;seen.add(b);
+    const p=document.createElement("p");
+    p.appendChild(stripMarks(taskOwnText(b)||b));
+    if(!p.firstChild)p.innerHTML="<br>";
+    frag.appendChild(p);
+    for(const sub of b.children)
+      if(/^(UL|OL)$/.test(sub.tagName))
+        for(const li of sub.children)if(li.tagName==="LI")add(li);
+  };
+  for(const b of blocks)add(b);
+  const first=frag.firstChild;
+  replaceBlocks(blocks,frag);
+  if(first)placeCaret(first,true);
+  scheduleSave();syncToolbar();
 }
 $("#taskBtn").addEventListener("mousedown",e=>{e.preventDefault();toggleTaskList();});
 editor.addEventListener("change",e=>{
@@ -4453,7 +4536,7 @@ editor.addEventListener("keydown",e=>{
     if(e.shiftKey&&e.code==="Digit7") return run(()=>cmd("insertOrderedList"));
     if(e.shiftKey&&e.code==="Digit8") return run(()=>cmd("insertUnorderedList"));
     if(e.shiftKey&&e.code==="Digit9") return run(toggleTaskList);
-    if(!e.shiftKey&&k==="\\") return run(()=>{cmd("removeFormat");cmd("formatBlock","P");});
+    if(!e.shiftKey&&k==="\\") return run(clearFormatting);
   }
   if(e.altKey&&!e.shiftKey){
     const H={Digit0:"P",Digit1:"H1",Digit2:"H2",Digit3:"H3"};
