@@ -1027,6 +1027,17 @@ body.zen #zenExit{display:grid}
       </div>
 
       <div class="row">
+        <label>Google Drive and the hour</label>
+        <div class="hint" style="margin-top:0">Google signs a browser out after about an hour,
+          and no app without a server of its own can renew that quietly — so Typewell does not
+          try, and <b>no Google window ever opens by itself</b>. When the hour runs out, a
+          background backup simply waits. Your notes were already saved here; the corner reads
+          <b>Waiting to back up</b> with a <b>Sign in</b> button, and pressing it sends up
+          everything that piled up at once. <b>Ctrl+S</b> and <b>Back up now</b> also sign you
+          back in, because you asked them to.</div>
+      </div>
+
+      <div class="row">
         <label>How wide the page is</label>
         <div class="hint" style="margin-top:0">In <b>Settings</b>, under <b>Page width</b>: pick
           Narrow, Normal or Wide, choose <b>Full width</b> to use the whole window however wide you
@@ -1147,8 +1158,7 @@ body.zen #zenExit{display:grid}
           <button class="btn" id="driveDisconnectBtn" title="Disconnect  (notes stay in this browser)" disabled>Disconnect</button>
         </div>
         <label class="chk" title="Back up automatically after you stop typing" style="margin-top:11px"><input type="checkbox" id="autoBackupChk"> Auto-back up ~45 s after I stop typing</label>
-        <label class="chk" title="Ask Google for a fresh hour while you are still working" style="margin-top:7px"><input type="checkbox" id="driveKeepAliveChk" checked> Keep me signed in while I work</label>
-        <p class="hint" style="margin:6px 0 0">Google gives a browser about an hour of access at a time. Staying signed in past that needs a server to hold the renewal key, and Typewell deliberately has none. So with this on, Typewell asks for the next hour a few minutes before the current one runs out, the first time you click or type after that — a Google window opens and shuts itself. With it off, you sign in again by hand when the footer says the sign-in expired.</p>
+        <p class="hint" style="margin:9px 0 0"><b>A Google window never opens on its own.</b> Google only gives a browser about an hour at a time, and there is no way for an app with no server to renew that quietly — so Typewell does not try. When the hour runs out mid-session, a background backup simply waits: your notes are already saved here, and the corner says <i>Waiting to back up</i> with a <b>Sign in</b> button. Press it whenever suits you and everything waiting goes up at once.</p>
       </div>
 
       <div class="section">
@@ -1405,8 +1415,9 @@ const WELCOME_HTML=
   'Drive and puts each note in it as a plain <code>.md</code> file you can open in any '+
   'editor. Change one of those files elsewhere and the change comes back here.</p>'+
   '<p>Typewell asks Google for the smallest permission there is: it can only see files it '+
-  'made itself. Google lets a web page stay signed in for about an hour, so Typewell '+
-  'quietly asks for the next hour while you are still working.</p>'+
+  'made itself. Google signs a browser out after about an hour. No window will pop up on '+
+  'its own when that happens — the corner just says <b>Waiting to back up</b>, and one '+
+  'click sends up everything waiting.</p>'+
 
   '<blockquote class="alert" data-alert="note">'+
   '<p>Your notes live in this browser. Clearing this site’s data erases them. If they '+
@@ -1417,7 +1428,7 @@ const WELCOME_HTML=
   '<b>?</b> guide keeps all of it.</p>';
 
 let settings={theme:DEFAULT_THEME,defaultFont:"JetBrains Mono",autoBackup:false,
-  ghToken:"",gistId:"",driveFolderId:"",driveGranted:false,driveEmail:"",driveKeepAlive:true,
+  ghToken:"",gistId:"",driveFolderId:"",driveGranted:false,driveEmail:"",
   pageWidth:840,
   recentFore:[],recentHilite:[]};
 function loadState(){
@@ -1511,21 +1522,24 @@ function setBeacon(state,label){
 function refreshBeacon(){
   const connected=drive.linked||settings.gistId;
   /* A lapsed Google sign-in used to look identical to a healthy one: the dot
-     stayed green and the backup just quietly stopped happening. */
-  if(drive.expired()&&!settings.gistId)setBeacon("error","sign-in expired");
+     stayed green and the backup just quietly stopped happening. It says so now
+     - quietly, in the corner, because the notes themselves are safe either
+     way and this is a thing to do when you feel like it, not an alarm. */
+  if(drive.waitingForYou()&&!settings.gistId)setBeacon("dirty","waiting to back up");
   else if(connected)setBeacon(dirtySinceBackup?"dirty":"synced",dirtySinceBackup?"not backed up":"backed up");
   else setBeacon("local","local");
   renderFoot();
 }
 function renderFoot(){
   const f=$("#sbFoot");
-  if(drive.expired()){
-    /* Google gives a browser app about an hour, and nothing can renew it from
-       a closed tab without a server. One honest line and one button beats a
-       green dot that lies. */
-    f.innerHTML=`<span class="beacon error"></span>
-      <span class="grow">Google sign-in expired</span>
-      <button class="btn sm" id="footReconnect" title="Sign in to Google again  (Google only gives a browser app about an hour)">Reconnect</button>`;
+  if(drive.waitingForYou()){
+    /* The one place the hour limit is allowed to show up. No window has opened
+       and none will until this button is pressed - that is the whole point of
+       the queue behind it. The wording says the work is waiting, not that
+       something failed, because nothing has: the notes are already saved here. */
+    f.innerHTML=`<span class="beacon dirty"></span>
+      <span class="grow">Waiting to back up</span>
+      <button class="btn sm" id="footReconnect" title="Sign in to Google and send up everything waiting  (Google only gives a browser an hour at a time)">Sign in</button>`;
     $("#footReconnect").onclick=()=>connectDriveFlow();
     return;
   }
@@ -4222,55 +4236,56 @@ const drive={
       tc.requestAccessToken(settings.driveEmail?{hint:settings.driveEmail}:{});
     });
   },
-  /* Why a Drive link used to die overnight. Google's implicit ("token") flow
-     hands out an access token that lasts about an hour and carries no refresh
-     token. A refresh token is not unobtainable in general - Google's other
-     flow, the authorization code flow, issues one that lasts indefinitely -
-     but redeeming it needs a client secret, and Google's own comparison table
-     lists "requires backend platform: yes" for that flow. Typewell has no
-     backend by design, so the code flow is not open to it and this really is
-     the ceiling FOR A SERVERLESS APP, which is a narrower claim than "the
-     platform cannot do it".
+  /* THE RULE THIS SECTION EXISTS TO ENFORCE: a Google window never opens by
+     itself. It opens only when you pressed something that said it would.
 
-     What CAN be done is ask for the next token before the current one runs
-     out, and only during a real click or keystroke, because a popup outside a
-     user gesture is blocked outright. Note the popup is unavoidable: prompt
-     ""/"none" do not suppress it, they only change what happens inside it.
-     Hidden-iframe renewal is dead twice over - accounts.google.com refuses to
-     be framed, and third-party cookies are blocked anyway.
+     Why there is no silent alternative. Google's browser flow hands out an
+     access token good for about an hour and no refresh token. The other flow
+     does issue one that lasts indefinitely, but redeeming it needs a client
+     secret, so Google's own comparison table marks it "requires backend
+     platform: yes" - and Typewell has no backend on purpose. Three things
+     that look like escapes and are not:
+       - prompt:""/prompt:"none" do NOT suppress the popup. The library opens
+         one regardless; prompt only changes what happens inside it.
+       - A hidden iframe cannot work: accounts.google.com refuses to be framed,
+         and the cookies it would need are blocked as third-party anyway.
+       - FedCM's Continuation API, the newest thing in this area, also opens a
+         popup and also requires an explicit click.
+     Google removed automatic token refresh from this library deliberately,
+     "to improve user security and awareness". So: not a gap we can close.
 
-     One more thing worth knowing, and it is a console setting rather than
-     code: while the OAuth consent screen sits in "Testing", Google expires the
-     grant after 7 DAYS and caps it at 100 named test users. Publishing to
-     production fixes both, and drive.file is non-sensitive so it costs no
-     security review. See docs/setup.md. */
-  RENEW_LEAD:6*60*1000,
-  renewing:false,renewBlockedUntil:0,
-  renewable(){
-    /* !! because this reads as a yes/no everywhere it is used, and the chain
-       below would otherwise hand back the empty client ID string */
-    return !!(this.linked&&GOOGLE_CLIENT_ID&&settings.driveKeepAlive!==false
-      &&!this.renewing&&!document.hidden&&now()>=this.renewBlockedUntil);
-  },
-  async renewQuietly(){
-    if(!this.renewable())return;
-    if(!this.token&&!this.restoreToken()&&!settings.driveEmail)return;  /* never linked on this device */
-    if(this.token&&now()<this.tokenExp-this.RENEW_LEAD)return;          /* plenty of time left */
-    this.renewing=true;
-    try{await this.connect();}
-    catch(_){
-      /* refused, dismissed, or blocked. Backing off matters more than
-         retrying: a window that reopens on every click is worse than a
-         Reconnect button that waits to be pressed. */
-      this.renewBlockedUntil=now()+10*60*1000;refreshBeacon();
-    }
-    finally{this.renewing=false;}
+     What we do instead is refuse to flash a window at someone who did not ask.
+     A background save that finds the hour has run out does not authorise - it
+     puts the work down, raises `pending`, and the footer grows one calm line
+     with one button. Nothing is lost: the notes were already saved locally
+     before Drive was ever involved. Press the button and everything that piled
+     up goes up at once. */
+  pending:false,
+
+  /* Deliberate work runs inside this; background work does not. A depth count
+     rather than a boolean because backup() calls api() calls ensureToken(),
+     and an inner finally must not clear a flag the outer call still needs. */
+  gestures:0,
+  async withSignIn(fn){
+    this.gestures++;
+    try{ return await fn(); }
+    finally{ this.gestures--; }
   },
   expired(){return this.linked&&!(this.token&&now()<this.tokenExp);},
+  /* true when there is work waiting on a sign-in that only you can start */
+  waitingForYou(){return this.linked&&this.pending;},
   async ensureToken(){
     if(this.token&&now()<this.tokenExp)return;
     if(this.restoreToken())return;    /* still good from an earlier page load */
+    if(!this.gestures){
+      /* background. Put it down rather than pop a window mid-sentence. */
+      this.pending=true;refreshBeacon();renderFoot();
+      const e=new Error("Signed out of Google — press Sign in to back up");
+      e.needsSignIn=true;
+      throw e;
+    }
     await this.connect();
+    this.pending=false;
   },
   async api(path,opts={},tries=0,reauthed=false){
     await this.ensureToken();
@@ -4435,35 +4450,27 @@ const drive={
   scheduleAuto(){
     clearTimeout(this.autoTimer);
     this.autoTimer=setTimeout(async()=>{
-      /* A timer is not a user gesture, so asking for a token here would open a
-         popup the browser then blocks. A stored one is fair game though, which
-         is what lets an auto-backup go through after a reload. If there is
-         none, skip quietly; the next Ctrl+S or Back up runs inside a gesture
-         and re-authorises then. */
-      if(!this.token||now()>=this.tokenExp)if(!this.restoreToken()){refreshBeacon();return;}
-      try{await this.backup();}catch(e){setBeacon("error","backup failed");}
+      /* Deliberately NOT wrapped in withSignIn. A timer is nobody's gesture,
+         so if the hour has run out ensureToken raises `pending` and throws
+         instead of opening a window, and the footer picks it up from there. */
+      try{await this.backup();}
+      catch(e){ if(!e.needsSignIn)setBeacon("error","backup failed"); }
     },45000);
   },
   disconnect(){
     if(this.token&&window.google?.accounts?.oauth2)google.accounts.oauth2.revoke(this.token,()=>{});
-    this.dropToken();this.linked=false;this.renewBlockedUntil=0;
+    this.dropToken();this.linked=false;this.pending=false;
     settings.driveGranted=false;settings.driveEmail="";saveSettings();
     syncSettingsUI();renderFoot();refreshBeacon();
   }
 };
 
-/* Where the renewal above gets its user gesture. Any click or keypress
-   anywhere in the app counts, the check in front of it is two comparisons, and
-   the work only happens in the last few minutes of a token's life - so this is
-   a wide net on purpose rather than a button nobody would know to press. */
-let lastRenewCheck=0;
-function maybeRenewDrive(){
-  if(now()-lastRenewCheck<20000)return;
-  lastRenewCheck=now();
-  drive.renewQuietly();
-}
-document.addEventListener("pointerdown",maybeRenewDrive,{capture:true,passive:true});
-document.addEventListener("keydown",maybeRenewDrive,{capture:true,passive:true});
+/* There used to be a renewal here that rode any click or keypress, asking
+   Google for the next hour a few minutes before the current one ran out. It
+   worked, and it was still wrong: it meant a window could flash open while you
+   were in the middle of a sentence, for a deadline you never asked about. The
+   queue in drive.ensureToken replaced it. Nothing here listens for gestures
+   any more, on purpose. */
 
 async function connectDriveFlow(){
   if(!GOOGLE_CLIENT_ID){
@@ -4472,7 +4479,9 @@ async function connectDriveFlow(){
     return;
   }
   try{
+   await drive.withSignIn(async()=>{
     await drive.connect();
+    drive.pending=false;
     toast("Google Drive connected","ok");
     /* about.get is inside drive.file - no extra scope, no consent screen for
        it. The address is only ever used as the renewal hint and as the label
@@ -4493,10 +4502,15 @@ async function connectDriveFlow(){
     }
     const r=await drive.sync();
     toast(`Synced: ${r.added} new, ${r.updated} updated, ${r.pushed} sent up`,"ok");
+   });
   }catch(e){toast("Drive: "+e.message,"err");}
 }
+/* You pressed Back up, or Ctrl+S. That is a gesture, so withSignIn lets the
+   Google window open if the hour has run out - and because it was your press
+   that opened it, it is not a surprise. Everything the background queued goes
+   up in the same run. */
 async function doDriveBackup(){
-  try{const n=await drive.backup();
+  try{const n=await drive.withSignIn(()=>drive.backup());
     toast(n?`Saved ${n} note${n>1?"s":""} to your Drive`:"Drive is up to date","ok");}
   catch(e){toast("Drive: "+e.message,"err");}
 }
@@ -4549,8 +4563,8 @@ function syncSettingsUI(){
   if(!GOOGLE_CLIENT_ID){pill.textContent="not configured";pill.className="pill off";
     $("#driveCfgHint").innerHTML=" <b>To enable:</b> open this HTML file and paste your OAuth Client ID into the <code>CONFIG</code> block at the very top of the <code>&lt;script&gt;</code> — one line, then redeploy.";
   }else if(drive.linked){
-    pill.textContent=drive.expired()?"sign-in expired":(settings.driveEmail||"connected");
-    pill.className=drive.expired()?"pill off":"pill ok";
+    pill.textContent=drive.waitingForYou()?"waiting to back up":(settings.driveEmail||"connected");
+    pill.className=drive.waitingForYou()?"pill":"pill ok";
     $("#driveCfgHint").textContent="";
   }
   else{pill.textContent="ready — one click";pill.className="pill";$("#driveCfgHint").textContent="";}
@@ -4565,9 +4579,8 @@ function syncSettingsUI(){
   $("#driveConnectBtn").disabled=!GOOGLE_CLIENT_ID;
   /* ...unless it HAS expired, in which case the one button that fixes it is
      the one that must be on screen. */
-  $("#driveConnectBtn").style.display=(on&&!drive.expired())?"none":"";
-  $("#driveConnectBtn").innerHTML=I("cloud")+(drive.expired()?"Reconnect":"Connect");
-  $("#driveKeepAliveChk").checked=settings.driveKeepAlive!==false;
+  $("#driveConnectBtn").style.display=(on&&!drive.waitingForYou())?"none":"";
+  $("#driveConnectBtn").innerHTML=I("cloud")+(drive.waitingForYou()?"Sign in":"Connect");
 }
 function openOverlay(id){
   $("#"+id).classList.add("open");
@@ -4592,13 +4605,12 @@ $("#guideBtn").addEventListener("click",()=>openOverlay("guideOverlay"));
 $("#driveConnectBtn").addEventListener("click",connectDriveFlow);
 $("#driveBackupBtn").addEventListener("click",doDriveBackup);
 $("#driveRestoreBtn").addEventListener("click",async()=>{
-  try{const r=await drive.sync();
+  try{const r=await drive.withSignIn(()=>drive.sync());
     toast(`Synced: ${r.added} new, ${r.updated} updated, ${r.pushed} sent up`,"ok");}
   catch(e){toast("Drive: "+e.message,"err");}
 });
 $("#driveDisconnectBtn").addEventListener("click",()=>{drive.disconnect();toast("Drive disconnected");});
 $("#autoBackupChk").addEventListener("change",e=>{settings.autoBackup=e.target.checked;saveSettings();});
-$("#driveKeepAliveChk").addEventListener("change",e=>{settings.driveKeepAlive=e.target.checked;saveSettings();});
 $("#ghToken").addEventListener("change",e=>{settings.ghToken=e.target.value.trim();saveSettings();});
 
 /* ---------- theme ---------- */

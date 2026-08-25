@@ -1626,9 +1626,12 @@ export async function suite(win) {
   });
 
   /* ═════════ the Drive sign-in running out ═════════
-     Google gives a browser app about an hour and no refresh token at all, so
-     the only two honest behaviours are to say so, and to ask again early while
-     someone is still clicking. */
+     The promise this section defends: a Google window NEVER opens unless the
+     person pressed something that said it would. Google gives a browser about
+     an hour and no refresh token, and no serverless app can renew that
+     quietly - so instead of flashing a popup mid-sentence, a background save
+     puts the work down and waits. These checks are the reason the popup that
+     used to appear while you were typing cannot come back by accident. */
   test("a sign-in that has run out reports itself instead of looking healthy", () => {
     withToken((drive) => {
       drive.linked = true; drive.token = "tok"; drive.tokenExp = Date.now() + 60000;
@@ -1640,30 +1643,93 @@ export async function suite(win) {
     });
   });
 
-  test("turning off keep-me-signed-in means no window ever opens on its own", () => {
-    withToken((drive) => {
-      const { settings } = win.__typewell;
-      const was = settings.driveKeepAlive;
-      try {
-        drive.linked = true;
-        settings.driveKeepAlive = false;
-        eq(drive.renewable(), false,
-          "the switch is off and it would still open a Google window");
-      } finally { settings.driveKeepAlive = was; }
-      /* a yes/no, not "the client ID happened to be truthy" - this returned the
-         empty client-ID string once, which is falsy but is not false */
-      eq(typeof drive.renewable(), "boolean");
-    });
+  atest("a background save with no token waits instead of opening a window", async () => {
+    const drive = win.__typewell.drive;
+    const was = { t: drive.token, e: drive.tokenExp, l: drive.linked,
+                  p: drive.pending, g: drive.gestures, open: win.open };
+    let opened = 0;
+    try {
+      /* if anything tries to put a window on screen, this counts it */
+      win.open = (...a) => { opened++; return null; };
+      drive.linked = true; drive.token = null; drive.tokenExp = 0;
+      drive.pending = false; drive.gestures = 0;
+      win.localStorage.removeItem(win.__typewell.LS_DTOK);
+
+      let err = null;
+      try { await drive.ensureToken(); } catch (e) { err = e; }
+
+      ok(err, "a background save with no token carried on as if signed in");
+      eq(err.needsSignIn, true, "the error did not say a sign-in is what is missing");
+      eq(opened, 0, "a Google window was opened by a background save");
+      eq(drive.pending, true, "the work was dropped instead of queued");
+      eq(drive.waitingForYou(), true, "the footer would not know to offer Sign in");
+    } finally {
+      drive.token = was.t; drive.tokenExp = was.e; drive.linked = was.l;
+      drive.pending = was.p; drive.gestures = was.g; win.open = was.open;
+    }
   });
 
-  test("a refused renewal backs off instead of reopening on every click", () => {
+  atest("a live token lets a background save through with no window", async () => {
+    const drive = win.__typewell.drive;
+    const was = { t: drive.token, e: drive.tokenExp, l: drive.linked, p: drive.pending,
+                  g: drive.gestures, open: win.open };
+    let opened = 0;
+    try {
+      win.open = (...a) => { opened++; return null; };
+      drive.linked = true; drive.token = "tok"; drive.tokenExp = Date.now() + 600000;
+      drive.pending = true; drive.gestures = 0;
+      await drive.ensureToken();          /* must not throw */
+      eq(opened, 0, "a window opened even though the token was fine");
+    } finally {
+      drive.token = was.t; drive.tokenExp = was.e; drive.linked = was.l;
+      drive.pending = was.p; drive.gestures = was.g; win.open = was.open;
+    }
+  });
+
+  atest("withSignIn puts the gesture back even when the work fails", async () => {
+    const drive = win.__typewell.drive;
+    const before = drive.gestures;
+    let threw = false;
+    try { await drive.withSignIn(async () => { throw new Error("boom"); }); }
+    catch (_) { threw = true; }
+    ok(threw, "the failure was swallowed");
+    eq(drive.gestures, before,
+      "a failed deliberate action left the app thinking a gesture is still open");
+  });
+
+  atest("nested deliberate calls do not clear the gesture early", async () => {
+    /* backup() calls api() calls ensureToken(); an inner finally that reset a
+       boolean would strand the outer call in background mode mid-flight */
+    const drive = win.__typewell.drive;
+    const before = drive.gestures;
+    let innerSaw = -1;
+    await drive.withSignIn(async () => {
+      await drive.withSignIn(async () => {});
+      innerSaw = drive.gestures;
+    });
+    eq(innerSaw, 1, "the inner call's finally cancelled the outer gesture");
+    eq(drive.gestures, before, "the gesture count did not return to where it started");
+  });
+
+  test("nothing in the app listens for clicks in order to renew", () => {
+    /* the old design asked Google for the next hour off any keypress, which is
+       exactly the popup-while-typing this replaced. Guard against its return. */
+    const drive = win.__typewell.drive;
+    eq(typeof drive.renewQuietly, "undefined", "the gesture-driven renewal came back");
+    eq(typeof drive.renewable, "undefined", "the gesture-driven renewal came back");
+    eq(typeof win.maybeRenewDrive, "undefined", "the renewal gesture listener came back");
+  });
+
+  test("signing in clears the queue so the footer stops asking", () => {
     withToken((drive) => {
-      const was = drive.renewBlockedUntil;
-      try {
-        drive.linked = true;
-        drive.renewBlockedUntil = Date.now() + 60000;
-        ok(!drive.renewable(), "a refused sign-in would be asked for again immediately");
-      } finally { drive.renewBlockedUntil = was; }
+      drive.linked = true; drive.pending = true;
+      eq(drive.waitingForYou(), true);
+      drive.pending = false;
+      eq(drive.waitingForYou(), false, "the Sign in line would never go away");
+      /* not linked at all is "local", never "waiting" */
+      drive.linked = false; drive.pending = true;
+      eq(drive.waitingForYou(), false,
+        "an app that was never connected would nag about backing up");
     });
   });
 

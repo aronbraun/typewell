@@ -60,20 +60,31 @@ Two silent-renewal tricks that look like escapes and are not:
   what happens *inside* the popup. That is why the renewal has to ride a user
   gesture.
 
-What can be done is ask for the next hour before the current one runs out — and
-only during a real click or keystroke, because a browser blocks a popup that no
-gesture asked for. So:
+The rule the code enforces is narrower and more useful than "stay signed in":
+**a Google window never opens unless the person pressed something that said it
+would.**
 
-- `drive.renewQuietly()` runs off any click or keypress in the app, throttled,
-  and does nothing until the token is within a few minutes of expiring.
-- The token client is built once and reused, with `prompt:""` and the account
-  address as a hint, so a renewal for an account that has already consented goes
-  through with nothing to click.
-- A refused or dismissed renewal backs off for ten minutes. A window that
-  reopens on every click is worse than a *Reconnect* button that waits.
-- When it has genuinely lapsed, the footer says so and offers one button. The
-  sync beacon used to stay green while the backups quietly stopped.
-- Settings has a switch to turn the whole thing off.
+An earlier version did renew early — off any click or keypress, a few minutes
+before the hour ran out. It worked, and it was still wrong: a window could
+flash open in the middle of a sentence, for a deadline nobody asked about. That
+is gone. Nothing listens for gestures any more.
+
+What replaced it:
+
+- `drive.gestures` is a depth counter, raised only by `drive.withSignIn(fn)`.
+  Deliberate actions run inside it — *Back up now*, *Sync*, Ctrl+S, *Connect*,
+  *Sign in*. Background actions do not — the auto-backup timer above all.
+- `drive.ensureToken()` uses a live or stored token if there is one. If there
+  is not and `gestures` is zero, it **does not authorise**. It sets
+  `drive.pending`, refreshes the footer, and throws an error carrying
+  `needsSignIn = true`.
+- The footer then shows one calm line — *Waiting to back up* — and one **Sign
+  in** button. Nothing has failed: the notes were saved locally long before
+  Drive was involved. Pressing the button signs in and flushes everything that
+  piled up in a single run.
+- A depth *count* rather than a boolean, because `backup()` calls `api()` calls
+  `ensureToken()`; an inner `finally` resetting a boolean would strand the
+  outer call in background mode halfway through.
 
 The scope is `drive.file` and nothing else — never widen it. That is what keeps
 Typewell out of Google's CASA security review, and it is why a file *you* create

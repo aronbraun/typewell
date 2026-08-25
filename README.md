@@ -90,12 +90,13 @@ see files it made itself, never the rest of your Drive.
 and *Import backup* in the same menu brings them back.
 
 > [!NOTE]
-> Google hands a browser **about an hour** at a time. A sign-in that lasts
-> forever is possible, but only for an app with a **server** behind it to hold
-> the renewal key — Typewell has none, on purpose. So instead it quietly asks
-> for the next hour a few minutes before the current one runs out, the first
-> time you click or type after that. You can switch that off in Settings; then
-> you sign in again by hand when the footer says the sign-in expired.
+> **A Google window never opens on its own.** Google hands a browser about an
+> hour at a time, and an app with no server cannot renew that quietly — so
+> Typewell does not try. When the hour runs out, a background backup just
+> waits: your notes are already saved here, and the corner reads *Waiting to
+> back up* with a **Sign in** button. Press it whenever suits you and
+> everything waiting goes up at once.
+>
 > [docs/setup.md](docs/setup.md) has the details, including the one console
 > setting that makes Drive drop out every 7 days if you get it wrong.
 
