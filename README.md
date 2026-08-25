@@ -47,7 +47,8 @@ file you can open in any editor.
   blocks, quotes, coloured callouts, text colours, highlights, links.
 - **Pictures** you can drag bigger or smaller, and put where you want them:
   on their own line, in the middle of a sentence, or with the text flowing
-  around them.
+  around them. Shrink one and it moves into the run of your words on its own,
+  so a thumbnail never ends up stranded at the far edge of a wide page.
 - **Many notes** — search, pin, duplicate, trash with restore, and drag the
   list into your own order.
 - **Four looks** — white, paper, dark, navy. Plus zen mode, find and replace,

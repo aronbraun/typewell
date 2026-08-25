@@ -36,6 +36,29 @@ Pictures are stored as data URLs inside the note, so they count against that
 5 MB. The app warns above about 800 KB, and the size buttons on a selected
 picture only change how it is displayed, not how much it weighs.
 
+Two rules keep the picture frame honest, and both exist because breaking them
+was a real bug.
+
+**The frame on screen is not the same fact as the picture being selected.**
+`selectImg()` puts a real DOM range around the picture, and `imgIsSelected()`
+checks that range before Delete or Backspace is allowed to remove anything. Put
+the caret just left of a picture and press Backspace and the key goes straight
+back to the browser, which deletes the letter — which is what used to eat the
+picture instead. Any key that moves the caret, and any selection change from
+anywhere in the app, drops the frame.
+
+**A small picture moves into the line of text by itself.** `autoPlaceImg()`
+runs after a size button or a drag, and below `IMG_INLINE_AT` (30% of the line
+width) sets `data-a="inline"`; above it, it puts an auto-inlined picture back on
+its own line. It never touches a picture carrying `data-fit="fixed"`, which the
+Sits row writes the moment you pick a placement yourself. Without this, a
+thumbnail on a full-width page sits an arm's length from the sentence it
+illustrates.
+
+A caret directly before or after a picture also gets `#caretMark`, a bar the
+height of the picture on the side the caret is on — a text caret drawn flush
+against a picture's edge is close to invisible.
+
 ## The Google sign-in, and why it runs out
 
 Google's browser sign-in (the *implicit*, or "token", flow) hands out an access

@@ -1543,6 +1543,128 @@ export async function suite(win) {
     });
   });
 
+  /* ── Backspace beside a picture ──
+     The frame being on screen was being read as "the picture is selected", so
+     a Backspace meant for the letter to the left of a picture ate the picture
+     instead. The frame and the selection are two different facts. */
+  test("Backspace beside a picture takes the letter, not the picture", () => {
+    withImg(`<p>abc<img src="${PX}" alt="x">def</p>`, (im) => {
+      mouse(im, "click");
+      caret(ed.querySelector("p").firstChild, 3);   /* just left of the picture */
+      const alive = press(ed, "Backspace");
+      ok(alive, "the app swallowed Backspace instead of letting the letter go");
+      eq(ed.querySelectorAll("img").length, 1, "Backspace beside the picture removed the picture");
+    });
+  });
+
+  test("a caret in the text is never mistaken for a selected picture", () => {
+    withImg(`<p>abc<img src="${PX}" alt="x">def</p>`, (im) => {
+      mouse(im, "click");
+      ok(win.__typewell.imgIsSelected(im), "clicking a picture did not select it");
+      caret(ed.querySelector("p").firstChild, 1);
+      eq(win.__typewell.imgIsSelected(im), false, "a plain caret still counts as the picture");
+    });
+  });
+
+  test("an arrow key hands the picture back to the text", () => {
+    withImg(`<p>abc<img src="${PX}" alt="x">def</p>`, (im) => {
+      mouse(im, "click");
+      press(ed, "ArrowLeft");
+      eq(win.__typewell.selImg(), null, "the frame still claims the picture after an arrow key");
+      eq($("#imgTools").style.display, "none", "the handles are still on screen");
+    });
+  });
+
+  test("holding Shift on its own does not drop the picture", () => {
+    withImg(`<p><img src="${PX}" alt="x"></p>`, (im) => {
+      mouse(im, "click");
+      press(ed, "Shift");
+      eq(win.__typewell.selImg(), im, "reaching for Shift lost the picture");
+    });
+  });
+
+  /* ── a small picture belongs in the line ──
+     On a full-width page a thumbnail on a line of its own ends up an arm's
+     length from the sentence it illustrates. */
+  const sizeBtn = (w) => { const b = $(`#imgTools button[data-w="${w}"]`); mouse(b, "mousedown"); mouse(b, "click"); };
+  const placeBtn = (a) => { const b = $(`#imgTools button[data-a="${a}"]`); mouse(b, "mousedown"); mouse(b, "click"); };
+
+  test("shrinking a picture puts it in the line of text", () => {
+    withImg(`<p><img src="${PX}" alt="x" style="width:100%"></p>`, (im) => {
+      mouse(im, "click");
+      sizeBtn(25);
+      eq(im.dataset.a, "inline", "a quarter-width picture still sits on a line of its own");
+    });
+  });
+
+  test("growing it again takes it back out of the line", () => {
+    withImg(`<p><img src="${PX}" alt="x" style="width:100%"></p>`, (im) => {
+      mouse(im, "click");
+      sizeBtn(25); sizeBtn(75);
+      eq(im.dataset.a, "left", "a three-quarter-width picture is stuck inline");
+    });
+  });
+
+  test("a placement you picked yourself is never second-guessed", () => {
+    withImg(`<p><img src="${PX}" alt="x" style="width:100%"></p>`, (im) => {
+      mouse(im, "click");
+      placeBtn("center");
+      sizeBtn(25);
+      eq(im.dataset.a, "center", "resizing overruled the placement you chose");
+      eq(im.dataset.fit, "fixed", "the picture does not remember that you chose for it");
+    });
+  });
+
+  test("wrapping you asked for survives a resize; wrapping from an old note gives way", () => {
+    withImg(`<p><img src="${PX}" alt="x" style="width:100%"></p>`, (im) => {
+      mouse(im, "click");
+      placeBtn("wrap-right");          /* you clicked it, so it is yours */
+      sizeBtn(25);
+      eq(im.dataset.a, "wrap-right", "text wrapping you chose was thrown away by a resize");
+      /* a picture from a note written before any of this had no say in the
+         matter, so shrinking it is free to bring it back next to the words */
+      im.dataset.a = "wrap-right"; delete im.dataset.fit;
+      sizeBtn(25);
+      eq(im.dataset.a, "inline", "an old wrapped picture stayed stranded after being shrunk");
+    });
+  });
+
+  /* ── seeing where the caret is next to a picture ── */
+  test("the caret beside a picture gets a mark, on the side it is really on", () => {
+    withImg(`<p>abc<img src="${PX}" alt="x" style="width:120px;height:60px">def</p>`, (im) => {
+      const mark = $("#caretMark"), pp = ed.querySelector("p");
+      caret(pp.firstChild, 3);                      /* left of the picture */
+      win.__typewell.placeCaretMark();
+      eq(mark.style.display, "block", "no mark appeared beside the picture");
+      const r = im.getBoundingClientRect(), m = mark.getBoundingClientRect();
+      ok(m.left < r.left, "the mark for a caret before the picture is drawn after it");
+      ok(Math.abs(m.height - r.height) < 2, "the mark is not the height of the picture");
+
+      caret(pp.lastChild, 0);                       /* right of the picture */
+      win.__typewell.placeCaretMark();
+      ok(mark.getBoundingClientRect().left > r.right - 1,
+        "the mark for a caret after the picture is drawn before it");
+    });
+  });
+
+  test("the mark stays away when the caret is not touching a picture", () => {
+    withImg(`<p>abc<img src="${PX}" alt="x" style="width:120px;height:60px">def</p>`, (im) => {
+      const mark = $("#caretMark");
+      caret(ed.querySelector("p").firstChild, 1);
+      win.__typewell.placeCaretMark();
+      eq(mark.style.display, "none", "a mark is shown in the middle of a word");
+      eq(win.__typewell.caretAtImg(), null, "the caret in a word was read as touching a picture");
+    });
+  });
+
+  test("a selected picture shows its frame, not a caret mark", () => {
+    withImg(`<p>abc<img src="${PX}" alt="x" style="width:120px;height:60px">def</p>`, (im) => {
+      mouse(im, "click");
+      win.__typewell.placeCaretMark();
+      eq($("#caretMark").style.display, "none", "the frame and the caret mark are both on screen");
+    });
+  });
+
   test("a picture's size and placement survive the trip out to Markdown and back", () => {
     setHTML(`<p><img src="${PX}" alt="cat" style="width:40%" data-a="center"></p>`);
     const md = win.htmlToMd(ed);

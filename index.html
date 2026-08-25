@@ -395,6 +395,10 @@ body.zen #page{padding-top:52px}
   outline:none;min-height:70vh;
   font-family:var(--font-mono);font-size:14px;line-height:1.75;word-wrap:break-word;
 }
+/* A grey hairline caret on a cream page is hard enough to find in plain text.
+   Beside a picture it is nearly invisible, because it lands against the
+   picture's own edge. Colouring it costs nothing and helps everywhere. */
+#editor{caret-color:var(--accent)}
 /* The reader borrows every rule the editor has - the selectors above carry two
    names each for exactly that reason - and then takes back the two that only
    make sense for a full page you are writing on. */
@@ -484,6 +488,14 @@ body.zen #page{padding-top:52px}
    can end shorter than the picture it ends with */
 #editor::after,#shareBody::after{content:"";display:block;clear:both}
 #editor img.img-sel,#shareBody img.img-sel{outline:2px solid var(--accent);outline-offset:2px}
+/* Where the caret is when the caret is next to a picture. Even a coloured
+   caret is a two-pixel line drawn flush against a hard edge, so on the two
+   places it is hardest to see it gets a mark of its own: the full height of
+   the picture, on the side the caret is really on. */
+#caretMark{position:fixed;z-index:60;width:3px;border-radius:3px;background:var(--accent);
+  pointer-events:none;display:none;animation:caretMarkBlink 1.06s infinite}
+@keyframes caretMarkBlink{0%,49.9%{opacity:1}50%,100%{opacity:.12}}
+@media (prefers-reduced-motion:reduce){#caretMark{animation:none}}
 
 /* the frame that appears around a selected image: handles to drag, a bar to
    pick where it sits. It lives outside the editor - anything inside a
@@ -643,7 +655,7 @@ kbd{font-family:var(--font-mono);font-size:10.5px;background:var(--panel-2);bord
 }
 @media print{
   body{overflow:visible;background:#fff;color:#000}
-  #sidebar,#topbar,#toolbar,#findbar,#statusbar,#toasts,.overlay,.menu,#zenExit,#linkPop,#imgTools{display:none!important}
+  #sidebar,#topbar,#toolbar,#findbar,#statusbar,#toasts,.overlay,.menu,#zenExit,#linkPop,#imgTools,#caretMark{display:none!important}
   #app{display:block}#editorWrap{overflow:visible}#page{width:100%;padding:0}#editor,#shareBody{min-height:0}
 }
 
@@ -1012,8 +1024,13 @@ body.zen #zenExit{display:grid}
           Then <b>click the picture</b>: the corner handles drag it bigger and smaller, and the bar
           says where it sits — <b>Inline</b> in the run of your words, <b>Left</b>, <b>Center</b> or
           <b>Right</b> on a line of its own, or <b>Wrap</b> off to one side with the text flowing
-          round it. <b>Delete</b> removes the selected one. Size and placement survive the trip out
-          to Markdown and back.</div>
+          round it. <b>Delete</b> removes the selected one, but only while the picture itself is
+          selected — once the caret is back in your words, Backspace deletes letters again, and a
+          bright mark down one side of the picture shows which side the caret is on. Shrink a
+          picture under about a third of the line and it moves into the run of your words by
+          itself, so a thumbnail never ends up stranded at the far edge of a wide page; pick a
+          placement from the bar and it stays exactly where you put it from then on. Size and
+          placement survive the trip out to Markdown and back.</div>
       </div>
 
       <div class="row">
@@ -1259,6 +1276,7 @@ body.zen #zenExit{display:grid}
   </div>
   <i class="it-h nw"></i><i class="it-h ne"></i><i class="it-h sw"></i><i class="it-h se"></i>
 </div>
+<div id="caretMark"></div>
 <script>
 "use strict";
 /* ══════════════════════════ CONFIG ══════════════════════════
@@ -2595,6 +2613,49 @@ const IMG_ALIGN=["inline","left","center","right","wrap-left","wrap-right"];
 const imgTools=$("#imgTools");
 let selImg=null;
 
+/* ---------- showing where the caret is, next to a picture ----------
+   Put the caret directly before or after a picture and the browser draws it
+   flush against the picture's edge, where it is easy to miss and easy to
+   mistake for part of the picture. When that happens - and only then - a mark
+   the full height of the picture appears on the side the caret is on, so
+   "before this picture" and "after this picture" look different at a glance. */
+const caretMark=$("#caretMark");
+/* the picture the caret is touching, and which side of it it is on */
+function caretAtImg(){
+  const sel=window.getSelection();
+  if(!sel||!sel.rangeCount||!sel.isCollapsed)return null;
+  const r=sel.getRangeAt(0),n=r.startContainer,o=r.startOffset;
+  if(!editor.contains(n))return null;
+  let before=null,after=null;
+  if(n.nodeType===3){
+    /* inside text: only the two ends of it touch anything */
+    if(o===0)before=n.previousSibling;
+    if(o===(n.nodeValue||"").length)after=n.nextSibling;
+  }else{
+    before=n.childNodes[o-1]||null;after=n.childNodes[o]||null;
+  }
+  if(after&&after.nodeName==="IMG")return{img:after,side:"left"};
+  if(before&&before.nodeName==="IMG")return{img:before,side:"right"};
+  return null;
+}
+function placeCaretMark(){
+  const hit=document.activeElement===editor?caretAtImg():null;
+  if(!hit||!hit.img.isConnected){caretMark.style.display="none";return;}
+  const r=hit.img.getBoundingClientRect(),w=$("#editorWrap").getBoundingClientRect();
+  /* scrolled out of the writing area, or a picture that has not loaded and so
+     has no height yet: nothing worth drawing a mark beside */
+  if(!r.height||r.bottom<w.top+2||r.top>w.bottom-2){caretMark.style.display="none";return;}
+  const top=Math.max(r.top,w.top),bot=Math.min(r.bottom,w.bottom);
+  caretMark.style.display="block";
+  caretMark.style.top=top+"px";
+  caretMark.style.height=(bot-top)+"px";
+  caretMark.style.left=(hit.side==="left"?r.left-6:r.right+3)+"px";
+}
+addEventListener("scroll",placeCaretMark,true);
+addEventListener("resize",placeCaretMark);
+editor.addEventListener("focus",placeCaretMark);
+editor.addEventListener("blur",()=>{caretMark.style.display="none";});
+
 /* The width the image's own container gives it. A percentage in CSS is a
    percentage of THIS, not of the page, so every number the bar shows and every
    drag has to be measured against it or the two disagree. */
@@ -2607,8 +2668,42 @@ function selectImg(im){
   if(selImg&&selImg!==im)selImg.classList.remove("img-sel");
   selImg=im;im.classList.add("img-sel");
   if(!IMG_ALIGN.includes(im.dataset.a||""))im.dataset.a="left";
+  /* Make the browser agree that the picture - and only the picture - is what
+     is selected. Chrome already does this when you click one; saying it out
+     loud means imgIsSelected() below can be trusted, and that is what stops
+     Backspace eating a picture when the caret has moved into the text. */
+  try{
+    const r=document.createRange();r.selectNode(im);
+    const sel=window.getSelection();sel.removeAllRanges();sel.addRange(r);
+  }catch(_){}
   imgTools.style.display="block";
   syncImgBar();placeImgTools();
+}
+/* True only while the picture itself is what the browser has selected. A
+   collapsed caret - even one sitting hard against the picture - is a position
+   in the text, and at a position in the text Backspace belongs to the text. */
+function imgIsSelected(im){
+  const sel=window.getSelection();
+  if(!sel||!sel.rangeCount||sel.isCollapsed)return false;
+  const f=sel.getRangeAt(0).cloneContents();
+  return f.childNodes.length===1&&f.firstChild===f.firstElementChild&&f.firstChild.nodeName==="IMG";
+}
+/* ---------- a small picture belongs in the line ----------
+   A picture on a line of its own is right for a screenshot and wrong for a
+   thumbnail: on a wide page it strands the thumbnail an arm's length from the
+   sentence it illustrates. So shrinking one past a third of the line width
+   moves it into the run of the text, and growing it back moves it out again.
+   Only ever for pictures whose placement you have not picked yourself - one
+   click on the Sits row and this stops second-guessing you, permanently. */
+const IMG_INLINE_AT=0.30;
+function autoPlaceImg(im){
+  if(im.dataset.fit==="fixed")return;
+  const a=im.dataset.a||"left";
+  const w=im.getBoundingClientRect().width,host=imgHostWidth(im);
+  if(!w||!host)return;
+  const small=w/host<=IMG_INLINE_AT;
+  if(small&&a!=="inline")im.dataset.a="inline";
+  else if(!small&&a==="inline")im.dataset.a="left";
 }
 function clearImgSel(){
   if(selImg)selImg.classList.remove("img-sel");
@@ -2646,7 +2741,7 @@ addEventListener("scroll",placeImgTools,true);
 addEventListener("resize",placeImgTools);
 /* An image selected the instant it is inserted has no size yet, so the frame
    would be drawn around nothing. load does not bubble, but it does capture. */
-editor.addEventListener("load",placeImgTools,true);
+editor.addEventListener("load",()=>{placeImgTools();placeCaretMark();},true);
 
 editor.addEventListener("click",e=>{
   const im=e.target.closest("img");
@@ -2659,11 +2754,29 @@ document.addEventListener("pointerdown",e=>{
 },true);
 editor.addEventListener("keydown",e=>{
   if(!selImg)return;
+  if(e.key==="Escape"){clearImgSel();return;}
   if(e.key==="Delete"||e.key==="Backspace"){
+    /* The bug this guard exists to stop: put the caret just left of a picture,
+       press Backspace expecting the letter before it to go, and the picture
+       went instead. The frame being on screen is not the same fact as the
+       picture being selected - check the real selection, and when the caret
+       has moved into the text hand the key straight back to the browser. */
+    if(!imgIsSelected(selImg)){clearImgSel();return;}
     e.preventDefault();histPush();const im=selImg;clearImgSel();im.remove();scheduleSave();
-  }else if(e.key==="Escape"){clearImgSel();}
-  else if(e.key.length===1||e.key==="Enter")clearImgSel();
+    return;
+  }
+  if(e.ctrlKey||e.metaKey||e.altKey||e.key==="Shift")return;
+  /* any other key - an arrow, Home, Tab, a letter - means the caret is about
+     to be somewhere else, so the frame stops claiming to hold a selection */
+  clearImgSel();
 },true);
+/* The same rule, for every other way a selection can move: a click, a drag, an
+   undo, code elsewhere in the app. The frame must never outlive the selection
+   it claims to describe. */
+document.addEventListener("selectionchange",()=>{
+  if(selImg&&!imgIsSelected(selImg))clearImgSel();
+  placeCaretMark();
+});
 
 /* the bar. mousedown+preventDefault keeps the caret and the selection exactly
    where they were - a button that steals focus is a button that loses the
@@ -2674,12 +2787,15 @@ imgTools.addEventListener("click",async e=>{
   histPush();
   if(b.dataset.a){
     selImg.dataset.a=b.dataset.a;
+    /* you picked it, so autoPlaceImg keeps its hands off from here on */
+    selImg.dataset.fit="fixed";
     /* an inline picture the height of a paragraph is the point of inline; a
        full-width one is not, so the first switch to inline offers a size */
     if(b.dataset.a==="inline"&&!selImg.style.width)selImg.style.width="25%";
   }else if(b.dataset.w!==undefined){
     if(b.dataset.w==="0")selImg.style.removeProperty("width");
     else selImg.style.width=b.dataset.w+"%";
+    autoPlaceImg(selImg);
   }else if(b.dataset.img==="del"){
     const im=selImg;clearImgSel();im.remove();scheduleSave();return;
   }else if(b.dataset.img==="alt"){
@@ -2710,6 +2826,7 @@ imgTools.addEventListener("pointerdown",e=>{
   const up=()=>{
     h.removeEventListener("pointermove",move);h.removeEventListener("pointerup",up);
     h.removeEventListener("pointercancel",up);
+    autoPlaceImg(im);
     syncImgBar();placeImgTools();scheduleSave();
   };
   h.addEventListener("pointermove",move);
@@ -5431,7 +5548,9 @@ editor.addEventListener("keydown",e=>{
    splicing, so a reference handed out once would be testing a dead copy. */
 window.__typewell={WELCOME_HTML,FONTS,BLOCKS,drive,LS_DTOK,settings,version:"2026-08-25",
   notes:()=>notes,setNotes:v=>{notes=v;},LS_NOTES,
-  pageWidth,setPageWidth};
+  pageWidth,setPageWidth,
+  selectImg,clearImgSel,imgIsSelected,autoPlaceImg,caretAtImg,placeCaretMark,
+  IMG_INLINE_AT,selImg:()=>selImg};
 </script>
 </body>
 </html>
