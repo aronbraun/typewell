@@ -29,7 +29,8 @@ Works offline once loaded. Source: https://github.com/aronbraun/typewell
 - Export and import as Markdown or HTML
 - Share one note as a read-only link, from a Share button on the top bar: the
   note is compressed into the URL fragment, so nothing is uploaded and no server
-  ever sees it. Embedded pictures travel too, re-encoded smaller for the link
+  ever sees it. Embedded pictures travel too, re-encoded smaller for the link.
+  A link shortened in transit still opens, showing the part that arrived
 - Reopens the note you were last reading, not the first one in the list
 - Optional sync: a folder of .md files in your Google Drive (drive.file scope
   only — it can only see files it created), or a secret Gist

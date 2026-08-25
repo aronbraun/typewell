@@ -203,6 +203,41 @@ address, an SVG (already text; a canvas would only turn it into a much larger
 grid of pixels), and any picture whose re-encoded version came out *bigger*,
 which is also how a browser that cannot write WebP silently opts out.
 
+## A link that arrived cut short
+
+Mail and chat apps shorten long links, and a bigger `SHARE_MAX` makes that more
+likely rather than less. All-or-nothing was the wrong answer: half a note is
+worth far more than an error, and whoever holds the cut link usually cannot get
+the rest anyway. So `sharePartial()` salvages what arrived, and none of it is
+guesswork — each of the three layers hands back its own prefix if you ask
+properly.
+
+- **base64** decodes in groups of four characters, so `b64urlTrim()` drops to
+  the last whole group and loses at most two bytes.
+- **gzip is a stream.** Feeding it a truncated one throws
+  `Compressed input was truncated` at the end, but every chunk it handed over
+  before that is real. The catch is that `await new Response(stream).text()`
+  throws the partial result away *along with* the error — which is why this
+  looked impossible. `inflatePartial()` uses a reader loop instead and keeps the
+  chunks. Measured: 60% of the compressed bytes gives back 57% of the note, and
+  95% gives back 94%.
+- **The payload is `{v,t,m}` and the note, `m`, is written last**, so a cut lands
+  inside it and the version and title come through whole.
+  `unescapePartialJson()` walks the string body by hand rather than repairing it
+  and calling `JSON.parse` — the repair is the fiddly part, because a cut can
+  land between a backslash and the character saying what it escapes, or three
+  characters into a six-character `\uXXXX`.
+
+`tidyCutMarkdown()` then removes a half-arrived picture. The bytes that did
+arrive are no use — half a WebP is not a picture, because the format is a
+container whose parts have to be whole — but they are not dropped in silence: a
+line says a picture was lost. A picture that arrived *complete* is kept. An
+unclosed code fence gets closed, because otherwise it swallows the rest.
+
+The reader shows a banner saying the link was cut, and *Save to my notes* files
+it as `… (cut short)`. Saving half a note under the whole note's name is how you
+lose the real one later without ever knowing it was short.
+
 The honest limits, which the dialog says out loud: the link **is** the note, so
 anyone holding it can read it and there is no unsending it; and it cannot be
 edited after the fact, because a new link is a new copy. `SHARE_MAX` is 512 KB

@@ -63,9 +63,10 @@ file you can open in any editor.
 - **Send a note to someone** with the **Share** button on the top bar. The whole
   note is packed inside the link — words, formatting and pictures alike — so
   nothing is uploaded and typewell.net never sees it. Pictures are re-encoded
-  smaller for the trip; the copies in your notes are untouched. Anyone with the
-  link can read it, and you cannot take it back — treat it like handing over a
-  photocopy.
+  smaller for the trip; the copies in your notes are untouched. If a mail or chat
+  app shortens the link on the way, the reader still shows everything that
+  arrived and says plainly that the rest was cut. Anyone with the link can read
+  it, and you cannot take it back — treat it like handing over a photocopy.
 - **It opens where you left off.** Refresh or come back tomorrow and you are in
   the note you were last reading, not at the top of the list.
 

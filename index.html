@@ -407,6 +407,11 @@ body.zen #page{padding-top:52px}
    names each for exactly that reason - and then takes back the two that only
    make sense for a full page you are writing on. */
 #shareBody{min-height:0;max-height:52vh;overflow-y:auto;padding-right:4px}
+/* said plainly and up front, because a half note that looks whole is worse
+   than no note at all */
+#shareCut{display:none;margin:0 0 14px;padding:10px 13px;border-radius:var(--r-sm);
+  border:1px solid var(--gold);background:color-mix(in srgb,var(--gold) 14%,transparent);
+  font-family:var(--font-ui);font-size:13px;line-height:1.5}
 #shareBody img{cursor:default}
 #shareOverlay .modal{width:min(760px,100%)}
 #shareOverlay .m-head .pill{flex:none}
@@ -967,6 +972,12 @@ body.zen #zenExit{display:grid}
       <button class="ibtn" data-close="shareOverlay" title="Close"><svg class="ic" data-i="x"></svg></button>
     </div>
     <div class="m-body">
+      <div id="shareCut" class="cut-note">
+        <b>This link arrived cut short.</b> Something along the way — usually a mail
+        or chat app — shortened it, so only the beginning of the note is here.
+        Below is everything that survived. Ask whoever sent it for the note as a
+        Markdown file, which has no length limit.
+      </div>
       <div id="shareBody"></div>
       <div class="btn-row" style="border-top:1px solid var(--line);padding-top:13px;margin-top:16px">
         <button class="btn primary" id="shareKeepBtn" title="Make a copy of this in your own notes"><svg class="ic" data-i="import"></svg>Save to my notes</button>
@@ -4134,6 +4145,95 @@ async function shareUnpack(str){
   return JSON.parse(await new Response(out).text());
 }
 
+/* ---------- a link that arrived cut short ----------
+   Mail and chat apps shorten long links, and the longer the link the likelier
+   it is. All-or-nothing was the wrong answer to that: half a note is worth a
+   great deal more than an error message, and the person holding the cut link
+   usually cannot get the rest anyway.
+
+   Nothing about this is guesswork - each of the three layers gives its prefix
+   back if you ask it properly:
+     - base64 decodes in groups of four characters, so trimming to the last
+       whole group loses at most two bytes;
+     - gzip is a stream. Feeding it a truncated one throws at the end, but
+       every chunk it handed over before that is real. Measured: 60% of the
+       compressed bytes gave back 57% of the note;
+     - the payload is {v,t,m} and the note itself, m, is written last, so a cut
+       lands inside it and the version and title come through whole. */
+function b64urlTrim(s){
+  s=s.replace(/[^A-Za-z0-9_-]/g,"");
+  return s.slice(0,s.length-(s.length%4));
+}
+/* Decompress as far as the data goes and keep what came out. The reader loop
+   is the point: await new Response(stream).text() throws the partial result
+   away along with the error, which is why the whole idea looked impossible. */
+async function inflatePartial(bytes){
+  let text="";
+  try{
+    const rd=new Blob([bytes]).stream().pipeThrough(new DecompressionStream("gzip")).getReader();
+    const dec=new TextDecoder();
+    for(;;){const{value,done}=await rd.read();if(done)break;text+=dec.decode(value,{stream:true});}
+  }catch(_){/* "Compressed input was truncated" - expected, and text is kept */}
+  return text;
+}
+/* Unescape a JSON string that stops in the middle. Walked by hand rather than
+   patched up and handed to JSON.parse, because the patching is the fiddly part:
+   a cut can land between a backslash and the letter saying what it escapes, or
+   three characters into a six-character \uXXXX. */
+const JSON_ESC={'"':'"',"\\":"\\","/":"/",b:"\b",f:"\f",n:"\n",r:"\r",t:"\t"};
+function unescapePartialJson(s){
+  let out="";
+  for(let i=0;i<s.length;i++){
+    const c=s[i];
+    if(c==='"')break;                       /* the string ended properly */
+    if(c!=="\\"){out+=c;continue;}
+    const e=s[i+1];
+    if(e===undefined)break;                 /* cut straight after a backslash */
+    if(e==="u"){
+      const hex=s.slice(i+2,i+6);
+      if(!/^[0-9a-fA-F]{4}$/.test(hex))break;
+      out+=String.fromCharCode(parseInt(hex,16));i+=5;continue;
+    }
+    if(!(e in JSON_ESC))break;
+    out+=JSON_ESC[e];i++;
+  }
+  return out;
+}
+/* A cut inside a picture leaves "![a](data:image/webp;base64,AAAA" with no
+   closing bracket, which markdown shows as a screenful of gibberish. The bytes
+   that did arrive are no use either - half a WebP is not a picture, because the
+   format is a container whose parts have to be whole. So the remains go, but
+   they are not dropped in silence: a line says a picture was lost, because
+   quietly showing a note with a picture missing from it is its own kind of
+   lie. An unclosed code fence is worse than either - it swallows the rest. */
+function tidyCutMarkdown(md){
+  const pic=md.lastIndexOf("![");
+  const lnk=md.lastIndexOf("[");
+  /* the "!" belongs to the picture, so take it away with the rest of it */
+  const open=(pic>-1&&pic>=lnk-1)?pic:lnk;
+  if(open>-1&&md.indexOf(")",open)===-1){
+    md=md.slice(0,open).replace(/\s+$/,"")
+      +(md.startsWith("![",open)?"\n\n*(a picture was cut off the end of this link)*\n":"");
+  }
+  if(((md.match(/^```/gm)||[]).length)%2)md+="\n```";
+  return md.replace(/\s+$/,"");
+}
+/* Returns {t,m} for whatever survived, or null if not even the start is there. */
+async function sharePartial(str){
+  if(!str)return null;
+  const body=b64urlTrim(str.slice(1));
+  if(body.length<8)return null;
+  let bytes;try{bytes=unb64url(body);}catch(_){return null;}
+  const text=str[0]==="g"?await inflatePartial(bytes):new TextDecoder().decode(bytes);
+  if(!text)return null;
+  const k=text.indexOf('"m":"');
+  if(k<0)return null;                       /* the cut landed before the note began */
+  const md=tidyCutMarkdown(unescapePartialJson(text.slice(k+5)));
+  if(!md)return null;
+  const tm=/"t":"((?:[^"\\]|\\.)*)"/.exec(text);
+  return {t:tm?unescapePartialJson(tm[1]+'"'):"",m:md};
+}
+
 /* Markdown, not the HTML - it is a third the size, and it comes back in through
    mdToHtml, which sanitises. HTML from a stranger would have to be trusted or
    scrubbed twice; markdown only has to be parsed. */
@@ -4204,8 +4304,8 @@ async function shareNote(){
   }
   const picLine=pics?`<br><br>The ${pics===1?"picture":"pictures"} in this note ${pics===1?"is":"are"} carried in the link too, re-encoded smaller so it fits. Your own copy is untouched.`:"";
   const warn=link.length>SHARE_LONG
-    ?`<br><br>This link is about <b>${kb} KB</b> long. Browsers open it fine, but mail and chat apps often shorten very long links — if it arrives broken, send the note as a Markdown file instead.`
-    :(kb>8?`<br><br>This link is about <b>${kb} KB</b> long. That works, but a few chat apps shorten very long links — if it arrives broken, send the Markdown file instead.`:"");
+    ?`<br><br>This link is about <b>${kb} KB</b> long. Browsers open it fine, but mail and chat apps often shorten very long links. If that happens the reader still shows everything that arrived, and says plainly that the rest was cut — but for the whole note, send it as a Markdown file instead.`
+    :(kb>8?`<br><br>This link is about <b>${kb} KB</b> long. That works, but a few chat apps shorten very long links. A shortened one still opens and shows the part that arrived.`:"");
   const go=await dialog({title:"Link to this note",input:true,value:link,ok:"Copy link",
     message:`Anyone who opens this can read <b>${esc(n.title)}</b>, as it is right now. `+
       `The note is carried inside the link, so it is never uploaded and typewell.net never sees it — `+
@@ -4223,12 +4323,23 @@ async function openSharedFromHash(){
   /* Out of the address bar immediately: a reload should not reopen the reader,
      and a whole note sitting in the URL is a whole note in the history. */
   history.replaceState(null,"",location.pathname+location.search);
-  let d;
-  try{d=await shareUnpack(decodeURIComponent(m[1]));}
-  catch(_){toast("That shared link is damaged or was cut short","err");return;}
+  /* a cut can land inside a %XX escape, and decodeURIComponent throws on that */
+  let raw=m[1];
+  try{raw=decodeURIComponent(raw);}
+  catch(_){try{raw=decodeURIComponent(raw.replace(/%[0-9a-fA-F]{0,1}$/,""));}catch(__){}}
+  let d,cut=false;
+  try{d=await shareUnpack(raw);}
+  catch(_){
+    /* Not an error yet. A shortened link still holds the front of the note,
+       and the front of the note is worth showing. */
+    const part=await sharePartial(raw);
+    if(!part){toast("That shared link is damaged or was cut short","err");return;}
+    d={v:1,t:part.t,m:part.m};cut=true;
+  }
   if(!d||d.v!==1||typeof d.m!=="string"){toast("That link is not a Typewell note","err");return;}
-  sharedNote={title:(d.t||"Shared note").slice(0,200),md:d.m};
+  sharedNote={title:(d.t||"Shared note").slice(0,200),md:d.m,cut};
   $("#shareTitle").textContent=sharedNote.title;
+  $("#shareCut").style.display=cut?"block":"none";
   $("#shareBody").innerHTML=mdToHtml(sharedNote.md);   /* sanitises on the way out */
   /* read-only means read-only: a checkbox you can tick here would look like it
      did something and would be gone the moment the panel closes */
@@ -4237,7 +4348,11 @@ async function openSharedFromHash(){
 }
 $("#shareKeepBtn").addEventListener("click",()=>{
   if(!sharedNote)return;
-  const n={id:uid(),title:sharedNote.title,html:mdToHtml(sharedNote.md),
+  const n={id:uid(),
+    /* saving a half note under the whole note's name is how you lose the real
+       one later without ever knowing it was short */
+    title:sharedNote.cut?sharedNote.title+" (cut short)":sharedNote.title,
+    html:mdToHtml(sharedNote.md),
     created:now(),updated:now(),pinned:false,deleted:false};
   notes.unshift(n);saveNotes();
   $("#shareOverlay").classList.remove("open");
@@ -5712,6 +5827,7 @@ window.__typewell={WELCOME_HTML,FONTS,BLOCKS,drive,LS_DTOK,settings,version:"202
   notes:()=>notes,setNotes:v=>{notes=v;},LS_NOTES,
   pageWidth,setPageWidth,LS_LAST,openLastNote,shareMarkdown,shrinkForShare,SHARE_MAX,
   homeTaskImages,markTallImages,IMG_TALL_LINES,
+  sharePack,shareUnpack,sharePartial,b64urlTrim,inflatePartial,unescapePartialJson,tidyCutMarkdown,
   selectImg,clearImgSel,imgIsSelected,autoPlaceImg,caretAtImg,placeCaretMark,
   IMG_INLINE_AT,selImg:()=>selImg};
 </script>

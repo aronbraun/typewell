@@ -1862,6 +1862,98 @@ export async function suite(win) {
     ok(!$("#shareOverlay").classList.contains("open"), "a broken link opened an empty reader");
   });
 
+  /* ── half a note beats an error message ──
+     Mail and chat apps shorten long links, and raising the size limit makes
+     that likelier, not less likely. All three layers hand back their prefix if
+     asked properly: base64 decodes in groups of four, gzip is a stream whose
+     delivered chunks stay good after it throws, and the note is written last
+     in the payload so a cut lands inside it. */
+
+  const longNote = (n) => Array.from({ length: n },
+    (_, i) => `## Section ${i}\n\nProse about overflow in route transactions, line ${i}.\n`).join("");
+
+  atest("a link cut in half still shows the half that arrived", async () => {
+    const md = longNote(300);
+    const code = await win.sharePack({ v: 1, t: "Route Transactions", m: md });
+    const part = await win.__typewell.sharePartial(code.slice(0, Math.floor(code.length * 0.6)));
+    ok(part, "six tenths of a link gave back nothing at all");
+    ok(part.m.length > md.length * 0.3,
+      `only ${Math.round(100 * part.m.length / md.length)}% of the note came back from 60% of the link`);
+    ok(part.m.startsWith("## Section 0"), "what came back does not start at the start of the note");
+    eq(part.t, "Route Transactions", "the title did not survive the cut");
+  });
+
+  atest("a cut link opens the reader and admits it is not the whole note", async () => {
+    const code = await win.sharePack({ v: 1, t: "Half a note", m: longNote(300) });
+    win.history.replaceState(null, "", win.location.pathname + "#n=" + code.slice(0, Math.floor(code.length * 0.6)));
+    await win.openSharedFromHash();
+    ok($("#shareOverlay").classList.contains("open"), "a cut link still refused to open");
+    ok($("#shareCut") && $("#shareCut").style.display !== "none",
+      "the reader showed half a note without saying it was half");
+    has($("#shareBody").textContent, "Section 0", "the reader opened but showed nothing");
+    $("#shareOverlay").classList.remove("open");
+  });
+
+  atest("a whole link never claims to be cut", async () => {
+    const code = await win.sharePack({ v: 1, t: "All of it", m: "every word arrived\n" });
+    win.history.replaceState(null, "", win.location.pathname + "#n=" + code);
+    await win.openSharedFromHash();
+    eq($("#shareCut").style.display, "none", "a complete note was labelled as cut short");
+    $("#shareOverlay").classList.remove("open");
+  });
+
+  atest("a cut through a picture drops it and says so, instead of showing rubbish", async () => {
+    const c = doc.createElement("canvas"); c.width = 200; c.height = 140;
+    const g = c.getContext("2d");
+    for (let i = 0; i < 160; i++) { g.fillStyle = `hsl(${(i * 13) % 360},70%,55%)`; g.fillRect((i * 29) % 200, (i * 41) % 140, 18, 18); }
+    const md = "# Head\n\nBefore the picture.\n\n![shot](" + c.toDataURL("image/png") + ")\n\nAfter.\n";
+    const code = await win.sharePack({ v: 1, t: "With a picture", m: md });
+    const part = await win.__typewell.sharePartial(code.slice(0, Math.floor(code.length * 0.8)));
+    ok(part, "a note cut inside its picture gave back nothing");
+    has(part.m, "Before the picture", "the words before the picture were lost too");
+    has(part.m, "a picture was cut off", "the lost picture went missing in silence");
+    ok(!/!\s*$/.test(part.m), "a stray ! was left where the picture used to be");
+    eq((win.mdToHtml(part.m).match(/<img/g) || []).length, 0, "half a picture was handed to an <img>");
+  });
+
+  atest("a picture that arrived whole is kept whole", async () => {
+    const c = doc.createElement("canvas"); c.width = 40; c.height = 30;
+    const g = c.getContext("2d"); g.fillStyle = "#1a9"; g.fillRect(0, 0, 40, 30);
+    const md = "# Head\n\n![shot](" + c.toDataURL("image/png") + ")\n\n" + longNote(250);
+    const code = await win.sharePack({ v: 1, t: "Picture then prose", m: md });
+    const part = await win.__typewell.sharePartial(code.slice(0, Math.floor(code.length * 0.7)));
+    ok(part, "nothing came back");
+    eq((win.mdToHtml(part.m).match(/<img/g) || []).length, 1,
+      "a picture that arrived complete was thrown away with the cut one");
+  });
+
+  atest("a cut that lands before the note begins fails honestly", async () => {
+    const code = await win.sharePack({ v: 1, t: "Barely there", m: longNote(300) });
+    const part = await win.__typewell.sharePartial(code.slice(0, 12));
+    eq(part, null, "a stub of a link invented a note out of nothing");
+  });
+
+  test("a cut left in the middle of a code fence is closed off", () => {
+    const out = win.__typewell.tidyCutMarkdown("text\n\n```js\nconst a = 1;");
+    eq((out.match(/```/g) || []).length, 2, "the unclosed fence would swallow the rest of the note");
+  });
+
+  test("base64 is trimmed to a whole group of four before decoding", () => {
+    eq(win.__typewell.b64urlTrim("QUJDRGV").length, 4, "a part-group was left on the end");
+    eq(win.__typewell.b64urlTrim("QUJDRGVmZ2g"), "QUJDRGVm", "the trim took the wrong amount off");
+  });
+
+  atest("saving a cut note does not let it pass for the whole one", async () => {
+    const before = win.__typewell.notes().length;
+    const code = await win.sharePack({ v: 1, t: "Only some of it", m: longNote(300) });
+    win.history.replaceState(null, "", win.location.pathname + "#n=" + code.slice(0, Math.floor(code.length * 0.6)));
+    await win.openSharedFromHash();
+    $("#shareKeepBtn").click();
+    const saved = win.__typewell.notes()[0];
+    eq(win.__typewell.notes().length, before + 1, "the cut note was not saved at all");
+    has(saved.title, "(cut short)", "a half note was filed under the whole note's name");
+  });
+
   atest("a checkbox in someone else's note cannot be ticked", async () => {
     const code = await win.sharePack({ v: 1, t: "Theirs", m: "- [ ] not yours to tick\n" });
     win.history.replaceState(null, "", win.location.pathname + "#n=" + code);
