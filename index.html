@@ -197,6 +197,7 @@ body.zen #app,body.sb-closed #app{grid-template-columns:0 1fr}
 .btn.primary:hover{filter:brightness(1.07)}
 .btn.danger{color:var(--danger);border-color:color-mix(in srgb,var(--danger) 45%,transparent)}
 .btn.sm{height:27px;padding:0 10px;font-size:12px;border-radius:var(--r-sm)}
+.btn.on{background:var(--accent-soft);border-color:var(--accent);color:var(--accent)}
 a.btn{color:var(--ink);text-decoration:none}
 .btn:disabled{opacity:.45;cursor:not-allowed}
 .ibtn{
@@ -385,7 +386,10 @@ body.zen #topbar,body.zen #toolbar{display:none}
 
 /* ================= editor ================= */
 #editorWrap{flex:1;overflow-y:auto;display:flex;justify-content:center}
-#page{width:min(840px,100%);padding:30px 36px 130px}
+/* The one number that decides how wide you write. --page-w is set from
+   settings on boot; the 840px here is only what a browser sees before the
+   script runs, so a slow load does not flash a full-window page. */
+#page{width:min(var(--page-w,840px),100%);padding:30px 36px 130px}
 body.zen #page{padding-top:52px}
 #editor,#shareBody{
   outline:none;min-height:70vh;
@@ -564,6 +568,10 @@ body.zen #statusbar{opacity:.3}body.zen #statusbar:hover{opacity:1}
 }
 .m-body input:focus{border-color:var(--accent)}
 .btn-row{display:flex;gap:7px;flex-wrap:wrap;margin-top:9px}
+.w-custom{display:flex;align-items:center;gap:8px;margin-top:9px;font-size:12.5px;color:var(--muted)}
+.w-custom input{width:92px;height:30px;padding:0 8px;border-radius:var(--r-sm);border:1px solid var(--line);background:var(--bg);outline:none;font-size:13px;font-family:var(--font-mono)}
+.w-custom input:focus{border-color:var(--accent)}
+.w-custom input:disabled{opacity:.45;cursor:not-allowed}
 .section{border-top:1px solid var(--line-soft);margin-top:16px;padding-top:13px}
 .section h3{margin:0 0 3px;font-size:13.5px;display:flex;align-items:center;gap:8px}
 .chk{display:flex;align-items:center;gap:8px;font-size:13px;font-weight:500;cursor:pointer}
@@ -1019,6 +1027,13 @@ body.zen #zenExit{display:grid}
       </div>
 
       <div class="row">
+        <label>How wide the page is</label>
+        <div class="hint" style="margin-top:0">In <b>Settings</b>, under <b>Page width</b>: pick
+          Narrow, Normal or Wide, choose <b>Full width</b> to use the whole window however wide you
+          drag it, or type an exact number of pixels. It applies to every note and is remembered.</div>
+      </div>
+
+      <div class="row">
         <label>Exporting</label>
         <div class="hint" style="margin-top:0">Everything above survives a round trip through Markdown,
           including callouts, nested lists, highlights and embedded images. Two things do not:
@@ -1094,6 +1109,24 @@ body.zen #zenExit{display:grid}
         <button class="btn dd-wide" id="defaultFontSelect" title="Editor font"><span class="lbl">JetBrains Mono</span><svg class="ic" data-i="chevDown"></svg></button>
       </div>
 
+      <div class="row">
+        <label>Page width</label>
+        <div class="btn-row" id="pageWidthSeg" style="margin-top:0">
+          <button class="btn sm" data-w="640"  title="Narrow  640 px">Narrow</button>
+          <button class="btn sm" data-w="840"  title="Normal  840 px">Normal</button>
+          <button class="btn sm" data-w="1100" title="Wide  1100 px">Wide</button>
+          <button class="btn sm" data-w="full" title="Use the whole window, however wide it is">Full width</button>
+        </div>
+        <div class="w-custom">
+          <span>or exactly</span>
+          <input type="number" id="pageWidthNum" min="380" max="2400" step="10" title="Page width in pixels  380-2400">
+          <span>px wide</span>
+        </div>
+        <div class="hint">How wide the writing area is. <b>Full width</b> uses the whole window,
+          however wide you drag it. Very long lines are harder to read, which is where the
+          presets stop — but the box above takes any width you like.</div>
+      </div>
+
       <div class="section">
         <h3>Google Drive <span class="pill" id="drivePill">checking…</span></h3>
         <div class="hint">
@@ -1115,7 +1148,7 @@ body.zen #zenExit{display:grid}
         </div>
         <label class="chk" title="Back up automatically after you stop typing" style="margin-top:11px"><input type="checkbox" id="autoBackupChk"> Auto-back up ~45 s after I stop typing</label>
         <label class="chk" title="Ask Google for a fresh hour while you are still working" style="margin-top:7px"><input type="checkbox" id="driveKeepAliveChk" checked> Keep me signed in while I work</label>
-        <p class="hint" style="margin:6px 0 0">Google only gives a web app about an hour of access at a time, and gives it no way to extend that on its own. With this on, Typewell asks for the next hour a few minutes before the current one runs out, the first time you click or type after that — a Google window opens and shuts itself. With it off, you sign in again by hand when the footer says the sign-in expired.</p>
+        <p class="hint" style="margin:6px 0 0">Google gives a browser about an hour of access at a time. Staying signed in past that needs a server to hold the renewal key, and Typewell deliberately has none. So with this on, Typewell asks for the next hour a few minutes before the current one runs out, the first time you click or type after that — a Google window opens and shuts itself. With it off, you sign in again by hand when the footer says the sign-in expired.</p>
       </div>
 
       <div class="section">
@@ -1385,6 +1418,7 @@ const WELCOME_HTML=
 
 let settings={theme:DEFAULT_THEME,defaultFont:"JetBrains Mono",autoBackup:false,
   ghToken:"",gistId:"",driveFolderId:"",driveGranted:false,driveEmail:"",driveKeepAlive:true,
+  pageWidth:840,
   recentFore:[],recentHilite:[]};
 function loadState(){
   try{notes=JSON.parse(localStorage.getItem(LS_NOTES)||"[]")}catch(e){notes=[]}
@@ -1486,8 +1520,9 @@ function refreshBeacon(){
 function renderFoot(){
   const f=$("#sbFoot");
   if(drive.expired()){
-    /* Google gives a browser app about an hour and no way to extend it from a
-       closed tab. One honest line and one button beats a green dot that lies. */
+    /* Google gives a browser app about an hour, and nothing can renew it from
+       a closed tab without a server. One honest line and one button beats a
+       green dot that lies. */
     f.innerHTML=`<span class="beacon error"></span>
       <span class="grow">Google sign-in expired</span>
       <button class="btn sm" id="footReconnect" title="Sign in to Google again  (Google only gives a browser app about an hour)">Reconnect</button>`;
@@ -4187,14 +4222,28 @@ const drive={
       tc.requestAccessToken(settings.driveEmail?{hint:settings.driveEmail}:{});
     });
   },
-  /* Why a Drive link used to die overnight, in one sentence: Google's browser
-     flow hands out an access token that lasts about an hour, and there is no
-     refresh token in it at all - that is the platform, not a setting we forgot.
-     Nothing can make one token last a day. What CAN be done is ask for the
-     next one before the current one runs out, and only during a real click or
-     keystroke, because a popup outside a user gesture is blocked outright. For
-     anyone actually using the app the link then just stays up; for a tab left
-     closed for a week the footer says so and offers one button. */
+  /* Why a Drive link used to die overnight. Google's implicit ("token") flow
+     hands out an access token that lasts about an hour and carries no refresh
+     token. A refresh token is not unobtainable in general - Google's other
+     flow, the authorization code flow, issues one that lasts indefinitely -
+     but redeeming it needs a client secret, and Google's own comparison table
+     lists "requires backend platform: yes" for that flow. Typewell has no
+     backend by design, so the code flow is not open to it and this really is
+     the ceiling FOR A SERVERLESS APP, which is a narrower claim than "the
+     platform cannot do it".
+
+     What CAN be done is ask for the next token before the current one runs
+     out, and only during a real click or keystroke, because a popup outside a
+     user gesture is blocked outright. Note the popup is unavoidable: prompt
+     ""/"none" do not suppress it, they only change what happens inside it.
+     Hidden-iframe renewal is dead twice over - accounts.google.com refuses to
+     be framed, and third-party cookies are blocked anyway.
+
+     One more thing worth knowing, and it is a console setting rather than
+     code: while the OAuth consent screen sits in "Testing", Google expires the
+     grant after 7 DAYS and caps it at 100 named test users. Publishing to
+     production fixes both, and drive.file is non-sensitive so it costs no
+     security review. See docs/setup.md. */
   RENEW_LEAD:6*60*1000,
   renewing:false,renewBlockedUntil:0,
   renewable(){
@@ -4526,6 +4575,7 @@ function openOverlay(id){
     $("#ghToken").value=settings.ghToken;
     defFontDD.set(settings.defaultFont);
     $("#autoBackupChk").checked=settings.autoBackup;
+    syncPageWidthUI();
     syncSettingsUI();
     try{
       const used=new Blob([localStorage.getItem(LS_NOTES)||""]).size;
@@ -4565,6 +4615,51 @@ function setTheme(t){
 $$(".theme-dots").forEach(g=>g.addEventListener("click",e=>{
   const b=e.target.closest("[data-theme]");if(b)setTheme(b.dataset.theme);
 }));
+
+/* ---------- page width ----------
+   settings.pageWidth is either a number of pixels or the string "full". It
+   reaches the page as one custom property, --page-w, so nothing but #page has
+   to know about it - print already overrides the width outright, and zen only
+   ever touched the padding. */
+const PAGE_W_MIN=380,PAGE_W_MAX=2400,PAGE_W_DEF=840;
+function pageWidth(){
+  if(settings.pageWidth==="full")return "full";
+  const n=Math.round(Number(settings.pageWidth));
+  /* a hand-edited or half-typed value must not be able to collapse the page to
+     nothing, so anything unusable falls back to the default rather than through */
+  return Number.isFinite(n)&&n>0?Math.min(PAGE_W_MAX,Math.max(PAGE_W_MIN,n)):PAGE_W_DEF;
+}
+function applyPageWidth(){
+  const w=pageWidth();
+  document.documentElement.style.setProperty("--page-w",w==="full"?"100%":w+"px");
+  syncPageWidthUI();
+}
+function setPageWidth(v){settings.pageWidth=v;saveSettings();applyPageWidth();}
+function syncPageWidthUI(){
+  const w=pageWidth(),seg=$("#pageWidthSeg");
+  if(!seg)return;
+  $$("#pageWidthSeg .btn").forEach(b=>b.classList.toggle("on",
+    b.dataset.w==="full"?w==="full":Number(b.dataset.w)===w));
+  const inp=$("#pageWidthNum");
+  inp.disabled=(w==="full");
+  /* never yank the value out from under someone mid-keystroke */
+  if(document.activeElement!==inp)inp.value=(w==="full"?"":w);
+}
+$("#pageWidthSeg").addEventListener("click",e=>{
+  const b=e.target.closest("[data-w]");if(!b)return;
+  setPageWidth(b.dataset.w==="full"?"full":Number(b.dataset.w));
+});
+$("#pageWidthNum").addEventListener("input",e=>{
+  /* live, but only once what is typed is a width that could exist - otherwise
+     the first digit of "1100" would resize the page to 1px */
+  const n=Number(e.target.value);
+  if(Number.isFinite(n)&&n>=PAGE_W_MIN&&n<=PAGE_W_MAX)setPageWidth(Math.round(n));
+});
+$("#pageWidthNum").addEventListener("change",e=>{
+  const n=Math.round(Number(e.target.value));
+  setPageWidth(Number.isFinite(n)&&n>0?Math.min(PAGE_W_MAX,Math.max(PAGE_W_MIN,n)):PAGE_W_DEF);
+  e.target.value=pageWidth();
+});
 
 /* ---------- tabs / sidebar / zen ---------- */
 function setTab(t){tab=t;
@@ -4624,6 +4719,7 @@ window.addEventListener("blur",()=>document.body.classList.remove("mod-down"));
 try{document.execCommand("styleWithCSS",false,false);}catch(_){}
 loadState();
 setTheme(settings.theme||DEFAULT_THEME);
+applyPageWidth();
 fontDD.set(settings.defaultFont);
 pickFirst();
 refreshBeacon();
@@ -5322,7 +5418,8 @@ editor.addEventListener("keydown",e=>{
    `notes` is a getter and not the array itself: a drop rebuilds it rather than
    splicing, so a reference handed out once would be testing a dead copy. */
 window.__typewell={WELCOME_HTML,FONTS,BLOCKS,drive,LS_DTOK,settings,version:"2026-08-25",
-  notes:()=>notes,setNotes:v=>{notes=v;},LS_NOTES};
+  notes:()=>notes,setNotes:v=>{notes=v;},LS_NOTES,
+  pageWidth,setPageWidth};
 </script>
 </body>
 </html>

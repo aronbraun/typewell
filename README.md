@@ -52,6 +52,8 @@ file you can open in any editor.
   list into your own order.
 - **Four looks** — white, paper, dark, navy. Plus zen mode, find and replace,
   word counts, and a full set of keyboard shortcuts.
+- **Your page, your width** — narrow, normal, wide, the whole window, or an
+  exact number of pixels.
 - **Install it** from your browser's address bar and it runs in its own window,
   offline.
 - **Get your work out** as Markdown, HTML, plain text or PDF — or one JSON file
@@ -88,12 +90,14 @@ see files it made itself, never the rest of your Drive.
 and *Import backup* in the same menu brings them back.
 
 > [!NOTE]
-> Google only lets a web page stay signed in for **about an hour**, and gives it
-> no way to extend that on its own — that is Google's rule, not a setting
-> Typewell forgot. So Typewell quietly asks for the next hour a few minutes
-> before the current one runs out, the first time you click or type after that.
-> You can switch that off in Settings; then you sign in again by hand when the
-> footer says the sign-in expired.
+> Google hands a browser **about an hour** at a time. A sign-in that lasts
+> forever is possible, but only for an app with a **server** behind it to hold
+> the renewal key — Typewell has none, on purpose. So instead it quietly asks
+> for the next hour a few minutes before the current one runs out, the first
+> time you click or type after that. You can switch that off in Settings; then
+> you sign in again by hand when the footer says the sign-in expired.
+> [docs/setup.md](docs/setup.md) has the details, including the one console
+> setting that makes Drive drop out every 7 days if you get it wrong.
 
 ## The rest of the documentation
 

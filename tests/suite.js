@@ -1667,6 +1667,118 @@ export async function suite(win) {
     });
   });
 
+  /* ---- page width ----
+     One custom property, --page-w, decides how wide you write. The value is
+     either a number of pixels or "full", and the two ways to reach a bad one
+     are a hand-edited settings blob and a half-typed number in the box. */
+  const withPageWidth = (fn) => {
+    const T = win.__typewell;
+    const was = T.settings.pageWidth;
+    try { fn(T); } finally { T.setPageWidth(was); }
+  };
+
+  test("a chosen width reaches the page as a real pixel width", () => {
+    withPageWidth((T) => {
+      /* the rule is width:min(--page-w,100%), so a width only shows up in the
+         layout while it fits. The test frame is narrow, so pick a small one. */
+      T.setPageWidth(420);
+      eq(T.pageWidth(), 420);
+      eq(doc.documentElement.style.getPropertyValue("--page-w"), "420px");
+      eq(Math.round($("#page").getBoundingClientRect().width), 420,
+        "the page did not actually take the width it was given");
+    });
+  });
+
+  test("a width wider than the window is capped by the window, not overflowed", () => {
+    withPageWidth((T) => {
+      T.setPageWidth(2400);
+      const avail = $("#page").parentElement.getBoundingClientRect().width;
+      eq(Math.round($("#page").getBoundingClientRect().width), Math.round(avail),
+        "an oversized page would push a horizontal scrollbar onto the editor");
+    });
+  });
+
+  test("full width hands the page a percentage, not a number of pixels", () => {
+    withPageWidth((T) => {
+      T.setPageWidth("full");
+      eq(T.pageWidth(), "full");
+      eq(doc.documentElement.style.getPropertyValue("--page-w"), "100%");
+      /* min(100%,100%) is still the whole column - a stray px unit here would
+         silently pin full width to whatever number was there before */
+      ok($("#page").getBoundingClientRect().width >
+         $("#page").parentElement.getBoundingClientRect().width - 2,
+        "full width did not fill the editor column");
+    });
+  });
+
+  test("a nonsense saved width falls back instead of collapsing the page", () => {
+    withPageWidth((T) => {
+      for (const bad of [0, -900, "wide", null, undefined, NaN]) {
+        T.setPageWidth(bad);
+        eq(T.pageWidth(), 840, `pageWidth ${JSON.stringify(bad)} should fall back to 840`);
+      }
+    });
+  });
+
+  test("an extreme width is clamped, not obeyed", () => {
+    withPageWidth((T) => {
+      T.setPageWidth(99999); eq(T.pageWidth(), 2400);
+      T.setPageWidth(12);    eq(T.pageWidth(), 380);
+    });
+  });
+
+  test("the width survives being written to and read back from settings", () => {
+    withPageWidth((T) => {
+      T.setPageWidth(640);
+      const saved = JSON.parse(win.localStorage.getItem("typewell.settings.v1") || "{}");
+      eq(saved.pageWidth, 640, "the chosen width was not persisted");
+    });
+  });
+
+  test("choosing full width disables the exact-pixels box", () => {
+    withPageWidth((T) => {
+      T.setPageWidth("full");
+      eq($("#pageWidthNum").disabled, true);
+      eq($("#pageWidthNum").value, "", "a disabled box should not still show a number");
+      T.setPageWidth(840);
+      eq($("#pageWidthNum").disabled, false);
+      eq($("#pageWidthNum").value, "840");
+    });
+  });
+
+  test("the preset buttons show which one is in force", () => {
+    withPageWidth((T) => {
+      T.setPageWidth(640);
+      const on = [...$("#pageWidthSeg").querySelectorAll(".btn.on")].map((b) => b.dataset.w);
+      eq(on.join(","), "640", "exactly one preset should read as chosen");
+      /* a custom width matches no preset, and must not light one up anyway */
+      T.setPageWidth(777);
+      eq($("#pageWidthSeg").querySelectorAll(".btn.on").length, 0);
+    });
+  });
+
+  test("clicking a preset button actually changes the page", () => {
+    withPageWidth((T) => {
+      T.setPageWidth(840);
+      const b = $('#pageWidthSeg [data-w="1100"]');
+      mouse(b, "click");
+      eq(T.pageWidth(), 1100, "the click did not reach setPageWidth");
+    });
+  });
+
+  test("printing ignores the chosen width", () => {
+    /* @media print sets #page{width:100%} outright. If that rule ever loses to
+       the variable, a narrow page prints narrow and wastes most of the sheet. */
+    const css = [...doc.styleSheets]
+      .flatMap((sh) => { try { return [...sh.cssRules]; } catch (_) { return []; } })
+      .filter((r) => r.media && String(r.media).includes("print"))
+      .flatMap((r) => [...r.cssRules])
+      .map((r) => r.cssText).join(" ");
+    has(css, "#page", "the print block no longer mentions #page");
+    ok(/#page[^{]*\{[^}]*width:\s*100%/.test(css),
+      "print must pin #page to the full sheet regardless of --page-w");
+  });
+
   for (const run of pending) await run();
   return results;
 }

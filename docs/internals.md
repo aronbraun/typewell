@@ -38,9 +38,27 @@ picture only change how it is displayed, not how much it weighs.
 
 ## The Google sign-in, and why it runs out
 
-Google's browser sign-in hands out an access token that lasts about an hour, and
-**there is no refresh token in that flow at all**. Nothing can make one token
-last a day; that is the platform, not a missing setting.
+Google's browser sign-in (the *implicit*, or "token", flow) hands out an access
+token that lasts about an hour, and **there is no refresh token in that flow at
+all**.
+
+Be careful how strongly you state that. Google's other flow — the
+*authorization code* flow — does issue a refresh token, and that one lasts
+indefinitely. Redeeming it needs a client secret, and Google's own
+[flow comparison](https://developers.google.com/identity/oauth2/web/guides/choose-authorization-model)
+marks it "Requires backend platform: **Yes**". So the honest claim is not
+"browsers cannot do this" but "an app with **no server** cannot do this".
+Typewell has no server on purpose, which is what puts it on the hour clock.
+
+Two silent-renewal tricks that look like escapes and are not:
+
+- **Hidden iframe with `prompt=none`.** `accounts.google.com` sends
+  `X-Frame-Options`, so it refuses to render in a frame at all; and blocked
+  third-party cookies would break it even if it did.
+- **`prompt: "none"` on the token client.** The reference says it shows no
+  screens, but the library opens a popup regardless — `prompt` only changes
+  what happens *inside* the popup. That is why the renewal has to ride a user
+  gesture.
 
 What can be done is ask for the next hour before the current one runs out — and
 only during a real click or keystroke, because a browser blocks a popup that no

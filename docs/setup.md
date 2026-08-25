@@ -41,6 +41,46 @@ workflow fill it in — see below. With no ID at all, the app runs perfectly wel
 and the Drive panel simply reads *not configured*, which is why opening
 `index.html` straight off disk always works.
 
+### Publish the consent screen, or Drive dies every 7 days
+
+This is the setting people get wrong, and it does not look like a bug — it looks
+like Typewell losing the sign-in every week.
+
+In the console, *APIs & Services* → *OAuth consent screen* has a **publishing
+status**. While it says **Testing**:
+
+- Google **expires the permission after exactly 7 days**, so every user has to
+  allow Drive again, over and over.
+- Only the **100 accounts you list by hand** as test users can connect at all.
+  Everyone else is refused.
+
+Set the status to **In production**. Typewell asks for
+[`drive.file`](https://developers.google.com/workspace/drive/api/guides/api-specific-auth)
+and nothing else, and Google classifies that scope as **non-sensitive** — so
+this costs no security review, no CASA audit and no demonstration video, only
+the automatic brand check. Both limits disappear.
+
+Google's own page on this is
+[Using OAuth 2.0 to Access Google APIs](https://developers.google.com/identity/protocols/oauth2),
+under *Refresh token expiration*.
+
+### Even published, an hour is the ceiling — because there is no server
+
+Do not read the 7-day fix as a promise of a permanent sign-in. Once published,
+the grant stops expiring, but the **access token** still lasts about an hour.
+
+Google has two flows.
+[Its own comparison table](https://developers.google.com/identity/oauth2/web/guides/choose-authorization-model)
+says the *implicit* flow (what Typewell uses) issues **no refresh token** and
+needs a user gesture for each new token, while the *authorization code* flow
+does issue a refresh token — and **requires a backend platform**. Redeeming that
+token needs a client secret, which a single public HTML file cannot hold.
+
+So a permanently connected Typewell is possible, but only by giving it a small
+server. That is the trade, stated plainly. Everything in
+[docs/internals.md](internals.md) about the quiet renewal is what is left once
+you refuse that trade.
+
 ### That client ID is not a secret
 
 An OAuth client ID is **public by design**. It ships to every visitor of every
