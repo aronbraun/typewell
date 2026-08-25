@@ -55,6 +55,18 @@ Sits row writes the moment you pick a placement yourself. Without this, a
 thumbnail on a full-width page sits an arm's length from the sentence it
 illustrates.
 
+**A picture may never be a flex item.** A task row is a flex container — the
+checkbox is one item, the words in `.task-text` are another, and `.task-text` is
+greedy. A flex container turns each of its own children into a block,
+`inline-block` included, so a picture dropped straight into a task row stopped
+being part of the sentence and became a third column, shoved to the far edge by
+the words beside it. No stylesheet fixes that from the picture's side; the
+picture has to be *inside* the words rather than next to them. `homeTaskImages()`
+moves it there — on open, after a paste, after an insert, and whenever anything
+sets `data-a="inline"`. A row with no `.task-text` at all (an old note, or one a
+paste built by hand) gets one built around everything except the checkbox and any
+nested list.
+
 A caret directly before or after a picture also gets `#caretMark`, a bar the
 height of the picture on the side the caret is on — a text caret drawn flush
 against a picture's edge is close to invisible.

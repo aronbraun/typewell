@@ -1801,6 +1801,8 @@ function openNote(id){
      press, so you pile up empty quotes with no way back to plain text. Normalise
      on open, while nothing is focused and there is no caret to disturb. */
   editor.querySelectorAll("blockquote").forEach(blockifyQuote);
+  /* notes written before images knew to stay out of a flex row */
+  homeTaskImages(editor);
   editor.style.fontFamily=`"${settings.defaultFont}",monospace`;
   $("#editStamp").textContent="edited "+fmtDate(n.updated);
   histReset();
@@ -2626,7 +2628,11 @@ async function insertImageFile(f){
        fact and open the frame on it: a picture you just inserted is a picture
        you are about to want somewhere else. */
     const im=[...editor.querySelectorAll("img")].find(x=>x.src===rd.result&&!x.dataset.a);
-    if(im){im.dataset.a="left";im.alt=im.alt||f.name.replace(/\.[^.]+$/,"");selectImg(im);}
+    if(im){
+      im.dataset.a="left";im.alt=im.alt||f.name.replace(/\.[^.]+$/,"");
+      homeTaskImages(editor);   /* before the frame is drawn, so it is drawn in the right place */
+      selectImg(im);
+    }
     scheduleSave();
   };
   rd.readAsDataURL(f);
@@ -2723,6 +2729,40 @@ function imgIsSelected(im){
    moves it into the run of the text, and growing it back moves it out again.
    Only ever for pictures whose placement you have not picked yourself - one
    click on the Sits row and this stops second-guessing you, permanently. */
+/* ---------- an image may not be a flex item ----------
+   A task row is a flex container: the checkbox is one item and the words are
+   another, and .task-text is greedy so it takes every spare pixel. A flex
+   container turns each of its own children into a block - inline-block
+   included - so an image dropped straight into a task row stopped being part
+   of the sentence and became a third column, shoved out to the far edge by the
+   words beside it. No stylesheet can undo that from the image's side: the
+   image has to be *inside* the words rather than next to them. So it gets
+   moved there, which is where a person putting a picture in a line of text
+   meant it to go anyway. */
+function homeTaskImages(root){
+  let moved=false;
+  root.querySelectorAll("ul.tasks > li > img").forEach(im=>{
+    const li=im.parentElement;
+    let txt=li.querySelector(":scope > .task-text");
+    if(!txt){
+      /* an older row, or one a paste built by hand, with no span at all */
+      txt=document.createElement("span");txt.className="task-text";
+      [...li.childNodes].forEach(n=>{
+        /* the checkbox stays a flex item - it is the one thing that should be
+           a column - and a nested list is a block in its own right */
+        if(n.nodeType===1&&(n.matches('input[type="checkbox"]')||n.matches("ul,ol")))return;
+        txt.appendChild(n);
+      });
+      li.insertBefore(txt,li.querySelector(":scope > ul,:scope > ol"));
+    }else if(im.compareDocumentPosition(txt)&Node.DOCUMENT_POSITION_FOLLOWING){
+      txt.insertBefore(im,txt.firstChild);   /* it was ahead of the words */
+    }else{
+      txt.appendChild(im);
+    }
+    moved=true;
+  });
+  return moved;
+}
 const IMG_INLINE_AT=0.30;
 function autoPlaceImg(im){
   if(im.dataset.fit==="fixed")return;
@@ -2730,7 +2770,7 @@ function autoPlaceImg(im){
   const w=im.getBoundingClientRect().width,host=imgHostWidth(im);
   if(!w||!host)return;
   const small=w/host<=IMG_INLINE_AT;
-  if(small&&a!=="inline")im.dataset.a="inline";
+  if(small&&a!=="inline"){im.dataset.a="inline";homeTaskImages(editor);}
   else if(!small&&a==="inline")im.dataset.a="left";
 }
 function clearImgSel(){
@@ -2817,6 +2857,9 @@ imgTools.addEventListener("click",async e=>{
     selImg.dataset.a=b.dataset.a;
     /* you picked it, so autoPlaceImg keeps its hands off from here on */
     selImg.dataset.fit="fixed";
+    /* "Inline" has to mean inline even in a task row, where it would otherwise
+       be quietly turned back into a block by the row's own layout */
+    if(b.dataset.a==="inline")homeTaskImages(editor);
     /* an inline picture the height of a paragraph is the point of inline; a
        full-width one is not, so the first switch to inline offers a size */
     if(b.dataset.a==="inline"&&!selImg.style.width)selImg.style.width="25%";
@@ -2964,6 +3007,10 @@ editor.addEventListener("cut",e=>{
   histPush();
   document.execCommand("delete");
   scheduleSave();updateCounts();
+});
+/* after the browser has finished its own paste, whatever it built */
+editor.addEventListener("paste",()=>{
+  setTimeout(()=>{ if(homeTaskImages(editor))scheduleSave(); },0);
 });
 editor.addEventListener("paste",e=>{
   const f=[...(e.clipboardData?.files||[])].find(x=>x.type.startsWith("image/"));
@@ -5633,6 +5680,7 @@ editor.addEventListener("keydown",e=>{
 window.__typewell={WELCOME_HTML,FONTS,BLOCKS,drive,LS_DTOK,settings,version:"2026-08-25",
   notes:()=>notes,setNotes:v=>{notes=v;},LS_NOTES,
   pageWidth,setPageWidth,LS_LAST,openLastNote,shareMarkdown,shrinkForShare,SHARE_MAX,
+  homeTaskImages,
   selectImg,clearImgSel,imgIsSelected,autoPlaceImg,caretAtImg,placeCaretMark,
   IMG_INLINE_AT,selImg:()=>selImg};
 </script>

@@ -1665,6 +1665,61 @@ export async function suite(win) {
     });
   });
 
+  /* ── a picture may not be a flex item ──
+     A task row is a flex container, and a flex container turns every child of
+     its own into a block - inline-block included. So a picture dropped into a
+     task row stopped being part of the sentence and became a third column,
+     shoved to the far edge by the greedy .task-text beside it. "Inline" could
+     not mean inline there, whatever the bar said. */
+  const TASKIMG = `<ul class="tasks"><li><input type="checkbox"><span class="task-text">some words</span><img src="${PX}" alt="x" data-a="inline"></li></ul>`;
+
+  test("a picture beside a task row's words is moved into them", () => {
+    setHTML(TASKIMG);
+    const im = ed.querySelector("img");
+    eq(win.getComputedStyle(im).display, "block",
+      "this check is testing nothing — the row is no longer a flex container");
+    ok(win.__typewell.homeTaskImages(ed), "the stray picture was not picked up");
+    ok(im.closest(".task-text"), "the picture is still a column of its own beside the words");
+    eq(win.getComputedStyle(im).display, "inline-block",
+      "the picture is inside the words and still not inline");
+  });
+
+  test("a task row with no text span at all still gets one", () => {
+    setHTML(`<ul class="tasks"><li><input type="checkbox">bare words<img src="${PX}" alt="x"></li></ul>`);
+    win.__typewell.homeTaskImages(ed);
+    const txt = ed.querySelector(".task-text");
+    ok(txt, "no span was made for a row that never had one");
+    ok(txt.querySelector("img"), "the picture was left outside the span that was just made for it");
+    has(txt.textContent, "bare words", "the row's own words were left behind");
+    ok(ed.querySelector('li > input[type="checkbox"]'), "the checkbox was swept into the words with everything else");
+  });
+
+  test("collecting a row's words does not swallow the list nested under it", () => {
+    setHTML(`<ul class="tasks"><li><input type="checkbox">outer<img src="${PX}" alt="x">`
+      + `<ul class="tasks"><li><input type="checkbox"><span class="task-text">inner</span></li></ul></li></ul>`);
+    win.__typewell.homeTaskImages(ed);
+    const outer = ed.querySelector("li");
+    ok(outer.querySelector(":scope > ul.tasks"), "the nested list was pulled inside the words");
+    ok(outer.querySelector(":scope > .task-text > img"), "the picture never made it into the words");
+  });
+
+  test("pressing Inline on a picture in a task row really makes it inline", () => {
+    setHTML(TASKIMG);
+    const im = ed.querySelector("img");
+    mouse(im, "click");
+    const b = $('#imgTools button[data-a="inline"]');
+    mouse(b, "mousedown"); mouse(b, "click");
+    ok(im.closest(".task-text"), "Inline left the picture sitting beside the words");
+    eq(win.getComputedStyle(im).display, "inline-block", "Inline did not make it inline");
+    win.clearImgSel();
+  });
+
+  test("a picture already inside the words is left exactly where it is", () => {
+    setHTML(`<ul class="tasks"><li><input type="checkbox"><span class="task-text">a <img src="${PX}" alt="x"> b</span></li></ul>`);
+    eq(win.__typewell.homeTaskImages(ed), false, "a picture that was already home was moved anyway");
+    eq(ed.querySelector(".task-text").textContent, "a  b", "the words around the picture were rearranged");
+  });
+
   test("a picture's size and placement survive the trip out to Markdown and back", () => {
     setHTML(`<p><img src="${PX}" alt="cat" style="width:40%" data-a="center"></p>`);
     const md = win.htmlToMd(ed);

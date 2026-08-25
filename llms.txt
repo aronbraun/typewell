@@ -21,7 +21,7 @@ Works offline once loaded. Source: https://github.com/aronbraun/typewell
 - Tables, code blocks, blockquotes, callouts, links, horizontal rules
 - Images you can resize by dragging, and place inline, left, centred, right, or
   with the text wrapping around them; a small one moves inline by itself unless
-  you have picked a placement for it
+  you have picked a placement for it, checklist rows included
 - Multiple notes, search, word and character counts, caret position
 - Four themes: white, paper (default), dark, navy
 - Adjustable page width: narrow, normal, wide, full width, or an exact
