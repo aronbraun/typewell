@@ -170,7 +170,7 @@ information to be sent to or stored. Specifically, Typewell does <strong>not</st
 <table>
   <tr><th>Key</th><th>Contents</th></tr>
   <tr><td><code>typewell.notes.v1</code></td><td>Your notes: titles, contents and timestamps.</td></tr>
-  <tr><td><code>typewell.settings.v1</code></td><td>Preferences — theme, default font, auto-backup, plus the backup identifiers described below.</td></tr>
+  <tr><td><code>typewell.settings.v1</code></td><td>Preferences — theme, default font, auto-backup, plus the backup identifiers described below. If you connect Drive, this also holds the e-mail address of the Google account you connected, which is used to label the connection in Settings and to tell Google which account to renew the sign-in for.</td></tr>
   <tr><td><code>typewell.drive.v1</code></td><td>Only if you connect Drive: which Drive file corresponds to which note, and when each was last synced. No note contents.</td></tr>
   <tr><td><code>typewell.drive.token.v1</code></td><td>Only if you connect Drive: the current Google access token and the time it expires, so that syncing after a reload does not have to reopen the Google sign-in window. It is removed when it expires and when you disconnect.</td></tr>
 </table>
@@ -198,6 +198,20 @@ revoke it at any time from your
 <a href="https://myaccount.google.com/permissions" target="_blank" rel="noopener">Google account
 permissions</a> page. Data handled by Google under your own account is governed by
 <a href="https://policies.google.com/privacy" target="_blank" rel="noopener">Google's Privacy Policy</a>.</p>
+
+<h3 id="sharing">Sharing a note by link</h3>
+<p><em>Share a link</em> makes a read-only link to one note. The note itself is compressed and
+placed in the part of the web address after the <code>#</code>, which browsers never send to any
+server. Nothing is uploaded, no copy is stored anywhere, and typewell.net receives nothing —
+neither the note nor the fact that you made a link at all. The same is true when someone opens
+one: the note is unpacked from the address in their own browser.</p>
+<div class="note">
+  <p><strong>Worth knowing:</strong> because the link <em>is</em> the note, anyone who obtains the
+  link can read that note. There is no password on it, no expiry, and no way to withdraw it once
+  sent — deleting the note in Typewell does not affect a link already shared. Wherever you send it
+  (e-mail, a chat app, a message) that service handles the link, and therefore the note, under its
+  own privacy policy. Treat a share link the way you would treat handing someone a photocopy.</p>
+</div>
 
 <h3>GitHub Gist</h3>
 <p>If you supply a GitHub personal access token, Typewell writes a single JSON backup file to a

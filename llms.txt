@@ -19,9 +19,13 @@ Works offline once loaded. Source: https://github.com/aronbraun/typewell
 - Headings, bold/italic/underline, text and highlight colours, font size and family
 - Bulleted, numbered and task lists, with drag handles and nesting
 - Tables, code blocks, blockquotes, callouts, links, horizontal rules
+- Images you can resize by dragging, and place inline, left, centred, right, or
+  with the text wrapping around them
 - Multiple notes, search, word and character counts, caret position
 - Four themes: white, paper (default), dark, navy
 - Export and import as Markdown or HTML
+- Share one note as a read-only link: the note is compressed into the URL
+  fragment, so nothing is uploaded and no server ever sees it
 - Optional sync: a folder of .md files in your Google Drive (drive.file scope
   only — it can only see files it created), or a secret Gist
 

@@ -14,7 +14,7 @@
  *   tests/index.html in a browser — open it, read the list
  *   node tests/run.mjs          — headless Chrome over CDP, exit code 1 on red
  */
-export function suite(win) {
+export async function suite(win) {
   const doc = win.document;
   const $ = (s) => doc.querySelector(s);
   const ed = $("#editor");
@@ -30,6 +30,13 @@ export function suite(win) {
     try { fn(); results.push({ name, pass: true }); }
     catch (e) { results.push({ name, pass: false, error: e.message }); }
   };
+  /* Sharing packs a note through CompressionStream, which is a promise all the
+     way down. One await per async check, run in order after the sync ones, so
+     nothing races the editor two checks are both writing to. */
+  const pending = [];
+  const atest = (name, fn) => pending.push(() => fn()
+    .then(() => results.push({ name, pass: true }))
+    .catch((e) => results.push({ name, pass: false, error: e.message })));
 
   /* ---- driving the app the way a person does ---- */
   const setHTML = (html) => { ed.innerHTML = html; ed.focus(); };
@@ -1477,5 +1484,189 @@ export function suite(win) {
     });
   });
 
+  /* ═════════ pictures ═════════
+     A picture used to be inline, like every <img> in HTML is by default. Drop a
+     wide one into a list item and the item's own words were squeezed into a
+     column one letter across, down the side of it. That is the bug these guard. */
+  const PX = "data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7";
+  const withImg = (html, fn) => {
+    setHTML(html);
+    const im = ed.querySelector("img");
+    try { fn(im); } finally { win.clearImgSel(); }
+  };
+
+  test("a picture in a line of text does not shred the line", () => {
+    withImg(`<ul class="tasks"><li><input type="checkbox"><span>some words that need a whole line to themselves</span><img src="${PX}" alt="x"></span></li></ul>`, (im) => {
+      eq(win.getComputedStyle(im).display, "block",
+        "the picture is inline again, so the text beside it is one letter wide");
+    });
+  });
+
+  test("clicking a picture puts the frame round it", () => {
+    withImg(`<p><img src="${PX}" alt="x"></p>`, (im) => {
+      mouse(im, "click");
+      ok(im.classList.contains("img-sel"), "the picture was clicked and nothing was selected");
+      eq($("#imgTools").style.display, "block", "the handles never appeared");
+      ok(im.dataset.a, "a selected picture has no placement to show in the bar");
+    });
+  });
+
+  test("the placement bar writes a placement the stylesheet actually knows", () => {
+    withImg(`<p><img src="${PX}" alt="x"></p>`, (im) => {
+      mouse(im, "click");
+      for (const a of ["inline", "center", "right", "wrap-left", "wrap-right", "left"]) {
+        const b = $(`#imgTools button[data-a="${a}"]`);
+        mouse(b, "mousedown"); mouse(b, "click");
+        eq(im.dataset.a, a);
+        ok(b.classList.contains("on"), `the bar does not show ${a} as the current one`);
+      }
+      im.dataset.a = "wrap-right";
+      eq(win.getComputedStyle(im).cssFloat, "right", "wrap-right does not actually float");
+    });
+  });
+
+  test("a size button sets a percentage and Original takes it off again", () => {
+    withImg(`<p><img src="${PX}" alt="x"></p>`, (im) => {
+      mouse(im, "click");
+      const hit = (w) => { const b = $(`#imgTools button[data-w="${w}"]`); mouse(b, "mousedown"); mouse(b, "click"); };
+      hit(50); eq(im.style.width, "50%");
+      hit(0);  eq(im.style.width, "", "Original left an inline width behind");
+    });
+  });
+
+  test("Delete removes the picture the frame is on, and nothing else", () => {
+    withImg(`<p>keep me</p><p><img src="${PX}" alt="x"></p>`, (im) => {
+      mouse(im, "click");
+      press(ed, "Delete", { key: "Delete" });
+      eq(ed.querySelectorAll("img").length, 0, "the picture survived Delete");
+      has(ed.textContent, "keep me", "Delete took the words with it");
+    });
+  });
+
+  test("a picture's size and placement survive the trip out to Markdown and back", () => {
+    setHTML(`<p><img src="${PX}" alt="cat" style="width:40%" data-a="center"></p>`);
+    const md = win.htmlToMd(ed);
+    has(md, 'w=40% a=center', "the size and placement were never written down");
+    const box = doc.createElement("div");
+    box.innerHTML = win.mdToHtml(md);
+    const back = box.querySelector("img");
+    eq(back.style.width, "40%", "the picture came back full width");
+    eq(back.dataset.a, "center", "the picture came back in the wrong place");
+    eq(back.alt, "cat");
+  });
+
+  test("a plain picture writes no title and comes back plain", () => {
+    setHTML(`<p><img src="${PX}" alt="x"></p>`);
+    const md = win.htmlToMd(ed);
+    ok(!/"/.test(md), "a picture with nothing to say still wrote a title into the Markdown");
+  });
+
+  /* ═════════ what markdown is allowed to build ═════════
+     Markdown has no tag for a script, but it does have [text](url), and a note
+     can now arrive from a link somebody sent. */
+  test("a link that would run code arrives as words, not as a link", () => {
+    const box = doc.createElement("div");
+    box.innerHTML = win.mdToHtml("[click me](javascript:alert(1))");
+    const a = box.querySelector("a");
+    ok(a, "the text of the link was thrown away with it");
+    ok(!a.getAttribute("href"), "javascript: survived into an href");
+  });
+
+  test("an attribute smuggled through a picture address is dropped", () => {
+    const box = doc.createElement("div");
+    box.innerHTML = win.mdToHtml('![x](y"onerror="alert(1))');
+    ok(!/onerror/i.test(box.innerHTML), "an event handler came through the image syntax");
+  });
+
+  test("the scrub does not eat the things notes are made of", () => {
+    const box = doc.createElement("div");
+    box.innerHTML = win.mdToHtml("> [!tip]\n> careful\n\n- [x] done\n\n| a | b |\n| --- | --- |\n| 1 | 2 |\n\n```js\ncode\n```\n");
+    ok(box.querySelector('blockquote[data-alert="tip"]'), "callouts were scrubbed away");
+    ok(box.querySelector('ul.tasks input[type="checkbox"][checked]'), "task checkboxes were scrubbed away");
+    ok(box.querySelector("table td"), "tables were scrubbed away");
+    ok(box.querySelector('pre[data-lang="js"]'), "the code block lost its language");
+  });
+
+  /* ═════════ sharing a note as a link ═════════ */
+  atest("a note packed into a link comes back the same note", async () => {
+    const md = "# Hi\n\n- [ ] milk\n\n> [!tip]\n> careful\n";
+    const code = await win.sharePack({ v: 1, t: "Shopping", m: md });
+    ok(!/[^A-Za-z0-9_-]/.test(code), "the link body has characters a URL cannot carry");
+    const back = await win.shareUnpack(code);
+    eq(back.t, "Shopping");
+    eq(back.m, md, "the note came back changed");
+  });
+
+  atest("opening a shared link shows it without touching your own notes", async () => {
+    const before = win.__typewell.notes().length;
+    const code = await win.sharePack({ v: 1, t: "From a friend", m: "hello there\n" });
+    win.history.replaceState(null, "", win.location.pathname + "#n=" + code);
+    await win.openSharedFromHash();
+    ok($("#shareOverlay").classList.contains("open"), "the shared note never opened");
+    eq($("#shareTitle").textContent, "From a friend");
+    has($("#shareBody").innerHTML, "hello there");
+    eq(win.__typewell.notes().length, before, "reading someone's link added a note by itself");
+    eq(win.location.hash, "", "the whole note was left sitting in the address bar");
+    $("#shareOverlay").classList.remove("open");
+  });
+
+  atest("a shared link that arrived cut short says so instead of throwing", async () => {
+    win.history.replaceState(null, "", win.location.pathname + "#n=gNOTREALLYGZIP");
+    await win.openSharedFromHash();
+    ok(!$("#shareOverlay").classList.contains("open"), "a broken link opened an empty reader");
+  });
+
+  atest("a checkbox in someone else's note cannot be ticked", async () => {
+    const code = await win.sharePack({ v: 1, t: "Theirs", m: "- [ ] not yours to tick\n" });
+    win.history.replaceState(null, "", win.location.pathname + "#n=" + code);
+    await win.openSharedFromHash();
+    const cb = $("#shareBody input[type=checkbox]");
+    ok(cb && cb.disabled, "the reader's checkboxes are live");
+    $("#shareOverlay").classList.remove("open");
+  });
+
+  /* ═════════ the Drive sign-in running out ═════════
+     Google gives a browser app about an hour and no refresh token at all, so
+     the only two honest behaviours are to say so, and to ask again early while
+     someone is still clicking. */
+  test("a sign-in that has run out reports itself instead of looking healthy", () => {
+    withToken((drive) => {
+      drive.linked = true; drive.token = "tok"; drive.tokenExp = Date.now() + 60000;
+      ok(!drive.expired(), "a live token was reported as expired");
+      drive.tokenExp = Date.now() - 1;
+      ok(drive.expired(), "a dead token still reports as connected");
+      drive.linked = false;
+      ok(!drive.expired(), "never linked at all, yet reported as expired");
+    });
+  });
+
+  test("turning off keep-me-signed-in means no window ever opens on its own", () => {
+    withToken((drive) => {
+      const { settings } = win.__typewell;
+      const was = settings.driveKeepAlive;
+      try {
+        drive.linked = true;
+        settings.driveKeepAlive = false;
+        eq(drive.renewable(), false,
+          "the switch is off and it would still open a Google window");
+      } finally { settings.driveKeepAlive = was; }
+      /* a yes/no, not "the client ID happened to be truthy" - this returned the
+         empty client-ID string once, which is falsy but is not false */
+      eq(typeof drive.renewable(), "boolean");
+    });
+  });
+
+  test("a refused renewal backs off instead of reopening on every click", () => {
+    withToken((drive) => {
+      const was = drive.renewBlockedUntil;
+      try {
+        drive.linked = true;
+        drive.renewBlockedUntil = Date.now() + 60000;
+        ok(!drive.renewable(), "a refused sign-in would be asked for again immediately");
+      } finally { drive.renewBlockedUntil = was; }
+    });
+  });
+
+  for (const run of pending) await run();
   return results;
 }

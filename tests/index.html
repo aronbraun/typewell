@@ -66,11 +66,14 @@ function render(results) {
   window.__RESULTS__ = results;          /* what tests/run.mjs polls for */
 }
 
-function run() {
+/* async because a few checks are: sharing packs a note through
+   CompressionStream. run.mjs polls window.__RESULTS__, which render() sets, so
+   it simply sees the results a moment later than it used to. */
+async function run() {
   sum.textContent = "running…";
   let results;
   try {
-    results = suite(frame.contentWindow);
+    results = await suite(frame.contentWindow);
   } catch (e) {
     results = [{ name: "suite crashed before it could run", pass: false, error: e.stack || e.message }];
   }

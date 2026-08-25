@@ -387,35 +387,42 @@ body.zen #topbar,body.zen #toolbar{display:none}
 #editorWrap{flex:1;overflow-y:auto;display:flex;justify-content:center}
 #page{width:min(840px,100%);padding:30px 36px 130px}
 body.zen #page{padding-top:52px}
-#editor{
+#editor,#shareBody{
   outline:none;min-height:70vh;
   font-family:var(--font-mono);font-size:14px;line-height:1.75;word-wrap:break-word;
 }
+/* The reader borrows every rule the editor has - the selectors above carry two
+   names each for exactly that reason - and then takes back the two that only
+   make sense for a full page you are writing on. */
+#shareBody{min-height:0;max-height:52vh;overflow-y:auto;padding-right:4px}
+#shareBody img{cursor:default}
+#shareOverlay .modal{width:min(760px,100%)}
+#shareOverlay .m-head .pill{flex:none}
 /* JetBrains Mono ships with programming ligatures enabled: "---" fuses into one
    long dash and "***" into a single glyph, so typing the third character looks
    like it swallowed the first. Fine in code, wrong in prose, and actively
    confusing when those exact sequences are markdown triggers you have to see. */
-#editor,#editor pre,#editor code,code,kbd,.tsel,.size-ctl span{
+#editor,#shareBody,#editor pre,#shareBody pre,#editor code,#shareBody code,code,kbd,.tsel,.size-ctl span{
   font-variant-ligatures:none;font-feature-settings:"liga" 0,"calt" 0;
 }
-#editor:empty::before{content:attr(data-ph);color:var(--faint);pointer-events:none}
-#editor h1{font-size:1.65em;line-height:1.25;margin:.85em 0 .3em;font-family:var(--font-ui)}
-#editor h2{font-size:1.35em;line-height:1.3;margin:.85em 0 .28em;font-family:var(--font-ui)}
-#editor h3{font-size:1.15em;margin:.75em 0 .22em;font-family:var(--font-ui)}
-#editor h4{font-size:1.05em;margin:.7em 0 .2em;font-family:var(--font-ui)}
-#editor h5{font-size:1em;margin:.7em 0 .2em;font-family:var(--font-ui)}
-#editor h6{font-size:1em;margin:.7em 0 .2em;font-family:var(--font-ui);color:var(--muted)}
-#editor mark{background:color-mix(in srgb,var(--gold) 30%,transparent);color:inherit;border-radius:3px;padding:.02em .18em}
-#editor p{margin:.32em 0}
-#editor>:first-child{margin-top:0}
-#editor>:last-child{margin-bottom:0}
-#editor blockquote{margin:.55em 0;padding:.28em 1em;border-left:3px solid var(--accent);background:var(--accent-soft);border-radius:0 var(--r-sm) var(--r-sm) 0}
+#editor:empty::before,#shareBody:empty::before{content:attr(data-ph);color:var(--faint);pointer-events:none}
+#editor h1,#shareBody h1{font-size:1.65em;line-height:1.25;margin:.85em 0 .3em;font-family:var(--font-ui)}
+#editor h2,#shareBody h2{font-size:1.35em;line-height:1.3;margin:.85em 0 .28em;font-family:var(--font-ui)}
+#editor h3,#shareBody h3{font-size:1.15em;margin:.75em 0 .22em;font-family:var(--font-ui)}
+#editor h4,#shareBody h4{font-size:1.05em;margin:.7em 0 .2em;font-family:var(--font-ui)}
+#editor h5,#shareBody h5{font-size:1em;margin:.7em 0 .2em;font-family:var(--font-ui)}
+#editor h6,#shareBody h6{font-size:1em;margin:.7em 0 .2em;font-family:var(--font-ui);color:var(--muted)}
+#editor mark,#shareBody mark{background:color-mix(in srgb,var(--gold) 30%,transparent);color:inherit;border-radius:3px;padding:.02em .18em}
+#editor p,#shareBody p{margin:.32em 0}
+#editor>:first-child,#shareBody>:first-child{margin-top:0}
+#editor>:last-child,#shareBody>:last-child{margin-bottom:0}
+#editor blockquote,#shareBody blockquote{margin:.55em 0;padding:.28em 1em;border-left:3px solid var(--accent);background:var(--accent-soft);border-radius:0 var(--r-sm) var(--r-sm) 0}
 /* ---------- callouts / GitHub-style alerts ----------
    The label and the glyph are ::before/::after — never real nodes. Anything
    inside #editor lands in n.html, is walked by htmlToMd() and becomes a caret
    trap; pseudo-elements are invisible to innerHTML, innerText, find & replace
    and the word count. Same rule the table chrome follows. */
-#editor blockquote.alert{
+#editor blockquote.alert,#shareBody blockquote.alert{
   position:relative;
   margin:.7em 0;
   padding:.5em .95em .55em 1em;
@@ -426,56 +433,97 @@ body.zen #page{padding-top:52px}
   border-radius:0 var(--r-sm) var(--r-sm) 0;
   background:color-mix(in srgb,var(--al-c) 9%,transparent);
 }
-#editor blockquote.alert::before{           /* the word */
+#editor blockquote.alert::before,#shareBody blockquote.alert::before{           /* the word */
   content:attr(data-alert);
   display:block;margin:0 0 .22em 1.7em;
   font-family:var(--font-ui);font-size:.8em;font-weight:700;
   letter-spacing:.06em;text-transform:uppercase;
   color:var(--al-c);user-select:none;-webkit-user-select:none;
 }
-#editor blockquote.alert::after{            /* the glyph */
+#editor blockquote.alert::after,#shareBody blockquote.alert::after{            /* the glyph */
   content:"";position:absolute;left:.95em;top:.62em;
   width:1.05em;height:1.05em;background:var(--al-c);
   -webkit-mask:var(--al-icon) center/contain no-repeat;
           mask:var(--al-icon) center/contain no-repeat;
   pointer-events:none;
 }
-#editor blockquote.alert>:first-child{margin-top:0}
-#editor blockquote.alert>:last-child{margin-bottom:0}
-#editor blockquote blockquote{margin:.5em 0}          /* no runaway indent */
-#editor blockquote.alert p{margin:.2em 0}
-#editor blockquote.alert[data-alert="note"]     {--al-c:var(--al-note);     --al-icon:var(--al-icon-note)}
-#editor blockquote.alert[data-alert="tip"]      {--al-c:var(--al-tip);      --al-icon:var(--al-icon-tip)}
-#editor blockquote.alert[data-alert="important"]{--al-c:var(--al-important);--al-icon:var(--al-icon-important)}
-#editor blockquote.alert[data-alert="warning"]  {--al-c:var(--al-warning);  --al-icon:var(--al-icon-warning)}
-#editor blockquote.alert[data-alert="caution"]  {--al-c:var(--al-caution);  --al-icon:var(--al-icon-caution)}
-#editor pre{background:var(--code-bg);border:1px solid var(--line);border-radius:var(--r);padding:11px 13px;overflow-x:auto;font-size:13px;margin:.55em 0;white-space:pre-wrap}
-#editor code{background:var(--code-bg);border:1px solid var(--line-soft);border-radius:4px;padding:.05em .32em;font-size:.92em}
-#editor pre code{background:none;border:none;padding:0}
-#editor ul,#editor ol{padding-left:1.5em;margin:.3em 0}
-#editor li{margin:.12em 0}
-#editor hr{border:none;border-top:2px dashed var(--line);margin:1.1em 0}
-#editor img{max-width:100%;border-radius:var(--r);margin:.35em 0}
-#editor table{border-collapse:collapse;margin:.55em 0;width:100%}
-#editor th,#editor td{border:1px solid var(--line);padding:5px 9px;min-width:56px}
-#editor th{background:var(--panel-2);font-weight:600}
-#editor a{color:var(--accent);text-underline-offset:2px;cursor:text}
-body.mod-down #editor a{cursor:pointer}   /* Ctrl/Cmd held = click will open */
-#editor ul.tasks{list-style:none;padding-left:.3em}
+#editor blockquote.alert>:first-child,#shareBody blockquote.alert>:first-child{margin-top:0}
+#editor blockquote.alert>:last-child,#shareBody blockquote.alert>:last-child{margin-bottom:0}
+#editor blockquote blockquote,#shareBody blockquote blockquote{margin:.5em 0}          /* no runaway indent */
+#editor blockquote.alert p,#shareBody blockquote.alert p{margin:.2em 0}
+#editor blockquote.alert[data-alert="note"]     ,#shareBody blockquote.alert[data-alert="note"]{--al-c:var(--al-note);     --al-icon:var(--al-icon-note)}
+#editor blockquote.alert[data-alert="tip"]      ,#shareBody blockquote.alert[data-alert="tip"]{--al-c:var(--al-tip);      --al-icon:var(--al-icon-tip)}
+#editor blockquote.alert[data-alert="important"],#shareBody blockquote.alert[data-alert="important"]{--al-c:var(--al-important);--al-icon:var(--al-icon-important)}
+#editor blockquote.alert[data-alert="warning"]  ,#shareBody blockquote.alert[data-alert="warning"]{--al-c:var(--al-warning);  --al-icon:var(--al-icon-warning)}
+#editor blockquote.alert[data-alert="caution"]  ,#shareBody blockquote.alert[data-alert="caution"]{--al-c:var(--al-caution);  --al-icon:var(--al-icon-caution)}
+#editor pre,#shareBody pre{background:var(--code-bg);border:1px solid var(--line);border-radius:var(--r);padding:11px 13px;overflow-x:auto;font-size:13px;margin:.55em 0;white-space:pre-wrap}
+#editor code,#shareBody code{background:var(--code-bg);border:1px solid var(--line-soft);border-radius:4px;padding:.05em .32em;font-size:.92em}
+#editor pre code,#shareBody pre code{background:none;border:none;padding:0}
+#editor ul,#shareBody ul,#editor ol,#shareBody ol{padding-left:1.5em;margin:.3em 0}
+#editor li,#shareBody li{margin:.12em 0}
+#editor hr,#shareBody hr{border:none;border-top:2px dashed var(--line);margin:1.1em 0}
+/* Images.
+   Block by default, on purpose. An <img> is inline in HTML, so a wide one
+   dropped into a list item pushes that item's text into a one-character-wide
+   column beside it - the "my line turned into a column of letters" bug. Only
+   data-a="inline" opts back into sitting in the run of the text, which is what
+   you want for a small icon and nothing else. */
+#editor img,#shareBody img{max-width:100%;height:auto;border-radius:var(--r);
+  display:block;margin:.5em auto .5em 0}
+#editor img[data-a="left"]      ,#shareBody img[data-a="left"]{margin-left:0;margin-right:auto}
+#editor img[data-a="center"]    ,#shareBody img[data-a="center"]{margin-left:auto;margin-right:auto}
+#editor img[data-a="right"]     ,#shareBody img[data-a="right"]{margin-left:auto;margin-right:0}
+#editor img[data-a="wrap-left"] ,#shareBody img[data-a="wrap-left"]{float:left; margin:.3em 1em .6em 0}
+#editor img[data-a="wrap-right"],#shareBody img[data-a="wrap-right"]{float:right;margin:.3em 0 .6em 1em}
+#editor img[data-a="inline"]    ,#shareBody img[data-a="inline"]{display:inline-block;vertical-align:text-bottom;margin:0 .25em}
+/* a floated image contributes no height to its parent; without this the note
+   can end shorter than the picture it ends with */
+#editor::after,#shareBody::after{content:"";display:block;clear:both}
+#editor img.img-sel,#shareBody img.img-sel{outline:2px solid var(--accent);outline-offset:2px}
+
+/* the frame that appears around a selected image: handles to drag, a bar to
+   pick where it sits. It lives outside the editor - anything inside a
+   contenteditable is something the caret can walk into and the user can break. */
+#imgTools{position:fixed;z-index:70;pointer-events:none;display:none}
+#imgTools .it-h{position:absolute;width:12px;height:12px;border-radius:3px;
+  background:var(--accent);border:2px solid var(--bg);pointer-events:auto;box-sizing:border-box}
+#imgTools .it-h.nw{left:-6px;top:-6px;cursor:nwse-resize}
+#imgTools .it-h.ne{right:-6px;top:-6px;cursor:nesw-resize}
+#imgTools .it-h.sw{left:-6px;bottom:-6px;cursor:nesw-resize}
+#imgTools .it-h.se{right:-6px;bottom:-6px;cursor:nwse-resize}
+#imgTools .it-bar{position:absolute;left:50%;bottom:100%;transform:translateX(-50%);
+  margin-bottom:9px;pointer-events:auto;background:var(--panel);border:1px solid var(--line);
+  border-radius:var(--r);box-shadow:var(--shadow);padding:5px;display:flex;flex-direction:column;gap:4px;
+  white-space:nowrap}
+#imgTools .it-row{display:flex;gap:3px;align-items:center}
+#imgTools button{font:inherit;font-size:11px;line-height:1;padding:5px 7px;border-radius:6px;
+  border:1px solid transparent;background:none;color:var(--ink);cursor:pointer}
+#imgTools button:hover{background:var(--panel-2)}
+#imgTools button.on{background:var(--accent);color:#fff}
+#imgTools button.danger{color:var(--danger)}
+#imgTools .it-lbl{font-size:10px;color:var(--faint);padding:0 4px;letter-spacing:.03em}
+#imgTools .it-sep{width:1px;align-self:stretch;background:var(--line);margin:2px 3px}
+body.zen #imgTools{display:none!important}
+#editor table,#shareBody table{border-collapse:collapse;margin:.55em 0;width:100%}
+#editor th,#shareBody th,#editor td,#shareBody td{border:1px solid var(--line);padding:5px 9px;min-width:56px}
+#editor th,#shareBody th{background:var(--panel-2);font-weight:600}
+#editor a,#shareBody a{color:var(--accent);text-underline-offset:2px;cursor:text}
+body.mod-down #editor a,body.mod-down #shareBody a{cursor:pointer}   /* Ctrl/Cmd held = click will open */
+#editor ul.tasks,#shareBody ul.tasks{list-style:none;padding-left:.3em}
 /* a sub-list sits beside the item it belongs to, so the indent is all it has
    to say so — and it must not open a gap the way a fresh list would */
-#editor ul.tasks ul.tasks{padding-left:1.55em;margin:0}
-#editor ul.tasks li{display:flex;align-items:flex-start;gap:9px;margin:.18em 0}
-#editor ul.tasks input[type="checkbox"]{
+#editor ul.tasks ul.tasks,#shareBody ul.tasks ul.tasks{padding-left:1.55em;margin:0}
+#editor ul.tasks li,#shareBody ul.tasks li{display:flex;align-items:flex-start;gap:9px;margin:.18em 0}
+#editor ul.tasks input[type="checkbox"],#shareBody ul.tasks input[type="checkbox"]{
   appearance:none;width:15px;height:15px;flex:none;margin-top:.34em;cursor:pointer;
   border:1.6px solid var(--muted);border-radius:4px;background:var(--bg);position:relative;transition:background .12s;
 }
-#editor ul.tasks input[type="checkbox"]:checked{background:var(--accent);border-color:var(--accent)}
-#editor ul.tasks input[type="checkbox"]:checked::after{
+#editor ul.tasks input[type="checkbox"]:checked,#shareBody ul.tasks input[type="checkbox"]:checked{background:var(--accent);border-color:var(--accent)}
+#editor ul.tasks input[type="checkbox"]:checked::after,#shareBody ul.tasks input[type="checkbox"]:checked::after{
   content:"";position:absolute;left:3.5px;top:.5px;width:4px;height:8px;
   border:solid var(--on-accent);border-width:0 2px 2px 0;transform:rotate(42deg);
 }
-#editor ul.tasks li.done > .task-text{color:var(--muted);text-decoration:line-through}
+#editor ul.tasks li.done > .task-text,#shareBody ul.tasks li.done > .task-text{color:var(--muted);text-decoration:line-through}
 .task-text{flex:1;min-width:0;outline:none}
 .find-hit{background:var(--sel);border-radius:2px}
 .find-hit.cur{outline:2px solid var(--accent)}
@@ -587,8 +635,8 @@ kbd{font-family:var(--font-mono);font-size:10.5px;background:var(--panel-2);bord
 }
 @media print{
   body{overflow:visible;background:#fff;color:#000}
-  #sidebar,#topbar,#toolbar,#findbar,#statusbar,#toasts,.overlay,.menu,#zenExit,#linkPop{display:none!important}
-  #app{display:block}#editorWrap{overflow:visible}#page{width:100%;padding:0}#editor{min-height:0}
+  #sidebar,#topbar,#toolbar,#findbar,#statusbar,#toasts,.overlay,.menu,#zenExit,#linkPop,#imgTools{display:none!important}
+  #app{display:block}#editorWrap{overflow:visible}#page{width:100%;padding:0}#editor,#shareBody{min-height:0}
 }
 
 /* ---------- alignment polish ---------- */
@@ -740,7 +788,7 @@ body.zen #zenExit{display:grid}
   border:none!important;background:none!important;list-style:none!important}
 /* the row being moved stays visible but recedes, so the page does not reflow
    under the pointer mid-drag */
-#editor .drag-src{opacity:.34}
+#editor .drag-src,#shareBody .drag-src{opacity:.34}
 @media print{#dragUI{display:none!important}}
 
 </style>
@@ -863,11 +911,33 @@ body.zen #zenExit{display:grid}
   <button data-x="txt" title="Plain text  (.txt)"><svg class="ic" data-i="download"></svg>Plain text (.txt)</button>
   <button data-x="pdf" title="Print or save as PDF"><svg class="ic" data-i="print"></svg>Print / PDF</button>
   <div class="msep"></div>
+  <button data-x="share" title="A read-only link with the note inside it  (nothing is uploaded)"><svg class="ic" data-i="link"></svg>Share a link…</button>
+  <div class="msep"></div>
   <button data-x="json" title="Every note plus settings  (.json)"><svg class="ic" data-i="shield"></svg>Full backup (.json)</button>
   <div class="msep"></div>
   <!-- The other half of "Full backup". It also lives in Settings -> Data, but
        nobody looks for the way back in a different menu from the way out. -->
   <button data-x="import" title="Merge a .json backup into this browser  (newer copy of each note wins)"><svg class="ic" data-i="import"></svg>Import backup (.json)</button>
+</div>
+
+<!-- A note someone sent. Read-only on purpose: it is not yours until you say
+     so, and nothing about opening a link should change what is in this browser. -->
+<div class="overlay" id="shareOverlay">
+  <div class="modal">
+    <div class="m-head">
+      <h2 id="shareTitle">Shared note</h2>
+      <span class="pill">read only</span>
+      <button class="ibtn" data-close="shareOverlay" title="Close"><svg class="ic" data-i="x"></svg></button>
+    </div>
+    <div class="m-body">
+      <div id="shareBody"></div>
+      <div class="btn-row" style="border-top:1px solid var(--line);padding-top:13px;margin-top:16px">
+        <button class="btn primary" id="shareKeepBtn" title="Make a copy of this in your own notes"><svg class="ic" data-i="import"></svg>Save to my notes</button>
+        <button class="btn" data-close="shareOverlay">Close</button>
+      </div>
+      <div class="hint">This note travelled inside the link you opened. It was never uploaded anywhere, and nothing in this browser has changed unless you save it.</div>
+    </div>
+  </div>
 </div>
 
 <!-- ============ SETTINGS ============ -->
@@ -926,6 +996,26 @@ body.zen #zenExit{display:grid}
         <div class="hint" style="margin-top:0">Insert a table from the toolbar, then edit it in place.
           <b>Tab</b> and <b>Shift+Tab</b> indent and outdent list items. Pasted or imported Markdown
           tables and nested lists come through intact.</div>
+      </div>
+
+      <div class="row">
+        <label>Pictures</label>
+        <div class="hint" style="margin-top:0">Paste one in, or use the picture button.
+          Then <b>click the picture</b>: the corner handles drag it bigger and smaller, and the bar
+          says where it sits — <b>Inline</b> in the run of your words, <b>Left</b>, <b>Center</b> or
+          <b>Right</b> on a line of its own, or <b>Wrap</b> off to one side with the text flowing
+          round it. <b>Delete</b> removes the selected one. Size and placement survive the trip out
+          to Markdown and back.</div>
+      </div>
+
+      <div class="row">
+        <label>Sharing a note</label>
+        <div class="hint" style="margin-top:0"><b>Share a link</b>, in the export menu, makes a
+          read-only link with the whole note packed inside it. Nothing is uploaded and typewell.net
+          never sees it. The other side of that: the link <i>is</i> the note, so anyone holding it
+          can read it, you cannot take it back, and later edits need a new link. Very long notes —
+          usually ones with pasted pictures — are refused, because mail and chat apps cut long
+          links.</div>
       </div>
 
       <div class="row">
@@ -1024,6 +1114,8 @@ body.zen #zenExit{display:grid}
           <button class="btn" id="driveDisconnectBtn" title="Disconnect  (notes stay in this browser)" disabled>Disconnect</button>
         </div>
         <label class="chk" title="Back up automatically after you stop typing" style="margin-top:11px"><input type="checkbox" id="autoBackupChk"> Auto-back up ~45 s after I stop typing</label>
+        <label class="chk" title="Ask Google for a fresh hour while you are still working" style="margin-top:7px"><input type="checkbox" id="driveKeepAliveChk" checked> Keep me signed in while I work</label>
+        <p class="hint" style="margin:6px 0 0">Google only gives a web app about an hour of access at a time, and gives it no way to extend that on its own. With this on, Typewell asks for the next hour a few minutes before the current one runs out, the first time you click or type after that — a Google window opens and shuts itself. With it off, you sign in again by hand when the footer says the sign-in expired.</p>
       </div>
 
       <div class="section">
@@ -1095,6 +1187,35 @@ body.zen #zenExit{display:grid}
 <input type="file" id="fileInput" accept=".md,.markdown,.txt,.html,.htm" multiple hidden>
 <input type="file" id="jsonInput" accept=".json" hidden>
 <input type="file" id="imgInput" accept="image/*" hidden>
+
+<!-- image frame: handles + placement bar. Labels, not icons - "does this arrow
+     mean align-right or wrap-right?" is not a question a toolbar should ask. -->
+<div id="imgTools">
+  <div class="it-bar">
+    <div class="it-row">
+      <span class="it-lbl">Sits</span>
+      <button data-a="inline"     title="In the line of text  (for small pictures)">Inline</button>
+      <button data-a="left"       title="On its own line, at the left">Left</button>
+      <button data-a="center"     title="On its own line, in the middle">Center</button>
+      <button data-a="right"      title="On its own line, at the right">Right</button>
+      <div class="it-sep"></div>
+      <button data-a="wrap-left"  title="At the left, with the text flowing around it">Wrap&nbsp;left</button>
+      <button data-a="wrap-right" title="At the right, with the text flowing around it">Wrap&nbsp;right</button>
+    </div>
+    <div class="it-row">
+      <span class="it-lbl">Size</span>
+      <button data-w="25">25%</button>
+      <button data-w="50">50%</button>
+      <button data-w="75">75%</button>
+      <button data-w="100">100%</button>
+      <button data-w="0" title="Back to the picture's own size">Original</button>
+      <div class="it-sep"></div>
+      <button data-img="alt" title="Describe the picture for screen readers and for Markdown">Alt&nbsp;text</button>
+      <button data-img="del" class="danger" title="Remove this image  (Delete)">Remove</button>
+    </div>
+  </div>
+  <i class="it-h nw"></i><i class="it-h ne"></i><i class="it-h sw"></i><i class="it-h se"></i>
+</div>
 <script>
 "use strict";
 /* ══════════════════════════ CONFIG ══════════════════════════
@@ -1190,86 +1311,80 @@ let notes=[],activeId=null,tab="notes",dirtySinceBackup=false;
 const CB='<input type="checkbox" contenteditable="false">';
 const TASK=t=>`<li>${CB}<span class="task-text">${t}</span></li>`;
 const WELCOME_HTML=
-  '<p>Typewell is a free, open source rich text notepad that lives entirely in this browser. No account, '+
-  'no sign-up, no server, no tracking. It works offline, it understands Markdown as you '+
-  'type, and what you write is saved to this browser as you go. Everything below '+
-  'is a real note — edit it, try things in it, delete it when you are done.</p>'+
+  '<p>Typewell is a free, open source notepad that lives in this browser. No account, no '+
+  'sign-up, no tracking. It works offline, and what you type is saved as you go.</p>'+
 
   '<blockquote class="alert" data-alert="tip">'+
-  '<p>Nothing here needs setting up. Start typing and it is saved.</p></blockquote>'+
+  '<p>Nothing here needs setting up. Start typing.</p></blockquote>'+
 
-  '<h2>Markdown as you type</h2>'+
-  '<p>Type the marker at the start of a line, then a space. The line changes and the '+
-  'marker disappears.</p>'+
+  '<h2>Type a symbol, get formatting</h2>'+
+  '<p>At the start of a line, type the symbol and then a space. The symbol disappears '+
+  'and the line changes.</p>'+
   '<ul class="tasks">'+
-  TASK('<code>#</code> through <code>######</code> — headings, six levels')+
-  TASK('<code>-</code> or <code>*</code> — a bullet list. <code>1.</code> — a numbered list')+
-  TASK('<code>[]</code> — a task list, with a real checkbox like this one. '+
-       '<b>Tab</b> indents an item under the one above, <b>Shift+Tab</b> brings it back — '+
-       'the same as bullets')+
-  TASK('<code>&gt;</code> — a quote. <code>&gt; [!warning]</code> — a coloured callout')+
-  TASK('<code>```</code> then Enter — a code block. <code>```js</code> keeps the language')+
-  TASK('<code>---</code> or <code>***</code> — a divider line')+
+  TASK('<code>#</code> a heading. <code>##</code> a smaller one, down to <code>######</code>')+
+  TASK('<code>-</code> a bullet list. <code>1.</code> a numbered list. <code>[]</code> a checkbox, '+
+       'like this one. <b>Tab</b> tucks an item under the one above it')+
+  TASK('<code>&gt;</code> a quote. <code>&gt; [!tip]</code> a coloured box like the one above')+
+  TASK('<code>```</code> then Enter, a code block. <code>---</code> a line across the page')+
   '</ul>'+
-  '<p>Mid-sentence, these close themselves as you type: <code>**bold**</code>, '+
-  '<code>*italic*</code>, <code>`code`</code>, <code>~~strike~~</code>, '+
-  '<code>==highlight==</code>. Paste or type a web address and it becomes a link.</p>'+
+  '<p>In the middle of a sentence: <code>**bold**</code>, <code>*italic*</code>, '+
+  '<code>`code`</code>, <code>~~crossed out~~</code>, <code>==highlighted==</code>. '+
+  'Type a web address and it turns into a link.</p>'+
 
-  '<h2>Callouts</h2>'+
-  '<p>Five kinds. Type <code>[!note]</code>, <code>[!tip]</code>, '+
-  '<code>[!important]</code>, <code>[!warning]</code> or <code>[!caution]</code> at the '+
-  'start of a line and press Enter — or use the callout button in the toolbar.</p>'+
   '<blockquote class="alert" data-alert="warning">'+
-  '<p>To get out of a quote or a code block, press <b>Ctrl+Enter</b>. Pressing Enter '+
-  'twice keeps you inside it.</p></blockquote>'+
+  '<p>Stuck inside a quote or a code block? <b>Ctrl+Enter</b> gets you out. Pressing '+
+  'Enter again only keeps you in.</p></blockquote>'+
 
-  '<h2>The keys worth knowing</h2>'+
+  '<h2>Keys worth knowing</h2>'+
   '<ul>'+
-  '<li><b>Ctrl+B</b> bold · <b>Ctrl+I</b> italic · <b>Ctrl+U</b> underline · '+
-  '<b>Ctrl+E</b> inline code · <b>Ctrl+Shift+E</b> code block</li>'+
-  '<li><b>Ctrl+K</b> add a link. Plain click on a link edits it; <b>Ctrl+click</b> opens it</li>'+
-  '<li><b>Ctrl+F</b> find and replace · <b>/</b> search all your notes</li>'+
-  '<li><b>Ctrl+Z</b> undo · <b>Ctrl+Shift+Z</b> redo · <b>Ctrl+Shift+F</b> zen mode</li>'+
-  '<li><b>Tab</b> and <b>Shift+Tab</b> indent and outdent a list item or a code line</li>'+
+  '<li><b>Ctrl+B</b> bold · <b>Ctrl+I</b> italic · <b>Ctrl+K</b> add a link</li>'+
+  '<li><b>Ctrl+F</b> find in this note · <b>/</b> search all your notes</li>'+
+  '<li><b>Ctrl+Z</b> undo · <b>Ctrl+Shift+F</b> hide everything but the words</li>'+
+  '<li><b>Tab</b> and <b>Shift+Tab</b> move a list item in and out</li>'+
   '</ul>'+
-  '<p>The <b>?</b> icon in the top bar opens the full guide with every trigger and every '+
-  'shortcut, any time.</p>'+
+  '<p>The <b>?</b> button at the top has the full list, any time.</p>'+
 
-  '<h2>Your notes, and getting them out</h2>'+
+  '<h2>Pictures</h2>'+
+  '<p>Paste one in, or use the picture button. Then click the picture: corner handles '+
+  'drag it bigger or smaller, and the little bar says where it sits — on its own line, '+
+  'in the middle of your words, or off to one side with the text flowing round it.</p>'+
+
+  '<h2>Your notes</h2>'+
   '<ul class="tasks">'+
   TASK('Rename a note in the <b>top bar</b>. The name never becomes part of the text')+
-  TASK('Hover any block — a line, a heading, a quote, a code block — and a grip '+
-       'appears in the margin. Drag it to move that block, or press '+
-       '<b>Alt+Shift+↑/↓</b>')+
-  TASK('Install Typewell from your browser’s address bar to run it in its own '+
-       'window, offline. It still checks for a new version every time you open it')+
-  TASK('Pin, duplicate or delete from the sidebar. Deleted notes wait in <b>Trash</b>')+
-  TASK('Drag a note up or down the sidebar to put the list in your own order. '+
-       'On a touchscreen, press and hold it first. Pinned notes keep to the top')+
-  TASK('Export one note as Markdown, HTML, plain text or PDF from the download icon')+
-  TASK('<b>Full backup (.json)</b> saves every note at once, and <b>Import backup</b> in the same menu brings it back')+
+  TASK('Drag notes up and down the sidebar to put them in your own order. Pin, copy or '+
+       'delete them there too — deleted ones wait in <b>Trash</b>')+
+  TASK('Hover any line, heading or quote and a grip appears in the margin. Drag it to '+
+       'move that block, or press <b>Alt+Shift+↑/↓</b>')+
+  TASK('The download button saves this note as Markdown, HTML, plain text or PDF. '+
+       '<b>Full backup</b> saves every note in one file, and brings them back')+
   '</ul>'+
 
-  '<h2>Backing up to your own Google Drive</h2>'+
-  '<p>This is optional, and it is the only time anything leaves this browser. Press '+
-  '<b>Connect Drive</b> in the sidebar. Typewell makes a folder called '+
-  '<code>Typewell</code> in <em>your</em> Drive and saves each note there as an ordinary '+
-  '<code>.md</code> file — readable in Obsidian, iA Writer or any text editor. Edit one '+
-  'of those files elsewhere and the change comes back here.</p>'+
-  '<p>Typewell asks for the narrowest Google permission there is: it can only see files '+
-  'it created itself. The rest of your Drive stays invisible to it. Press <b>Ctrl+S</b> '+
-  'to sync now, or turn on auto-sync in Settings.</p>'+
+  '<h2>Sending a note to someone</h2>'+
+  '<p><b>Share a link</b>, in the same download menu, makes a read-only link with the '+
+  'whole note packed inside it. Nothing is uploaded anywhere — the note travels in the '+
+  'link. Anyone who has the link can read it, and you cannot take it back, so treat it '+
+  'like handing over a photocopy.</p>'+
+
+  '<h2>Keeping a copy in Google Drive</h2>'+
+  '<p>Optional, and the only time anything leaves this browser. Press <b>Connect Drive</b> '+
+  'in the sidebar. Typewell makes a folder called <code>Typewell</code> in <em>your</em> '+
+  'Drive and puts each note in it as a plain <code>.md</code> file you can open in any '+
+  'editor. Change one of those files elsewhere and the change comes back here.</p>'+
+  '<p>Typewell asks Google for the smallest permission there is: it can only see files it '+
+  'made itself. Google lets a web page stay signed in for about an hour, so Typewell '+
+  'quietly asks for the next hour while you are still working.</p>'+
 
   '<blockquote class="alert" data-alert="note">'+
-  '<p>Notes are stored in this browser. Clearing site data for this site erases them, so '+
-  'if they matter, connect Drive or take a <code>.json</code> backup.</p></blockquote>'+
+  '<p>Your notes live in this browser. Clearing this site’s data erases them. If they '+
+  'matter, connect Drive or take a backup.</p></blockquote>'+
 
   '<hr>'+
-  '<p>That is the whole app. Delete this note whenever you like — a fresh one is always '+
-  'a click away, and the <b>?</b> guide keeps all of it.</p>';
+  '<p>Delete this note whenever you like — a fresh one is always a click away, and the '+
+  '<b>?</b> guide keeps all of it.</p>';
 
 let settings={theme:DEFAULT_THEME,defaultFont:"JetBrains Mono",autoBackup:false,
-  ghToken:"",gistId:"",driveFolderId:"",driveGranted:false,
+  ghToken:"",gistId:"",driveFolderId:"",driveGranted:false,driveEmail:"",driveKeepAlive:true,
   recentFore:[],recentHilite:[]};
 function loadState(){
   try{notes=JSON.parse(localStorage.getItem(LS_NOTES)||"[]")}catch(e){notes=[]}
@@ -1361,12 +1476,24 @@ function setBeacon(state,label){
 }
 function refreshBeacon(){
   const connected=drive.linked||settings.gistId;
-  if(connected)setBeacon(dirtySinceBackup?"dirty":"synced",dirtySinceBackup?"not backed up":"backed up");
+  /* A lapsed Google sign-in used to look identical to a healthy one: the dot
+     stayed green and the backup just quietly stopped happening. */
+  if(drive.expired()&&!settings.gistId)setBeacon("error","sign-in expired");
+  else if(connected)setBeacon(dirtySinceBackup?"dirty":"synced",dirtySinceBackup?"not backed up":"backed up");
   else setBeacon("local","local");
   renderFoot();
 }
 function renderFoot(){
   const f=$("#sbFoot");
+  if(drive.expired()){
+    /* Google gives a browser app about an hour and no way to extend it from a
+       closed tab. One honest line and one button beats a green dot that lies. */
+    f.innerHTML=`<span class="beacon error"></span>
+      <span class="grow">Google sign-in expired</span>
+      <button class="btn sm" id="footReconnect" title="Sign in to Google again  (Google only gives a browser app about an hour)">Reconnect</button>`;
+    $("#footReconnect").onclick=()=>connectDriveFlow();
+    return;
+  }
   if(drive.linked){
     f.innerHTML=`<span class="beacon ${dirtySinceBackup?"dirty":"synced"}"></span>
       <span class="grow">${dirtySinceBackup?"Changes not backed up":"Drive · synced "+(drive.lastBackup?fmtDate(drive.lastBackup):"")}</span>
@@ -1570,6 +1697,7 @@ document.addEventListener("keydown",e=>{
 const editor=$("#editor"),fileName=$("#fileName");
 function openNote(id){
   flushSave();
+  clearImgSel();
   activeId=id;const n=active();if(!n)return;
   fileName.value=n.title==="Untitled"?"":n.title;
   editor.innerHTML=n.html;
@@ -2396,9 +2524,149 @@ async function insertImageFile(f){
     if(!ok)return;
   }
   const rd=new FileReader();
-  rd.onload=()=>{editor.focus();histPush();document.execCommand("insertImage",false,rd.result);scheduleSave();};
+  rd.onload=()=>{
+    editor.focus();histPush();
+    document.execCommand("insertImage",false,rd.result);
+    /* execCommand gives no way to set attributes, so name the new one after the
+       fact and open the frame on it: a picture you just inserted is a picture
+       you are about to want somewhere else. */
+    const im=[...editor.querySelectorAll("img")].find(x=>x.src===rd.result&&!x.dataset.a);
+    if(im){im.dataset.a="left";im.alt=im.alt||f.name.replace(/\.[^.]+$/,"");selectImg(im);}
+    scheduleSave();
+  };
   rd.readAsDataURL(f);
 }
+
+/* ---------- picking an image up ----------
+   Firefox draws its own resize handles inside a contenteditable and they fight
+   with these; Chrome dropped the feature years ago. Off in both. */
+try{document.execCommand("enableObjectResizing",false,false);}catch(_){}
+
+const IMG_ALIGN=["inline","left","center","right","wrap-left","wrap-right"];
+const imgTools=$("#imgTools");
+let selImg=null;
+
+/* The width the image's own container gives it. A percentage in CSS is a
+   percentage of THIS, not of the page, so every number the bar shows and every
+   drag has to be measured against it or the two disagree. */
+function imgHostWidth(im){
+  const host=im.parentElement||editor,cs=getComputedStyle(host);
+  const w=host.clientWidth-parseFloat(cs.paddingLeft||0)-parseFloat(cs.paddingRight||0);
+  return w>20?w:editor.clientWidth;
+}
+function selectImg(im){
+  if(selImg&&selImg!==im)selImg.classList.remove("img-sel");
+  selImg=im;im.classList.add("img-sel");
+  if(!IMG_ALIGN.includes(im.dataset.a||""))im.dataset.a="left";
+  imgTools.style.display="block";
+  syncImgBar();placeImgTools();
+}
+function clearImgSel(){
+  if(selImg)selImg.classList.remove("img-sel");
+  selImg=null;imgTools.style.display="none";
+}
+function syncImgBar(){
+  if(!selImg)return;
+  const a=selImg.dataset.a||"left";
+  const pct=selImg.style.width&&selImg.style.width.endsWith("%")
+    ? Math.round(parseFloat(selImg.style.width)) : 0;
+  imgTools.querySelectorAll("button[data-a]").forEach(b=>b.classList.toggle("on",b.dataset.a===a));
+  imgTools.querySelectorAll("button[data-w]").forEach(b=>b.classList.toggle("on",+b.dataset.w===pct));
+}
+function placeImgTools(){
+  if(!selImg)return;
+  if(!selImg.isConnected){clearImgSel();return;}
+  const r=selImg.getBoundingClientRect(),w=$("#editorWrap").getBoundingClientRect();
+  /* scrolled out of the writing area: hide the frame rather than let it float
+     over the toolbar */
+  if(r.bottom<w.top+4||r.top>w.bottom-4){imgTools.style.visibility="hidden";return;}
+  imgTools.style.visibility="visible";
+  imgTools.style.left=r.left+"px";imgTools.style.top=r.top+"px";
+  imgTools.style.width=r.width+"px";imgTools.style.height=r.height+"px";
+  /* the bar sits above the picture, except when there is no above left - a
+     picture at the top of the page would otherwise put its own controls behind
+     the toolbar, or off the screen entirely */
+  const bar=imgTools.querySelector(".it-bar"),bh=bar.offsetHeight||64;
+  const below=r.top-bh-12<w.top;
+  bar.style.bottom=below?"auto":"100%";
+  bar.style.top=below?"100%":"auto";
+  bar.style.marginBottom=below?"0":"9px";
+  bar.style.marginTop=below?"9px":"0";
+}
+addEventListener("scroll",placeImgTools,true);
+addEventListener("resize",placeImgTools);
+/* An image selected the instant it is inserted has no size yet, so the frame
+   would be drawn around nothing. load does not bubble, but it does capture. */
+editor.addEventListener("load",placeImgTools,true);
+
+editor.addEventListener("click",e=>{
+  const im=e.target.closest("img");
+  if(im&&editor.contains(im))selectImg(im);else clearImgSel();
+});
+document.addEventListener("pointerdown",e=>{
+  if(!selImg)return;
+  if(imgTools.contains(e.target)||e.target===selImg)return;
+  if(!editor.contains(e.target))clearImgSel();
+},true);
+editor.addEventListener("keydown",e=>{
+  if(!selImg)return;
+  if(e.key==="Delete"||e.key==="Backspace"){
+    e.preventDefault();histPush();const im=selImg;clearImgSel();im.remove();scheduleSave();
+  }else if(e.key==="Escape"){clearImgSel();}
+  else if(e.key.length===1||e.key==="Enter")clearImgSel();
+},true);
+
+/* the bar. mousedown+preventDefault keeps the caret and the selection exactly
+   where they were - a button that steals focus is a button that loses the
+   image it was about to act on. */
+imgTools.addEventListener("mousedown",e=>{if(e.target.closest("button"))e.preventDefault();});
+imgTools.addEventListener("click",async e=>{
+  const b=e.target.closest("button");if(!b||!selImg)return;
+  histPush();
+  if(b.dataset.a){
+    selImg.dataset.a=b.dataset.a;
+    /* an inline picture the height of a paragraph is the point of inline; a
+       full-width one is not, so the first switch to inline offers a size */
+    if(b.dataset.a==="inline"&&!selImg.style.width)selImg.style.width="25%";
+  }else if(b.dataset.w!==undefined){
+    if(b.dataset.w==="0")selImg.style.removeProperty("width");
+    else selImg.style.width=b.dataset.w+"%";
+  }else if(b.dataset.img==="del"){
+    const im=selImg;clearImgSel();im.remove();scheduleSave();return;
+  }else if(b.dataset.img==="alt"){
+    const im=selImg;
+    const v=await dialog({title:"Alt text",input:true,value:im.alt||"",
+      placeholder:"What is in the picture",ok:"Save",
+      message:"Read out by screen readers, and shown by anything that cannot load the image."});
+    if(v===null)return;
+    im.alt=v;
+  }
+  syncImgBar();placeImgTools();scheduleSave();
+});
+
+/* dragging a corner. Width only: height is auto in the stylesheet, so the
+   picture keeps its shape and cannot be squashed by accident. */
+imgTools.addEventListener("pointerdown",e=>{
+  const h=e.target.closest(".it-h");if(!h||!selImg)return;
+  e.preventDefault();
+  const im=selImg,startX=e.clientX,startW=im.getBoundingClientRect().width;
+  const host=imgHostWidth(im),grow=h.classList.contains("ne")||h.classList.contains("se")?1:-1;
+  histPush();
+  h.setPointerCapture(e.pointerId);
+  const move=ev=>{
+    const w=startW+(ev.clientX-startX)*grow;
+    im.style.width=Math.min(100,Math.max(5,Math.round(w/host*100)))+"%";
+    placeImgTools();
+  };
+  const up=()=>{
+    h.removeEventListener("pointermove",move);h.removeEventListener("pointerup",up);
+    h.removeEventListener("pointercancel",up);
+    syncImgBar();placeImgTools();scheduleSave();
+  };
+  h.addEventListener("pointermove",move);
+  h.addEventListener("pointerup",up);
+  h.addEventListener("pointercancel",up);
+});
 /* ---------- scrubbing a paste ----------
    A formatted paste is still handed to the browser, because it parses Word's
    and Docs' markup far better than anything written here would. What it also
@@ -3325,7 +3593,18 @@ function htmlToMd(root){
         case "a":out+="["+inner()+"]("+ch.getAttribute("href")+")";break;
         /* keep the whole src — a data: URI is the image; "(embedded image)" was
            silent data loss the moment a note was edited outside the app */
-        case "img":out+="!["+(ch.getAttribute("alt")||"")+"]("+(ch.getAttribute("src")||"")+")";break;
+        case "img":{
+          /* Size and placement ride in the title slot - `![a](src "w=50% a=center")`
+             - because that is real Markdown that every other reader already
+             understands, and because a note that round-trips through the Drive
+             folder must not come back with every picture full-width again.
+             Nothing is written when there is nothing to say. */
+          const bits=[];
+          const w=(ch.style.width||"").trim(),a=ch.getAttribute("data-a")||"";
+          if(/^[\d.]+%$/.test(w))bits.push("w="+w);
+          if(a&&a!=="left")bits.push("a="+a);
+          out+="!["+(ch.getAttribute("alt")||"")+"]("+(ch.getAttribute("src")||"")+
+               (bits.length?' "'+bits.join(" ")+'"':"")+")";break;}
         case "ul":case "ol":{
           if(tag==="ul"&&ch.classList.contains("tasks")){out+=tasksMd(ch,"")+"\n";break;}
           /* clone-based: an exporter must never mutate the live DOM.
@@ -3398,7 +3677,16 @@ function mdToHtml(md){
   };
   const url=s=>s.replace(/&amp;/g,"&");      /* inline() escapes first; URLs must not stay escaped */
   const inline=s=>esc(s)
-    .replace(/!\[([^\]]*)\]\(([^)\s]+)\)/g,(_,a,u)=>`<img src="${url(u)}" alt="${a}">`)
+    /* esc() has already turned the title's quotes into &quot; by the time this
+       runs, which is why the pattern looks for those and not for `"`. Both the
+       width and the placement are matched against a shape, never pasted in as
+       found: this string came off disk or out of a link somebody sent. */
+    .replace(/!\[([^\]]*)\]\(([^)\s]+)(?:\s+&quot;([^)]*?)&quot;)?\)/g,(_,a,u,t)=>{
+      const w=/w=([\d.]+%)/.exec(t||""),g=/a=([a-z-]+)/.exec(t||"");
+      return `<img src="${url(u)}" alt="${a}"`+
+        (w?` style="width:${w[1]}"`:"")+
+        ` data-a="${g&&IMG_ALIGN.includes(g[1])?g[1]:"left"}">`;
+    })
     .replace(/\*\*(.+?)\*\*/g,"<strong>$1</strong>")
     .replace(/(^|\W)\*(?!\s)(.+?)\*(?=\W|$)/g,"$1<em>$2</em>")
     .replace(/~~(.+?)~~/g,"<s>$1</s>")
@@ -3487,8 +3775,149 @@ function mdToHtml(md){
     html+="<p>"+parts.map(x=>inline(x.replace(/(\s{2}|\\)$/,""))).join("<br>")+"</p>";
   }
   closeLists();if(inCode)html=html.replace(/\n$/,"")+"</pre>";   /* unterminated fence */
-  return html;
+  return sanitizeHtml(html);
 }
+
+/* ---------- the one place untrusted text becomes elements ----------
+   Markdown has no tag for a script, so for years this did not matter. It does
+   now: a note can arrive from a .md file someone e-mailed, from a Drive folder
+   two people share, or from a share link a stranger sent - and markdown very
+   much does have `[click](url)` and `![](url)`, where "url" is whatever was
+   typed, `javascript:` included.
+
+   So the finished markup is walked once before it reaches a page. A tag that
+   is not on the list is unwrapped rather than deleted, because the words
+   inside it are the note; an attribute that is not on its tag's list is
+   dropped; and any address that is not plain web, mail or an inline picture
+   loses its href or src and becomes ordinary text. The lists are short on
+   purpose - everything mdToHtml itself can emit, and nothing else. */
+const OK_TAGS=new Set(("H1 H2 H3 H4 H5 H6 P DIV BR STRONG B EM I U S DEL MARK CODE PRE "+
+  "BLOCKQUOTE HR A IMG UL OL LI TABLE THEAD TBODY TR TH TD SPAN INPUT").split(" "));
+const OK_ATTR={
+  A:["href","target","rel"], IMG:["src","alt","style","data-a"],
+  PRE:["data-lang"], BLOCKQUOTE:["class","data-alert"],
+  UL:["class"], OL:["start"], LI:["class"], SPAN:["class"],
+  INPUT:["type","checked","contenteditable"],
+};
+const SAFE_URL=/^(?:https?:|mailto:|tel:|#|\/|\.{0,2}\/|data:image\/(?:png|jpe?g|gif|webp|avif|svg\+xml);)/i;
+function sanitizeHtml(html){
+  const t=document.createElement("template");
+  t.innerHTML=html;
+  for(const el of [...t.content.querySelectorAll("*")]){
+    if(!OK_TAGS.has(el.tagName)){el.replaceWith(...el.childNodes);continue;}
+    const allow=OK_ATTR[el.tagName]||[];
+    for(const a of [...el.attributes])if(!allow.includes(a.name))el.removeAttribute(a.name);
+    /* the only inline style anything here is allowed to carry is the image
+       width the placement bar writes - matched, not trusted */
+    if(el.hasAttribute("style")&&!/^width:\s*[\d.]+%;?$/.test(el.getAttribute("style")))
+      el.removeAttribute("style");
+    for(const a of ["href","src"]){
+      const v=el.getAttribute(a);
+      if(v!==null&&!SAFE_URL.test(v.trim()))el.removeAttribute(a);
+    }
+  }
+  return t.innerHTML;
+}
+
+/* ══════════════ sharing one note as a link ══════════════
+   The whole note rides inside the link's #fragment - and the fragment is the
+   one part of a web address a browser never sends to the server. So a shared
+   note reaches the person you sent it to without passing through typewell.net,
+   without an account at either end, and with nothing left behind to delete.
+
+   The honest half: the link IS the note. Anybody who gets hold of it can read
+   it, and once it is out there is no unsending it. It also cannot be edited
+   after the fact - a new link is a new copy - and a long note makes a long
+   link, which is why there is a size check before the dialog opens. */
+const b64url=b=>{
+  let s="";
+  /* one call per 32k, because String.fromCharCode(...a_whole_image) is how you
+     blow the argument stack on a note with a photo in it */
+  for(let i=0;i<b.length;i+=0x8000)s+=String.fromCharCode(...b.subarray(i,i+0x8000));
+  return btoa(s).replace(/\+/g,"-").replace(/\//g,"_").replace(/=+$/,"");
+};
+const unb64url=str=>{
+  const t=atob(str.replace(/-/g,"+").replace(/_/g,"/"));
+  const b=new Uint8Array(t.length);
+  for(let i=0;i<t.length;i++)b[i]=t.charCodeAt(i);
+  return b;
+};
+/* gzip where the browser has it - prose shrinks to about a third, and the
+   difference decides whether a long note fits in a link at all. The leading
+   letter says which of the two it is, so an old link still opens later. */
+async function sharePack(obj){
+  const bytes=new TextEncoder().encode(JSON.stringify(obj));
+  if(!window.CompressionStream)return "r"+b64url(bytes);
+  /* piped, not hand-fed through a writer. Feeding a writer by hand leaves two
+     promises nobody awaits, and when the data turns out to be rubbish they
+     reject on their own - past the try/catch that is watching the other end,
+     and out into the console as an unhandled rejection. */
+  const out=new Blob([bytes]).stream().pipeThrough(new CompressionStream("gzip"));
+  return "g"+b64url(new Uint8Array(await new Response(out).arrayBuffer()));
+}
+async function shareUnpack(str){
+  const bytes=unb64url(str.slice(1));
+  if(str[0]!=="g")return JSON.parse(new TextDecoder().decode(bytes));
+  const out=new Blob([bytes]).stream().pipeThrough(new DecompressionStream("gzip"));
+  return JSON.parse(await new Response(out).text());
+}
+
+/* Markdown, not the HTML - it is a third the size, and it comes back in through
+   mdToHtml, which sanitises. HTML from a stranger would have to be trusted or
+   scrubbed twice; markdown only has to be parsed. */
+const SHARE_MAX=30000;
+async function shareNote(){
+  flushSave();
+  const n=active();if(!n)return;
+  const code=await sharePack({v:1,t:n.title,m:htmlToMd(editor)});
+  /* href minus any fragment, not origin+pathname: opened straight off disk the
+     origin is the string "null", and the link would point at nothing */
+  const link=location.href.split("#")[0]+"#n="+code;
+  const kb=Math.max(1,Math.round(link.length/1024));
+  if(link.length>SHARE_MAX){
+    await dialog({title:"Too big for a link",ok:"I see",
+      message:`This note comes to about <b>${kb} KB</b>, and the whole note has to fit inside the link itself. Past roughly 30 KB links start getting cut off by mail and chat apps, so Typewell will not hand you one that is likely to arrive broken.<br><br>Pasted pictures are almost always the weight. Shrink them with the size buttons, remove one, or send the note as a Markdown file from this same menu instead.`});
+    return;
+  }
+  const warn=kb>8?`<br><br>This link is about <b>${kb} KB</b> long. That works, but a few chat apps shorten very long links — if it arrives broken, send the Markdown file instead.`:"";
+  const go=await dialog({title:"Link to this note",input:true,value:link,ok:"Copy link",
+    message:`Anyone who opens this can read <b>${esc(n.title)}</b>, as it is right now. `+
+      `The note is carried inside the link, so it is never uploaded and typewell.net never sees it — `+
+      `and for the same reason there is no way to take it back or change it afterwards. `+
+      `Later edits need a new link.${warn}`});
+  if(go===null)return;
+  try{await navigator.clipboard.writeText(link);toast("Link copied","ok");}
+  catch(_){toast("Could not copy — select the link and copy it by hand","err");}
+}
+
+let sharedNote=null;
+async function openSharedFromHash(){
+  const m=/^#n=(.+)$/.exec(location.hash||"");
+  if(!m)return;
+  /* Out of the address bar immediately: a reload should not reopen the reader,
+     and a whole note sitting in the URL is a whole note in the history. */
+  history.replaceState(null,"",location.pathname+location.search);
+  let d;
+  try{d=await shareUnpack(decodeURIComponent(m[1]));}
+  catch(_){toast("That shared link is damaged or was cut short","err");return;}
+  if(!d||d.v!==1||typeof d.m!=="string"){toast("That link is not a Typewell note","err");return;}
+  sharedNote={title:(d.t||"Shared note").slice(0,200),md:d.m};
+  $("#shareTitle").textContent=sharedNote.title;
+  $("#shareBody").innerHTML=mdToHtml(sharedNote.md);   /* sanitises on the way out */
+  /* read-only means read-only: a checkbox you can tick here would look like it
+     did something and would be gone the moment the panel closes */
+  $("#shareBody").querySelectorAll("input").forEach(i=>{i.disabled=true;i.style.cursor="default";});
+  openOverlay("shareOverlay");
+}
+$("#shareKeepBtn").addEventListener("click",()=>{
+  if(!sharedNote)return;
+  const n={id:uid(),title:sharedNote.title,html:mdToHtml(sharedNote.md),
+    created:now(),updated:now(),pinned:false,deleted:false};
+  notes.unshift(n);saveNotes();
+  $("#shareOverlay").classList.remove("open");
+  openNote(n.id);renderList();markDirty();
+  toast("Saved to your notes","ok");
+});
 
 /* ---------- export / import ---------- */
 function download(name,content,type="text/plain"){
@@ -3521,6 +3950,7 @@ exportMenu.addEventListener("click",e=>{
   const x=e.target.closest("[data-x]")?.dataset.x;if(!x)return;
   exportMenu.classList.remove("open");
   if(x==="import"){$("#jsonInput").click();return;}   /* the one entry that reads, not writes */
+  if(x==="share"){shareNote();return;}                /* the one that makes a link, not a file */
   doExport(x);
 });
 document.addEventListener("click",e=>{
@@ -3708,34 +4138,86 @@ const drive={
       document.head.appendChild(s);
     });
   },
-  /* GIS has no silent path. initTokenClient().requestAccessToken() ALWAYS
-     opens a popup window - when consent already exists it closes itself after
-     a blink, which is exactly the flash people saw on every single refresh,
-     because the old load-time "resume silently" call did this unconditionally.
-     There is no prompt value that avoids it; the implicit silent refresh was
-     removed from the platform. So a token is only ever fetched inside a real
-     user gesture, and being linked is remembered separately from holding one. */
-  async connect(){
+  /* One token client for the life of the page, not a new one per call. GIS
+     keeps its own state on the object, and building a second one mid-session
+     is a good way to end up with two windows racing the same callback. */
+  async client(){
+    if(this.tc)return this.tc;
     if(!GOOGLE_CLIENT_ID)throw new Error("No Client ID configured");
     await this.loadGis();
-    return new Promise((resolve,reject)=>{
-      const tc=google.accounts.oauth2.initTokenClient({
-        client_id:GOOGLE_CLIENT_ID,
-        scope:"https://www.googleapis.com/auth/drive.file",
-        callback:res=>{
-          if(res.error){reject(new Error(res.error));return;}
-          this.token=res.access_token;
-          this.tokenExp=now()+((res.expires_in||3600)-60)*1000;
-          this.connected=true;this.linked=true;
-          this.saveToken();
-          settings.driveGranted=true;saveSettings();
-          syncSettingsUI();renderFoot();refreshBeacon();resolve();
-        },
-        error_callback:e=>reject(new Error(e?.type||"popup closed")),
-      });
-      tc.requestAccessToken();
+    this.tc=google.accounts.oauth2.initTokenClient({
+      client_id:GOOGLE_CLIENT_ID,
+      scope:"https://www.googleapis.com/auth/drive.file",
+      /* "" is Google's "only ask the first time". The default is
+         select_account, which puts an account chooser in front of someone who
+         linked one account an hour ago and has no choice to make. Paired with
+         the hint below, a renewal for an account that has already consented
+         goes through without anything to click. */
+      prompt:"",
+      callback:res=>{
+        const w=this.waiting;this.waiting=null;
+        if(res.error){w&&w.bad(new Error(res.error));return;}
+        this.token=res.access_token;
+        this.tokenExp=now()+((res.expires_in||3600)-60)*1000;
+        this.connected=true;this.linked=true;
+        this.saveToken();
+        settings.driveGranted=true;saveSettings();
+        syncSettingsUI();renderFoot();refreshBeacon();
+        w&&w.ok();
+      },
+      error_callback:e=>{const w=this.waiting;this.waiting=null;
+        w&&w.bad(new Error(e?.type||"popup closed"));},
+    });
+    return this.tc;
+  },
+  /* GIS has no silent path. requestAccessToken() ALWAYS opens a popup window -
+     when consent already exists it redirects and closes itself in a blink,
+     which is exactly the flash people saw on every single refresh, because the
+     old load-time "resume silently" call did this unconditionally. There is no
+     prompt value that avoids it; the implicit silent refresh was removed from
+     the platform. So a token is only ever fetched inside a real user gesture,
+     and being linked is remembered separately from holding one. */
+  async connect(){
+    const tc=await this.client();
+    if(this.waiting)throw new Error("A Google window is already open");
+    return new Promise((ok,bad)=>{
+      this.waiting={ok,bad};
+      /* hint skips the account chooser; without it a renewal stops to ask
+         which account, which is not something a renewal should ever do */
+      tc.requestAccessToken(settings.driveEmail?{hint:settings.driveEmail}:{});
     });
   },
+  /* Why a Drive link used to die overnight, in one sentence: Google's browser
+     flow hands out an access token that lasts about an hour, and there is no
+     refresh token in it at all - that is the platform, not a setting we forgot.
+     Nothing can make one token last a day. What CAN be done is ask for the
+     next one before the current one runs out, and only during a real click or
+     keystroke, because a popup outside a user gesture is blocked outright. For
+     anyone actually using the app the link then just stays up; for a tab left
+     closed for a week the footer says so and offers one button. */
+  RENEW_LEAD:6*60*1000,
+  renewing:false,renewBlockedUntil:0,
+  renewable(){
+    /* !! because this reads as a yes/no everywhere it is used, and the chain
+       below would otherwise hand back the empty client ID string */
+    return !!(this.linked&&GOOGLE_CLIENT_ID&&settings.driveKeepAlive!==false
+      &&!this.renewing&&!document.hidden&&now()>=this.renewBlockedUntil);
+  },
+  async renewQuietly(){
+    if(!this.renewable())return;
+    if(!this.token&&!this.restoreToken()&&!settings.driveEmail)return;  /* never linked on this device */
+    if(this.token&&now()<this.tokenExp-this.RENEW_LEAD)return;          /* plenty of time left */
+    this.renewing=true;
+    try{await this.connect();}
+    catch(_){
+      /* refused, dismissed, or blocked. Backing off matters more than
+         retrying: a window that reopens on every click is worse than a
+         Reconnect button that waits to be pressed. */
+      this.renewBlockedUntil=now()+10*60*1000;refreshBeacon();
+    }
+    finally{this.renewing=false;}
+  },
+  expired(){return this.linked&&!(this.token&&now()<this.tokenExp);},
   async ensureToken(){
     if(this.token&&now()<this.tokenExp)return;
     if(this.restoreToken())return;    /* still good from an earlier page load */
@@ -3909,17 +4391,30 @@ const drive={
          is what lets an auto-backup go through after a reload. If there is
          none, skip quietly; the next Ctrl+S or Back up runs inside a gesture
          and re-authorises then. */
-      if(!this.token||now()>=this.tokenExp)if(!this.restoreToken())return;
+      if(!this.token||now()>=this.tokenExp)if(!this.restoreToken()){refreshBeacon();return;}
       try{await this.backup();}catch(e){setBeacon("error","backup failed");}
     },45000);
   },
   disconnect(){
     if(this.token&&window.google?.accounts?.oauth2)google.accounts.oauth2.revoke(this.token,()=>{});
-    this.dropToken();this.linked=false;
-    settings.driveGranted=false;saveSettings();
+    this.dropToken();this.linked=false;this.renewBlockedUntil=0;
+    settings.driveGranted=false;settings.driveEmail="";saveSettings();
     syncSettingsUI();renderFoot();refreshBeacon();
   }
 };
+
+/* Where the renewal above gets its user gesture. Any click or keypress
+   anywhere in the app counts, the check in front of it is two comparisons, and
+   the work only happens in the last few minutes of a token's life - so this is
+   a wide net on purpose rather than a button nobody would know to press. */
+let lastRenewCheck=0;
+function maybeRenewDrive(){
+  if(now()-lastRenewCheck<20000)return;
+  lastRenewCheck=now();
+  drive.renewQuietly();
+}
+document.addEventListener("pointerdown",maybeRenewDrive,{capture:true,passive:true});
+document.addEventListener("keydown",maybeRenewDrive,{capture:true,passive:true});
 
 async function connectDriveFlow(){
   if(!GOOGLE_CLIENT_ID){
@@ -3930,6 +4425,15 @@ async function connectDriveFlow(){
   try{
     await drive.connect();
     toast("Google Drive connected","ok");
+    /* about.get is inside drive.file - no extra scope, no consent screen for
+       it. The address is only ever used as the renewal hint and as the label
+       in Settings, so a failure here costs a nicety, not the connection. */
+    if(!settings.driveEmail){
+      try{
+        const a=await drive.json("/drive/v3/about?fields=user(emailAddress)");
+        if(a&&a.user&&a.user.emailAddress){settings.driveEmail=a.user.emailAddress;saveSettings();syncSettingsUI();}
+      }catch(_){}
+    }
     const fresh=!settings.driveFolderId;
     await drive.folder();
     const existing=fresh?(await drive.list()).length:0;
@@ -3995,7 +4499,11 @@ function syncSettingsUI(){
   const pill=$("#drivePill");
   if(!GOOGLE_CLIENT_ID){pill.textContent="not configured";pill.className="pill off";
     $("#driveCfgHint").innerHTML=" <b>To enable:</b> open this HTML file and paste your OAuth Client ID into the <code>CONFIG</code> block at the very top of the <code>&lt;script&gt;</code> — one line, then redeploy.";
-  }else if(drive.linked){pill.textContent="connected";pill.className="pill ok";$("#driveCfgHint").textContent="";}
+  }else if(drive.linked){
+    pill.textContent=drive.expired()?"sign-in expired":(settings.driveEmail||"connected");
+    pill.className=drive.expired()?"pill off":"pill ok";
+    $("#driveCfgHint").textContent="";
+  }
   else{pill.textContent="ready — one click";pill.className="pill";$("#driveCfgHint").textContent="";}
   const on=drive.linked;
   $("#driveBackupBtn").disabled=!on;
@@ -4006,7 +4514,11 @@ function syncSettingsUI(){
      you have to ask for either - Back up and Sync re-authorise on their
      own if the token has expired. */
   $("#driveConnectBtn").disabled=!GOOGLE_CLIENT_ID;
-  $("#driveConnectBtn").style.display=on?"none":"";
+  /* ...unless it HAS expired, in which case the one button that fixes it is
+     the one that must be on screen. */
+  $("#driveConnectBtn").style.display=(on&&!drive.expired())?"none":"";
+  $("#driveConnectBtn").innerHTML=I("cloud")+(drive.expired()?"Reconnect":"Connect");
+  $("#driveKeepAliveChk").checked=settings.driveKeepAlive!==false;
 }
 function openOverlay(id){
   $("#"+id).classList.add("open");
@@ -4036,6 +4548,7 @@ $("#driveRestoreBtn").addEventListener("click",async()=>{
 });
 $("#driveDisconnectBtn").addEventListener("click",()=>{drive.disconnect();toast("Drive disconnected");});
 $("#autoBackupChk").addEventListener("change",e=>{settings.autoBackup=e.target.checked;saveSettings();});
+$("#driveKeepAliveChk").addEventListener("change",e=>{settings.driveKeepAlive=e.target.checked;saveSettings();});
 $("#ghToken").addEventListener("change",e=>{settings.ghToken=e.target.value.trim();saveSettings();});
 
 /* ---------- theme ---------- */
@@ -4124,6 +4637,11 @@ editor.focus();
 if(GOOGLE_CLIENT_ID&&settings.driveGranted){
   drive.linked=true;drive.restoreToken();renderFoot();refreshBeacon();
 }
+openSharedFromHash();
+/* Opening a share link while Typewell is already open on the same tab is a
+   same-document navigation - the address changes, nothing reloads - so the
+   load-time call above never sees it. */
+addEventListener("hashchange",openSharedFromHash);
 console.log("%cTypewell","font-weight:bold;font-size:15px","single file · localStorage first · a folder of .md in your Drive, one .json in a gist");
 
 /* ---------- tooltips: one floating chip, delegated, works for injected nodes ----------
@@ -4762,6 +5280,7 @@ dragGrip.addEventListener("mousedown",e=>{
   dragGhost.textContent=(dragging.innerText||dragging.textContent||"").trim().slice(0,90)||
     (dragging.tagName==="HR"?"— divider —":dragging.tagName.toLowerCase());
   dragUI.classList.add("dragging");
+  clearImgSel();
   paintDrop(e.clientY);
   document.addEventListener("mousemove",dragMove,true);
   document.addEventListener("mouseup",dragUp,true);
@@ -4802,7 +5321,7 @@ editor.addEventListener("keydown",e=>{
    token's lifetime can be tested without a Google account in the loop.
    `notes` is a getter and not the array itself: a drop rebuilds it rather than
    splicing, so a reference handed out once would be testing a dead copy. */
-window.__typewell={WELCOME_HTML,FONTS,BLOCKS,drive,LS_DTOK,version:"2026-08-07",
+window.__typewell={WELCOME_HTML,FONTS,BLOCKS,drive,LS_DTOK,settings,version:"2026-08-25",
   notes:()=>notes,setNotes:v=>{notes=v;},LS_NOTES};
 </script>
 </body>
