@@ -488,6 +488,14 @@ body.zen #page{padding-top:52px}
 #editor img[data-a="wrap-left"] ,#shareBody img[data-a="wrap-left"]{float:left; margin:.3em 1em .6em 0}
 #editor img[data-a="wrap-right"],#shareBody img[data-a="wrap-right"]{float:right;margin:.3em 0 .6em 1em}
 #editor img[data-a="inline"]    ,#shareBody img[data-a="inline"]{display:inline-block;vertical-align:text-bottom;margin:0 .25em}
+/* A picture in a line of text sits on the words, which is right while it is
+   about the size of a word. Once it is several lines tall that same rule reads
+   as a mistake: the words cling to the very bottom edge of the picture with a
+   tall empty column above them. So a tall one lines up by its top instead, and
+   the sentence starts level with the top of the picture. The line is drawn by
+   markTallImages(), which measures - a stylesheet cannot ask how tall a
+   picture is. */
+#editor img[data-a="inline"][data-tall="1"],#shareBody img[data-a="inline"][data-tall="1"]{vertical-align:top}
 /* a floated image contributes no height to its parent; without this the note
    can end shorter than the picture it ends with */
 #editor::after,#shareBody::after{content:"";display:block;clear:both}
@@ -1803,6 +1811,7 @@ function openNote(id){
   editor.querySelectorAll("blockquote").forEach(blockifyQuote);
   /* notes written before images knew to stay out of a flex row */
   homeTaskImages(editor);
+  markTallImages(editor);
   editor.style.fontFamily=`"${settings.defaultFont}",monospace`;
   $("#editStamp").textContent="edited "+fmtDate(n.updated);
   histReset();
@@ -2631,6 +2640,7 @@ async function insertImageFile(f){
     if(im){
       im.dataset.a="left";im.alt=im.alt||f.name.replace(/\.[^.]+$/,"");
       homeTaskImages(editor);   /* before the frame is drawn, so it is drawn in the right place */
+      markTallImages(editor);
       selectImg(im);
     }
     scheduleSave();
@@ -2763,15 +2773,35 @@ function homeTaskImages(root){
   });
   return moved;
 }
+/* ---------- a tall picture lines up by its top ----------
+   Two lines high is the line. Below that a picture is word-sized and belongs
+   sitting on the words; above it the words would otherwise hang off the very
+   bottom edge with a tall gap above them. The test is done in code and not in
+   the stylesheet because CSS has no way to ask how tall a picture is, and the
+   answer changes every time one is dragged. Marking rather than styling keeps
+   the decision in one place and leaves the look in the stylesheet where the
+   rest of it lives. */
+const IMG_TALL_LINES=2;
+function markTallImages(root){
+  root.querySelectorAll('img[data-a="inline"]').forEach(im=>{
+    const h=im.getBoundingClientRect().height;
+    if(!h)return;                       /* not loaded yet - the load handler comes back */
+    const lh=parseFloat(getComputedStyle(im.parentElement||im).lineHeight)||0;
+    if(!lh)return;
+    if(h>lh*IMG_TALL_LINES)im.dataset.tall="1";
+    else delete im.dataset.tall;
+  });
+}
 const IMG_INLINE_AT=0.30;
 function autoPlaceImg(im){
-  if(im.dataset.fit==="fixed")return;
+  if(im.dataset.fit==="fixed"){markTallImages(editor);return;}
   const a=im.dataset.a||"left";
   const w=im.getBoundingClientRect().width,host=imgHostWidth(im);
   if(!w||!host)return;
   const small=w/host<=IMG_INLINE_AT;
   if(small&&a!=="inline"){im.dataset.a="inline";homeTaskImages(editor);}
   else if(!small&&a==="inline")im.dataset.a="left";
+  markTallImages(editor);
 }
 function clearImgSel(){
   if(selImg)selImg.classList.remove("img-sel");
@@ -2809,7 +2839,7 @@ addEventListener("scroll",placeImgTools,true);
 addEventListener("resize",placeImgTools);
 /* An image selected the instant it is inserted has no size yet, so the frame
    would be drawn around nothing. load does not bubble, but it does capture. */
-editor.addEventListener("load",()=>{placeImgTools();placeCaretMark();},true);
+editor.addEventListener("load",()=>{markTallImages(editor);placeImgTools();placeCaretMark();},true);
 
 editor.addEventListener("click",e=>{
   const im=e.target.closest("img");
@@ -2860,6 +2890,7 @@ imgTools.addEventListener("click",async e=>{
     /* "Inline" has to mean inline even in a task row, where it would otherwise
        be quietly turned back into a block by the row's own layout */
     if(b.dataset.a==="inline")homeTaskImages(editor);
+    markTallImages(editor);
     /* an inline picture the height of a paragraph is the point of inline; a
        full-width one is not, so the first switch to inline offers a size */
     if(b.dataset.a==="inline"&&!selImg.style.width)selImg.style.width="25%";
@@ -3010,7 +3041,7 @@ editor.addEventListener("cut",e=>{
 });
 /* after the browser has finished its own paste, whatever it built */
 editor.addEventListener("paste",()=>{
-  setTimeout(()=>{ if(homeTaskImages(editor))scheduleSave(); },0);
+  setTimeout(()=>{ if(homeTaskImages(editor))scheduleSave(); markTallImages(editor); },0);
 });
 editor.addEventListener("paste",e=>{
   const f=[...(e.clipboardData?.files||[])].find(x=>x.type.startsWith("image/"));
@@ -5680,7 +5711,7 @@ editor.addEventListener("keydown",e=>{
 window.__typewell={WELCOME_HTML,FONTS,BLOCKS,drive,LS_DTOK,settings,version:"2026-08-25",
   notes:()=>notes,setNotes:v=>{notes=v;},LS_NOTES,
   pageWidth,setPageWidth,LS_LAST,openLastNote,shareMarkdown,shrinkForShare,SHARE_MAX,
-  homeTaskImages,
+  homeTaskImages,markTallImages,IMG_TALL_LINES,
   selectImg,clearImgSel,imgIsSelected,autoPlaceImg,caretAtImg,placeCaretMark,
   IMG_INLINE_AT,selImg:()=>selImg};
 </script>

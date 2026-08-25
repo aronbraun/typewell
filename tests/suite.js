@@ -1720,6 +1720,75 @@ export async function suite(win) {
     eq(ed.querySelector(".task-text").textContent, "a  b", "the words around the picture were rearranged");
   });
 
+  /* ── a tall picture lines up by its top ──
+     Sitting a picture on the words is right while it is about the size of a
+     word. Once it is several lines tall the same rule reads as a mistake: the
+     sentence clings to the bottom edge with a tall empty column above it, which
+     is what "text should be on top, not bottom" was reporting. */
+
+  /* a block of colour with a real height, and a wait that cannot hang:
+     load or error both settle it, and a timer settles it if neither fires.
+     decode() is deliberately not used - it never settles in a frame that is
+     not painting, which hung the whole suite once. */
+  const block = (w, h) => {
+    const c = doc.createElement("canvas"); c.width = w; c.height = h;
+    const g = c.getContext("2d"); g.fillStyle = "#1a9"; g.fillRect(0, 0, w, h);
+    return c.toDataURL("image/png");
+  };
+  const settled = (im, ms = 2000) => new Promise(res => {
+    const done = () => res(im.complete && im.naturalWidth > 0);
+    if (im.complete && im.naturalWidth > 0) return res(true);
+    im.addEventListener("load", done, { once: true });
+    im.addEventListener("error", done, { once: true });
+    setTimeout(done, ms);
+  });
+  /* where the words start, measured off the text itself rather than the span,
+     because the span's box is stretched to the picture's height */
+  const wordsTop = (node) => {
+    const r = doc.createRange(); r.setStart(node, 0); r.setEnd(node, node.length);
+    return r.getBoundingClientRect().top;
+  };
+
+  atest("a tall picture in a line of text starts level with the words", async () => {
+    setHTML(`<ul class="tasks"><li><input type="checkbox"><span class="task-text">`
+      + `<img src="${block(300, 200)}" alt="t" data-a="inline">overflow in route transaction`
+      + `</span></li></ul>`);
+    const im = ed.querySelector("img");
+    ok(await settled(im), "the picture never loaded, so its height could not be measured");
+    win.__typewell.markTallImages(ed);
+    eq(im.dataset.tall, "1", "a picture 200px tall was not counted as tall");
+    eq(win.getComputedStyle(im).verticalAlign, "top", "the tall picture still hangs off the baseline");
+    const txt = [...ed.querySelector(".task-text").childNodes]
+      .find(n => n.nodeType === 3 && n.textContent.trim());
+    const gap = wordsTop(txt) - im.getBoundingClientRect().top;
+    ok(gap < 12, `the words start ${Math.round(gap)}px below the top of the picture, not beside it`);
+  });
+
+  atest("a word-sized picture still sits on the words", async () => {
+    setHTML(`<p>words before <img src="${block(18, 18)}" alt="i" data-a="inline">words after</p>`);
+    const im = ed.querySelector("img");
+    ok(await settled(im), "the picture never loaded, so its height could not be measured");
+    win.__typewell.markTallImages(ed);
+    ok(!im.dataset.tall, "a picture the size of a word was treated as a tall one");
+    eq(win.getComputedStyle(im).verticalAlign, "text-bottom", "the small picture lost its footing on the line");
+    const txt = [...ed.querySelector("p").childNodes]
+      .find(n => n.nodeType === 3 && n.textContent.includes("before"));
+    const r = doc.createRange(); r.setStart(txt, 0); r.setEnd(txt, txt.length);
+    const drop = Math.abs(im.getBoundingClientRect().bottom - r.getBoundingClientRect().bottom);
+    ok(drop < 1, `the icon's bottom is ${drop.toFixed(1)}px off the bottom of the words beside it`);
+  });
+
+  atest("shrinking a tall picture takes the mark back off again", async () => {
+    setHTML(`<p>a <img src="${block(300, 200)}" alt="t" data-a="inline"> b</p>`);
+    const im = ed.querySelector("img");
+    ok(await settled(im), "the picture never loaded, so its height could not be measured");
+    win.__typewell.markTallImages(ed);
+    eq(im.dataset.tall, "1", "the picture did not start out tall");
+    im.style.width = "20px";                     /* dragged down to word size */
+    win.__typewell.markTallImages(ed);
+    ok(!im.dataset.tall, "the mark is sticky — a shrunk picture is still treated as tall");
+  });
+
   test("a picture's size and placement survive the trip out to Markdown and back", () => {
     setHTML(`<p><img src="${PX}" alt="cat" style="width:40%" data-a="center"></p>`);
     const md = win.htmlToMd(ed);

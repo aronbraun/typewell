@@ -67,6 +67,18 @@ sets `data-a="inline"`. A row with no `.task-text` at all (an old note, or one a
 paste built by hand) gets one built around everything except the checkbox and any
 nested list.
 
+**A tall picture lines up by its top.** An inline picture sits on the words
+(`vertical-align:text-bottom`), which is right while it is about the size of a
+word and wrong the moment it is several lines tall — the sentence then clings to
+the bottom edge with a tall empty column above it. `markTallImages()` measures
+each inline picture against its parent's `line-height` and sets `data-tall="1"`
+past `IMG_TALL_LINES` (2), which the stylesheet turns into `vertical-align:top`.
+It has to be measured in code: CSS cannot ask how tall a picture is, and the
+answer changes on every drag. It runs on open, on the editor's capture-phase
+`load` (a picture has no height until it has loaded), after a paste, after an
+insert, and inside `autoPlaceImg` — including the `data-fit="fixed"` early
+return, so a picture you placed yourself still gets measured.
+
 A caret directly before or after a picture also gets `#caretMark`, a bar the
 height of the picture on the side the caret is on — a text caret drawn flush
 against a picture's edge is close to invisible.
