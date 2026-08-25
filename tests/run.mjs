@@ -96,6 +96,12 @@ async function main() {
     `--remote-debugging-port=${port}`,
     "--no-sandbox",
     "--disable-gpu",
+    /* a CI runner has no session bus and no first-run state; without these
+       Chrome spends its first seconds failing to reach things that are not
+       there, and prints a wall of dbus errors while it does it */
+    "--disable-dev-shm-usage",
+    "--no-first-run",
+    "--no-default-browser-check",
     "--window-size=1440,900",
     "--user-data-dir=" + join(process.env.TMPDIR || "/tmp", "typewell-test-profile"),
     "about:blank",
@@ -103,13 +109,24 @@ async function main() {
   let chromeErr = "";
   chrome.stderr.on("data", (d) => (chromeErr += d));
 
-  /* wait for the debugging endpoint, checking for it rather than guessing a delay */
+  /* Wait for the debugging endpoint, checking for it rather than guessing a
+     delay. Two things here were wrong and turned a slow start into a red
+     build twice:
+     - the pause only ran when fetch *threw*. Once the port was open but the
+       page target had not appeared yet, every iteration returned an empty
+       list with no pause at all, so the whole budget burned in milliseconds
+       and the run gave up while Chrome was still coming up;
+     - 10s is not long on a cold CI runner. 30s costs nothing on a machine
+       that is ready in one second, because the loop leaves the moment the
+       target appears. */
   let target = null;
-  for (let i = 0; i < 100 && !target; i++) {
+  const deadline = Date.now() + 30_000;
+  while (!target && Date.now() < deadline) {
     try {
       const list = await fetch(`http://127.0.0.1:${port}/json/list`).then((r) => r.json());
       target = list.find((t) => t.type === "page");
-    } catch { await sleep(100); }
+    } catch { /* port not open yet */ }
+    if (!target) await sleep(100);
   }
   if (!target) {
     console.error("Chrome never opened its debugging port.\n" + chromeErr);
