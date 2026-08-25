@@ -271,6 +271,10 @@ a.btn{color:var(--ink);text-decoration:none}
 #fileName:focus{border-color:var(--accent);background:var(--bg)}
 #fileName::placeholder{color:var(--faint)}
 #topbar .spacer{flex:1}
+/* Sharing was buried in the export menu, which is where you look for a file,
+   not for a link. On the bar, with a word on it. */
+#shareTopBtn{flex:none;gap:6px}
+#shareTopBtn>svg.ic{width:14px;height:14px}
 .theme-dots{display:flex;gap:6px;align-items:center;padding:0 4px}
 .tdot{width:15px;height:15px;border-radius:50%;border:1.5px solid var(--line);transition:transform .12s;padding:0}
 .tdot:hover{transform:scale(1.15)}
@@ -652,6 +656,9 @@ kbd{font-family:var(--font-mono);font-size:10.5px;background:var(--panel-2);bord
   body.sb-open #app{grid-template-columns:min(85vw,290px) 1fr}
   #page{padding:18px 16px 130px}
   #fileName{flex:1}
+  /* the icon still says it on a phone, where the bar has no room for the word */
+  #shareTopBtn .lbl{display:none}
+  #shareTopBtn{padding:0 8px}
 }
 @media print{
   body{overflow:visible;background:#fff;color:#000}
@@ -846,6 +853,8 @@ body.zen #zenExit{display:grid}
       <button class="ibtn" id="sbToggle" title="Toggle sidebar"><svg class="ic" data-i="panel"></svg></button>
       <input id="fileName" placeholder="Untitled" autocomplete="off" spellcheck="false" title="File name">
       <div class="spacer"></div>
+      <button class="btn sm" id="shareTopBtn"
+        title="Share a link  A read-only copy of this note, carried inside the link itself"><svg class="ic" data-i="link"></svg><span class="lbl">Share</span></button>
       <div class="theme-dots" id="themeDots" title="Theme">
         <button class="tdot" data-theme="white" title="White"></button>
         <button class="tdot" data-theme="paper" title="Paper"></button>
@@ -931,7 +940,7 @@ body.zen #zenExit{display:grid}
   <button data-x="txt" title="Plain text  (.txt)"><svg class="ic" data-i="download"></svg>Plain text (.txt)</button>
   <button data-x="pdf" title="Print or save as PDF"><svg class="ic" data-i="print"></svg>Print / PDF</button>
   <div class="msep"></div>
-  <button data-x="share" title="A read-only link with the note inside it  (nothing is uploaded)"><svg class="ic" data-i="link"></svg>Share a link…</button>
+  <button data-x="share" title="Also on the top bar  A read-only link with the note inside it, pictures and all (nothing is uploaded)"><svg class="ic" data-i="link"></svg>Share a link…</button>
   <div class="msep"></div>
   <button data-x="json" title="Every note plus settings  (.json)"><svg class="ic" data-i="shield"></svg>Full backup (.json)</button>
   <div class="msep"></div>
@@ -1035,12 +1044,13 @@ body.zen #zenExit{display:grid}
 
       <div class="row">
         <label>Sharing a note</label>
-        <div class="hint" style="margin-top:0"><b>Share a link</b>, in the export menu, makes a
-          read-only link with the whole note packed inside it. Nothing is uploaded and typewell.net
-          never sees it. The other side of that: the link <i>is</i> the note, so anyone holding it
-          can read it, you cannot take it back, and later edits need a new link. Very long notes —
-          usually ones with pasted pictures — are refused, because mail and chat apps cut long
-          links.</div>
+        <div class="hint" style="margin-top:0">The <b>Share</b> button on the top bar makes a
+          read-only link with the whole note packed inside it — words, formatting and pictures
+          alike. Nothing is uploaded and typewell.net never sees it. The other side of that: the
+          link <i>is</i> the note, so anyone holding it can read it, you cannot take it back, and
+          later edits need a new link. Pictures are re-encoded smaller for the trip, which keeps
+          most notes inside a length that mail and chat apps will carry; your own copies are not
+          touched.</div>
       </div>
 
       <div class="row">
@@ -1299,6 +1309,10 @@ const DEFAULT_THEME    = "paper";
 
 const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
 const LS_NOTES="typewell.notes.v1", LS_SET="typewell.settings.v1";
+/* Which note you were reading. Its own key rather than a field in settings:
+   it is not a preference, it is where you left off, and it must not ride along
+   into anything that gets exported or backed up. */
+const LS_LAST="typewell.lastnote.v1";
 const uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,8);
 const now=()=>Date.now();
 const esc=s=>s.replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -1422,9 +1436,9 @@ const WELCOME_HTML=
   '</ul>'+
 
   '<h2>Sending a note to someone</h2>'+
-  '<p><b>Share a link</b>, in the same download menu, makes a read-only link with the '+
-  'whole note packed inside it. Nothing is uploaded anywhere — the note travels in the '+
-  'link. Anyone who has the link can read it, and you cannot take it back, so treat it '+
+  '<p>The <b>Share</b> button on the top bar makes a read-only link with the whole note '+
+  'packed inside it — pictures included. Nothing is uploaded anywhere; the note travels in '+
+  'the link. Anyone who has the link can read it, and you cannot take it back, so treat it '+
   'like handing over a photocopy.</p>'+
 
   '<h2>Keeping a copy in Google Drive</h2>'+
@@ -1630,6 +1644,16 @@ function pickFirst(){
   const first=notes.filter(n=>!n.deleted).sort(pinnedFirst)[0];
   if(first)openNote(first.id);else newNote();
 }
+/* On the way in: the note you were last reading, if it is still there. Checked
+   by id against the notes actually loaded, so one that has since been trashed,
+   or that came from a browser wiped in between, falls through to the top of
+   the list rather than opening nothing at all. */
+function openLastNote(){
+  let id=null;
+  try{id=localStorage.getItem(LS_LAST);}catch(_){}
+  const n=id?getNote(id):null;
+  if(n&&!n.deleted)openNote(n.id);else pickFirst();
+}
 
 /* ---------- dragging the list into the order you want ---------- */
 /* Pointer events rather than HTML5 drag-and-drop, because dragstart never
@@ -1766,6 +1790,10 @@ function openNote(id){
   flushSave();
   clearImgSel();
   activeId=id;const n=active();if(!n)return;
+  /* remembered by id, so the next refresh comes back here instead of the top
+     of the list. Wrapped because a browser in private mode can refuse to
+     write, and where you left off is not worth an exception over. */
+  try{localStorage.setItem(LS_LAST,id);}catch(_){}
   fileName.value=n.title==="Untitled"?"":n.title;
   editor.innerHTML=n.html;
   /* Quotes saved before callouts existed hold their text inline, with no <p>.
@@ -4031,26 +4059,80 @@ async function shareUnpack(str){
 /* Markdown, not the HTML - it is a third the size, and it comes back in through
    mdToHtml, which sanitises. HTML from a stranger would have to be trusted or
    scrubbed twice; markdown only has to be parsed. */
-const SHARE_MAX=30000;
+/* ---------- pictures, made light enough to travel ----------
+   A link has to carry the whole note inside itself, and a pasted screenshot is
+   often half a megabyte. Sharing a note with pictures in it therefore used to
+   end in "too big for a link", which read as "sharing drops my pictures". It
+   does not, and it never did: every picture goes. It is only the copy inside
+   the link that gets re-encoded smaller. What is in your notes is untouched. */
+const SHARE_IMG_MAX=1400;   /* longest side, in pixels */
+const SHARE_IMG_Q=0.72;
+function shrinkForShare(im){
+  return new Promise(res=>{
+    const src=im.getAttribute("src")||"";
+    /* a web address weighs nothing, and an SVG is already text - putting it
+       through a canvas would only turn it into a much larger grid of pixels */
+    if(!/^data:image\//i.test(src)||/^data:image\/svg/i.test(src))return res(src);
+    const img=new Image();
+    img.onload=()=>{
+      try{
+        const s=Math.min(1,SHARE_IMG_MAX/Math.max(img.naturalWidth,img.naturalHeight));
+        const c=document.createElement("canvas");
+        c.width =Math.max(1,Math.round(img.naturalWidth *s));
+        c.height=Math.max(1,Math.round(img.naturalHeight*s));
+        c.getContext("2d").drawImage(img,0,0,c.width,c.height);
+        /* webp, because it keeps transparency where jpeg would fill it in
+           black. A browser that cannot write webp hands back a PNG instead,
+           and the length check below quietly keeps the original. */
+        const out=c.toDataURL("image/webp",SHARE_IMG_Q);
+        res(/^data:image\/webp/i.test(out)&&out.length<src.length?out:src);
+      }catch(_){res(src);}   /* a picture from another site taints the canvas */
+    };
+    img.onerror=()=>res(src);
+    img.src=src;
+  });
+}
+/* the note as Markdown, with every picture shrunk. Done on a copy of the
+   editor so nothing you can see changes while the link is being made. */
+async function shareMarkdown(){
+  const clone=editor.cloneNode(true);
+  const ims=[...clone.querySelectorAll("img")];
+  if(ims.length){
+    const srcs=await Promise.all(ims.map(shrinkForShare));
+    ims.forEach((im,i)=>im.setAttribute("src",srcs[i]));
+  }
+  return {md:htmlToMd(clone),pics:ims.length};
+}
+
+/* What a browser will happily carry in one address; the fragment never goes to
+   a server, so this is a limit on the address bar, not on any network. Chat and
+   mail apps are the ones with the short fuse, which is what the warnings are
+   for - the cap itself only stops a link no browser would open. */
+const SHARE_MAX=512*1024;
+const SHARE_LONG=64*1024;   /* past here, say plainly that some apps will cut it */
 async function shareNote(){
   flushSave();
   const n=active();if(!n)return;
-  const code=await sharePack({v:1,t:n.title,m:htmlToMd(editor)});
+  const {md,pics}=await shareMarkdown();
+  const code=await sharePack({v:1,t:n.title,m:md});
   /* href minus any fragment, not origin+pathname: opened straight off disk the
      origin is the string "null", and the link would point at nothing */
   const link=location.href.split("#")[0]+"#n="+code;
   const kb=Math.max(1,Math.round(link.length/1024));
   if(link.length>SHARE_MAX){
     await dialog({title:"Too big for a link",ok:"I see",
-      message:`This note comes to about <b>${kb} KB</b>, and the whole note has to fit inside the link itself. Past roughly 30 KB links start getting cut off by mail and chat apps, so Typewell will not hand you one that is likely to arrive broken.<br><br>Pasted pictures are almost always the weight. Shrink them with the size buttons, remove one, or send the note as a Markdown file from this same menu instead.`});
+      message:`Even with the pictures re-encoded smaller, this note comes to about <b>${kb} KB</b>, and the whole note has to fit inside the link itself. Past about 500 KB a link stops being something a browser will open at all.<br><br>Remove a picture or two, or send the note as a Markdown file from the export menu — that has no size limit.`});
     return;
   }
-  const warn=kb>8?`<br><br>This link is about <b>${kb} KB</b> long. That works, but a few chat apps shorten very long links — if it arrives broken, send the Markdown file instead.`:"";
+  const picLine=pics?`<br><br>The ${pics===1?"picture":"pictures"} in this note ${pics===1?"is":"are"} carried in the link too, re-encoded smaller so it fits. Your own copy is untouched.`:"";
+  const warn=link.length>SHARE_LONG
+    ?`<br><br>This link is about <b>${kb} KB</b> long. Browsers open it fine, but mail and chat apps often shorten very long links — if it arrives broken, send the note as a Markdown file instead.`
+    :(kb>8?`<br><br>This link is about <b>${kb} KB</b> long. That works, but a few chat apps shorten very long links — if it arrives broken, send the Markdown file instead.`:"");
   const go=await dialog({title:"Link to this note",input:true,value:link,ok:"Copy link",
     message:`Anyone who opens this can read <b>${esc(n.title)}</b>, as it is right now. `+
       `The note is carried inside the link, so it is never uploaded and typewell.net never sees it — `+
       `and for the same reason there is no way to take it back or change it afterwards. `+
-      `Later edits need a new link.${warn}`});
+      `Later edits need a new link.${picLine}${warn}`});
   if(go===null)return;
   try{await navigator.clipboard.writeText(link);toast("Link copied","ok");}
   catch(_){toast("Could not copy — select the link and copy it by hand","err");}
@@ -4105,6 +4187,7 @@ function doExport(kind){
   if(kind==="pdf")window.print();
   if(kind==="json")download("typewell-backup.json",backupJson(),"application/json");
 }
+$("#shareTopBtn").addEventListener("click",()=>shareNote());
 const exportMenu=$("#exportMenu");
 $("#exportBtn").addEventListener("click",e=>{
   const r=e.currentTarget.getBoundingClientRect();
@@ -4162,6 +4245,7 @@ $("#wipeBtn").addEventListener("click",async()=>{
   if(!ok)return;
   localStorage.removeItem(LS_NOTES);localStorage.removeItem(LS_SET);
   localStorage.removeItem(LS_DMAP);localStorage.removeItem(LS_DTOK);
+  localStorage.removeItem(LS_LAST);
   location.reload();
 });
 
@@ -4850,7 +4934,7 @@ loadState();
 setTheme(settings.theme||DEFAULT_THEME);
 applyPageWidth();
 fontDD.set(settings.defaultFont);
-pickFirst();
+openLastNote();
 refreshBeacon();
 updateCounts();
 editor.focus();
@@ -5548,7 +5632,7 @@ editor.addEventListener("keydown",e=>{
    splicing, so a reference handed out once would be testing a dead copy. */
 window.__typewell={WELCOME_HTML,FONTS,BLOCKS,drive,LS_DTOK,settings,version:"2026-08-25",
   notes:()=>notes,setNotes:v=>{notes=v;},LS_NOTES,
-  pageWidth,setPageWidth,
+  pageWidth,setPageWidth,LS_LAST,openLastNote,shareMarkdown,shrinkForShare,SHARE_MAX,
   selectImg,clearImgSel,imgIsSelected,autoPlaceImg,caretAtImg,placeCaretMark,
   IMG_INLINE_AT,selImg:()=>selImg};
 </script>

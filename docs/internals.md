@@ -168,11 +168,33 @@ the two it is so old links keep opening. It comes back in through the same
 sanitised `mdToHtml` as any other imported note, and opens in a read-only panel
 that adds nothing to your own notes until you press *Save*.
 
+Pictures travel in the link too. Because a pasted screenshot is often megabytes
+and the whole note has to fit inside one address, `shrinkForShare()` re-encodes
+every embedded picture through a canvas on the way in: capped at
+`SHARE_IMG_MAX` (1400 px on the longest side) and written as WebP, which unlike
+JPEG keeps transparency. It runs on a **clone** of the editor, so nothing you
+can see changes while a link is being made and the copies in your own note are
+never rewritten. Three things are passed through untouched — a plain web
+address, an SVG (already text; a canvas would only turn it into a much larger
+grid of pixels), and any picture whose re-encoded version came out *bigger*,
+which is also how a browser that cannot write WebP silently opts out.
+
 The honest limits, which the dialog says out loud: the link **is** the note, so
-anyone holding it can read it and there is no unsending it; it cannot be edited
-after the fact, because a new link is a new copy; and past about 30 KB the app
-refuses to make one, because mail and chat apps start cutting long links. Pasted
-pictures are almost always what pushes it over.
+anyone holding it can read it and there is no unsending it; and it cannot be
+edited after the fact, because a new link is a new copy. `SHARE_MAX` is 512 KB
+— a limit on what a browser will open, not on any network, since the fragment
+is never sent anywhere. Mail and chat apps are the ones with the short fuse, so
+past `SHARE_LONG` (64 KB) the dialog says plainly that a long link may arrive
+cut, and suggests the Markdown file instead.
+
+## Coming back to where you left off
+
+`LS_LAST` holds the id of the note you last opened, written by `openNote()` and
+read once at boot by `openLastNote()`. Its own localStorage key rather than a
+field in `settings`, because it is not a preference and must not ride along
+into an export or a backup. It is checked against the notes actually loaded, so
+an id that has since been trashed — or that came from a browser wiped in
+between — falls through to `pickFirst()` rather than opening nothing.
 
 ## The service worker
 

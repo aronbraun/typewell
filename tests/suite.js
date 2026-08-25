@@ -1747,6 +1747,121 @@ export async function suite(win) {
     $("#shareOverlay").classList.remove("open");
   });
 
+  test("sharing is a button on the bar, not a line in a menu", () => {
+    const b = $("#shareTopBtn");
+    ok(b, "there is no Share button on the top bar");
+    ok(b.getBoundingClientRect().width > 0, "the Share button is on the bar but not visible");
+    has(b.textContent, "Share", "the Share button has no word on it");
+    ok($('#exportMenu [data-x="share"]'), "the old way in from the export menu was taken away");
+  });
+
+  /* ── a link carries the pictures too ──
+     A pasted screenshot is often megabytes, and the whole note has to fit
+     inside the link. Sharing one used to be refused outright, which read as
+     "sharing drops my pictures". Now the copy in the link is re-encoded. */
+  /* No decode()/load wait below: shrinkForShare reads the src attribute and
+     loads its own copy, so whether the editor has painted this one is beside
+     the point - and decode() never settles in a frame nothing is painting. */
+  const drawn = (w, h) => {                 /* a picture that will not compress to nothing */
+    const c = doc.createElement("canvas"); c.width = w; c.height = h;
+    const g = c.getContext("2d");
+    for (let i = 0; i < 300; i++) {
+      g.fillStyle = `hsl(${(i * 11) % 360},70%,55%)`;
+      g.fillRect((i * 37) % w, (i * 53) % h, w / 12, h / 12);
+    }
+    return c.toDataURL("image/png");
+  };
+
+  atest("a shared link carries the picture, not just the words", async () => {
+    const src = drawn(900, 600);
+    setHTML(`<p>look at this</p><p><img alt="shot" data-a="left" style="width:60%" src="${src}"></p>`);
+    const r = await win.__typewell.shareMarkdown();
+    eq(r.pics, 1, "the note's picture was not counted");
+    ok(/!\[shot\]\(data:image\//.test(r.md), "the picture never reached the markdown in the link");
+    has(r.md, "w=60%", "the picture's size was dropped on the way into the link");
+    /* and it comes back out the far end */
+    const box = doc.createElement("div");
+    box.innerHTML = win.mdToHtml(r.md);
+    const back = box.querySelector("img");
+    ok(back && /^data:image\//.test(back.getAttribute("src")), "the picture did not survive the round trip");
+    eq(back.style.width, "60%");
+    eq(back.alt, "shot");
+  });
+
+  atest("the link gets a lighter copy and your own note is left alone", async () => {
+    const src = drawn(1800, 1200);
+    setHTML(`<p><img alt="big" src="${src}"></p>`);
+    const im = ed.querySelector("img");
+    const before = im.getAttribute("src");
+    const r = await win.__typewell.shareMarkdown();
+    const inLink = (r.md.match(/data:image\/[a-z+]+;base64,[A-Za-z0-9+/=]+/) || [""])[0];
+    ok(inLink.length < before.length,
+      `the copy in the link is no smaller than the original (${inLink.length} vs ${before.length})`);
+    eq(im.getAttribute("src"), before, "sharing quietly rewrote the picture in your own note");
+    ok(before.length > 20000,
+      "this check is not testing anything — pick a heavier picture");
+    ok(win.__typewell.SHARE_MAX > 30000,
+      "the cap is back where a note with any picture in it cannot be shared at all");
+  });
+
+  atest("a picture already small enough is passed through untouched", async () => {
+    setHTML(`<p><img alt="x" src="${PX}"></p>`);
+    const im = ed.querySelector("img");
+    eq(await win.__typewell.shrinkForShare(im), PX,
+      "a one-pixel gif was re-encoded into something bigger");
+  });
+
+  atest("an SVG is left as text rather than turned into a grid of pixels", async () => {
+    const svg = "data:image/svg+xml;base64," + win.btoa('<svg xmlns="http://www.w3.org/2000/svg" width="40" height="40"><rect width="40" height="40"/></svg>');
+    setHTML(`<p><img alt="v" src="${svg}"></p>`);
+    eq(await win.__typewell.shrinkForShare(ed.querySelector("img")), svg,
+      "an SVG went through the canvas and came out as pixels");
+  });
+
+  atest("a picture that lives on the web is not downloaded to be shrunk", async () => {
+    setHTML(`<p><img alt="w" src="https://example.com/a.png"></p>`);
+    eq(await win.__typewell.shrinkForShare(ed.querySelector("img")), "https://example.com/a.png",
+      "a plain web address was rewritten");
+  });
+
+  /* ═════════ coming back to where you left off ═════════
+     Every refresh used to drop you at the top of the list, whichever note you
+     had actually been reading. */
+  test("opening a note writes down which one it was", () => {
+    withNotes([{ title: "A" }, { title: "B" }, { title: "C" }], () => {
+      win.openNote("t2");
+      eq(win.localStorage.getItem(win.__typewell.LS_LAST), "t2",
+        "the app does not remember which note you were in");
+    });
+  });
+
+  test("a refresh comes back to the note you were reading", () => {
+    withNotes([{ title: "A" }, { title: "B" }, { title: "C" }], () => {
+      win.openNote("t1");                       /* you were reading B, not the top one */
+      eq(win.localStorage.getItem(win.__typewell.LS_LAST), "t1", "B was never written down");
+      win.openNote("t0");                       /* something else is open now... */
+      win.localStorage.setItem(win.__typewell.LS_LAST, "t1");   /* ...but this is what a refresh finds */
+      win.__typewell.openLastNote();            /* exactly what boot calls */
+      eq($("#fileName").value, "B", "the refresh opened the top of the list, not where you were");
+    });
+  });
+
+  test("a note that has since been trashed falls back to the top of the list", () => {
+    withNotes([{ title: "A" }, { title: "B" }, { title: "C", deleted: true }], () => {
+      win.localStorage.setItem(win.__typewell.LS_LAST, "t2");   /* the trashed one */
+      win.__typewell.openLastNote();
+      eq($("#fileName").value, "A", "a trashed note was reopened, or nothing was");
+    });
+  });
+
+  test("a remembered id from another browser does not open an empty editor", () => {
+    withNotes([{ title: "A" }, { title: "B" }], () => {
+      win.localStorage.setItem(win.__typewell.LS_LAST, "no-such-note");
+      win.__typewell.openLastNote();
+      eq($("#fileName").value, "A", "an id that matches nothing left the app on no note at all");
+    });
+  });
+
   /* ═════════ the Drive sign-in running out ═════════
      The promise this section defends: a Google window NEVER opens unless the
      person pressed something that said it would. Google gives a browser about
