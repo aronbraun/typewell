@@ -135,12 +135,40 @@ jobs:
           else
             echo "No AUTH_ENDPOINT set - Drive will use Google's one-hour token (the default)."
           fi
-          sed -i "s|__AUTH_ENDPOINT__|${AUTH_ENDPOINT}|g" "$out/index.html"
 
-          if grep -q '__AUTH_ENDPOINT__' "$out/index.html"; then
+          # privacy.html and terms.html each carry BOTH accounts of the sign-in
+          # - with a helper and without - and the wrong one is hidden here. A
+          # privacy policy that describes a server we do not run, or stays
+          # silent about one we do, is the kind of mistake nobody notices for
+          # months, so it is not left to anyone's memory. The files as written
+          # describe the serverless case, which is what a plain file:// open of
+          # them says too.
+          if [ -n "$AUTH_ENDPOINT" ]; then
+            sed -i -e 's|data-cfg="server" hidden|data-cfg="server"|g' \
+                   -e 's|data-cfg="noserver"|data-cfg="noserver" hidden|g' \
+                   "$out/privacy.html" "$out/terms.html"
+          fi
+          sed -i "s|__AUTH_ENDPOINT__|${AUTH_ENDPOINT}|g" \
+            "$out/index.html" "$out/privacy.html" "$out/terms.html"
+
+          if grep -q '__AUTH_ENDPOINT__' "$out/index.html" "$out/privacy.html" "$out/terms.html"; then
             echo "::error::placeholder __AUTH_ENDPOINT__ survived substitution"
             exit 1
           fi
+
+          # The property that matters: a page must never show the account that
+          # does not match this build. Showing neither is fine on terms.html,
+          # where the serverless case simply adds nothing - so this checks for
+          # the contradiction, not for a count.
+          if [ -n "$AUTH_ENDPOINT" ]; then wrong=noserver; else wrong=server; fi
+          for f in privacy.html terms.html; do
+            visible=$(grep -o "data-cfg=\"${wrong}\"[^>]*" "$out/$f" | grep -cv hidden || true)
+            echo "$f: $visible visible '${wrong}' passage(s) - must be 0"
+            if [ "$visible" -ne 0 ]; then
+              echo "::error::$f still shows the '${wrong}' account of the sign-in"
+              exit 1
+            fi
+          done
 
           # Fails the build rather than warning. A site that silently ships with
           # Drive switched off looks identical to one that works until someone

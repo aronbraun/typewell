@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Privacy Policy — Typewell</title>
-<meta name="description" content="Typewell has no server, no accounts and no analytics. What that means in practice, and the few third parties your browser does contact.">
+<meta name="description" content="Typewell has no accounts, no analytics, and no server holding your notes. What that means in practice, and the few third parties your browser does contact.">
 <link rel="canonical" href="https://typewell.net/privacy.html">
 <meta name="application-name" content="Typewell">
 <meta name="author" content="Typewell contributors">
@@ -24,7 +24,7 @@
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="Typewell">
 <meta property="og:title" content="Privacy Policy — Typewell">
-<meta property="og:description" content="Typewell has no server, no accounts and no analytics. What that means in practice, and the complete list of third parties your browser contacts.">
+<meta property="og:description" content="Typewell has no accounts, no analytics, and no server holding your notes. What that means in practice, and the complete list of third parties your browser contacts.">
 <meta property="og:url" content="https://typewell.net/privacy.html">
 <!-- No og:image. The deploy workflow copies only index.html, privacy.html and
      terms.html into dist/, so a 1200x630 raster committed here would 404 at
@@ -36,7 +36,7 @@
      summary_large_image. -->
 <meta name="twitter:card" content="summary">
 <meta name="twitter:title" content="Privacy Policy — Typewell">
-<meta name="twitter:description" content="Typewell has no server, no accounts and no analytics. What that means in practice, and the complete list of third parties your browser contacts.">
+<meta name="twitter:description" content="Typewell has no accounts, no analytics, and no server holding your notes. What that means in practice, and the complete list of third parties your browser contacts.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -143,10 +143,16 @@ footer a{color:var(--muted)}
 <p class="updated">Last updated 5 August 2026</p>
 
 <div class="tldr">
-  <p><strong>Typewell has no server.</strong> There is no account to create, no database holding your
+  <p data-cfg="noserver"><strong>Typewell has no server.</strong> There is no account to create, no database holding your
   notes, and no analytics of any kind. Your notes stay in your own browser until you explicitly
   connect a backup, and even then they go to <em>your</em> Google Drive or <em>your</em> GitHub
   account — never to us. We could not read your notes if we wanted to.</p>
+  <p data-cfg="server" hidden><strong>No server of ours ever holds your notes.</strong> There is no account to create, no
+  database holding your notes, and no analytics of any kind. Your notes stay in your own browser
+  until you explicitly connect a backup, and even then they go to <em>your</em> Google Drive or
+  <em>your</em> GitHub account — never to us. We could not read your notes if we wanted to. We run
+  exactly one small service, and only if you connect Google Drive: it handles the sign-in with
+  Google and nothing else. It never receives a note. See <a href="#signin">section 4</a>.</p>
 </div>
 
 <h2>1. Who this applies to</h2>
@@ -198,6 +204,30 @@ revoke it at any time from your
 <a href="https://myaccount.google.com/permissions" target="_blank" rel="noopener">Google account
 permissions</a> page. Data handled by Google under your own account is governed by
 <a href="https://policies.google.com/privacy" target="_blank" rel="noopener">Google's Privacy Policy</a>.</p>
+
+<div id="signin">
+<p data-cfg="noserver"><strong>Why it asks you to sign in again.</strong> Google issues a browser-only application an
+access token lasting about an hour, and will not issue the long-lived credential that would let the
+page renew it quietly — redeeming that credential requires a client secret, which a public HTML file
+cannot keep secret. This site runs no sign-in helper, so when the hour is up Typewell asks you to
+press <b>Sign in</b> again rather than renewing by itself. Your notes are unaffected either way:
+they are saved in this browser before Drive is ever involved.</p>
+
+<p data-cfg="server" hidden><strong>The sign-in helper.</strong> Google issues a browser-only application an access token
+lasting about an hour, and will not issue the long-lived credential that would let the page renew it
+quietly — redeeming that credential requires a client secret, which a public HTML file cannot keep
+secret. So that Drive does not ask you to sign in again every hour, this site runs one small service
+at <code>__AUTH_ENDPOINT__</code> which holds that secret and exchanges Google's sign-in codes for
+tokens. <strong>It never receives a note, a title, or any part of what you write.</strong> Your notes
+travel from this browser directly to Google's Drive API and do not pass through it. What it
+necessarily handles is the sign-in codes and tokens themselves, plus the IP address of the request,
+as any server sees. It keeps no database and stores nothing between requests; it runs on Cloudflare
+Workers, which may log requests as its infrastructure provider. The long-lived credential is kept in
+your browser, not by us, and pressing <b>Disconnect</b> asks Google to revoke it immediately. Its
+complete source is
+<a href="https://github.com/aronbraun/typewell/blob/main/server/auth-worker.js" target="_blank" rel="noopener">auth-worker.js</a>
+— about 120 lines, and you can read every one of them.</p>
+</div>
 
 <h3 id="sharing">Sharing a note by link</h3>
 <p><em>Share a link</em> makes a read-only link to one note. The note itself is compressed and
@@ -257,6 +287,12 @@ For transparency, this is the complete list:</p>
     <td>Only when you connect Drive</td>
     <td>The sign-in script is not loaded at all unless you start connecting Drive.</td>
   </tr>
+  <tr data-cfg="server" hidden>
+    <td>Typewell sign-in helper</td>
+    <td>Only when you connect Drive, and roughly once an hour while it is on</td>
+    <td>The Google sign-in codes and tokens for your Drive permission, and your IP address. Never a
+    note. Runs on Cloudflare Workers; see <a href="#signin">section 4</a>.</td>
+  </tr>
   <tr>
     <td>Google Drive API</td>
     <td>Only while Drive backup is on</td>
@@ -270,7 +306,8 @@ For transparency, this is the complete list:</p>
 </table>
 </div>
 <p>None of these are analytics or advertising services, and none of them receive your notes except
-the two backup destinations you connect yourself. If you would rather not contact Google Fonts at
+the two backup destinations you connect yourself &mdash; the sign-in helper included, on the rare
+deployments that run one. If you would rather not contact Google Fonts at
 all, download <code>index.html</code> and open it from your own disk — Typewell runs perfectly from a
 <code>file://</code> URL, and the fonts simply fall back to your system's.</p>
 

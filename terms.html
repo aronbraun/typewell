@@ -145,7 +145,10 @@ free of charge, so the simplest remedy for any dissatisfaction is always to stop
 
 <h2>2. What Typewell is</h2>
 <p>Typewell is a notes application that runs entirely in your browser as a single static HTML file.
-There is no account, no subscription and no server holding your work. The software is released
+There is no account, no subscription and no server holding your work.<span data-cfg="server" hidden>
+This site runs one small sign-in service so that Google Drive backup does not have to ask you to
+sign in again every hour; it handles the sign-in with Google only and never receives your notes,
+as set out in the <a href="privacy.html#signin">Privacy Policy</a>.</span> The software is released
 under the <a href="https://github.com/aronbraun/typewell/blob/main/LICENSE" target="_blank" rel="noopener">MIT licence</a>,
 which permits you to use, copy, modify and redistribute it, including commercially, subject to that
 licence's terms. Where the MIT licence and these terms differ regarding the software itself, the
@@ -180,6 +183,12 @@ service you connect, including Google and GitHub.</p>
 Their terms and privacy policies apply to your use of them, we have no control over them, and we
 are not responsible for their availability, behaviour or handling of your data. The
 <a href="privacy.html">Privacy Policy</a> sets out exactly which third parties are contacted and when.</p>
+<p data-cfg="server" hidden>The sign-in service described in section 2 is run by us, on infrastructure provided by
+Cloudflare. It is offered on the same best-effort basis as the site itself: it may be changed,
+suspended or withdrawn at any time under section 8, and the disclaimers in sections 4 and 7 apply to
+it in full. If it is unavailable, Google Drive backup continues to work — Typewell simply returns to
+asking you to sign in when the hour is up, and your notes, which are saved in your browser first,
+are not affected.</p>
 
 <h2>7. Limitation of liability</h2>
 <p>To the fullest extent permitted by law, the maintainers and contributors shall not be liable for
