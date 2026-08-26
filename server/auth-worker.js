@@ -21,15 +21,47 @@
  *   POST /refresh    {refresh_token} -> {access_token, expires_in}
  *   POST /revoke     {refresh_token} -> tells Google to forget it
  *
- * SETUP: see server/README.md. Four settings, one deploy, done.
+ * SETUP: see server/README.md. Two settings and one secret, all held in GitHub,
+ * pushed to Cloudflare by .github/workflows/auth-worker.yml. Nothing about any
+ * particular account lives in this repository.
  */
 
 const GOOGLE_TOKEN  = "https://oauth2.googleapis.com/token";
 const GOOGLE_REVOKE = "https://oauth2.googleapis.com/revoke";
 
+/* The three settings this needs, and what happens when one is missing.
+ *
+ * A worker with no client secret does not fail in any obvious way - it sends
+ * "undefined" to Google, Google says invalid_client, and you go looking for the
+ * bug in the browser. So the settings are checked first and the answer says
+ * which one is absent.
+ *
+ * REDIRECT_URI is deliberately NOT in this list. It defaults to this worker's
+ * own /callback address, which is by definition the address Google just
+ * redirected to, so it matches what you registered without you having to say it
+ * twice. Set it only if something in front of this worker rewrites the host.
+ */
+const REQUIRED = ["GOOGLE_CLIENT_ID", "GOOGLE_CLIENT_SECRET", "ALLOWED_ORIGIN"];
+
+function missingConfig(env) {
+  const gone = REQUIRED.filter((k) => !env[k]);
+  return gone.length ? gone : null;
+}
+
+const callbackUrl = (url, env) => env.REDIRECT_URI || url.origin + "/callback";
+
 export default {
   async fetch(req, env) {
     const url = new URL(req.url);
+
+    const gone = missingConfig(env);
+    if (gone) {
+      /* 500, not 400: this is our deployment being wrong, not their request.
+         The names are safe to state - they are setting names, not values. */
+      return new Response(
+        JSON.stringify({ error: "not_configured", missing: gone }),
+        { status: 500, headers: { "Content-Type": "application/json", "Cache-Control": "no-store" } });
+    }
 
     /* Refuse anything that names an origin we do not serve. CORS already stops
        a page on another site from READING our answer, but it lets the request
@@ -59,10 +91,12 @@ async function callback(url, env) {
   const r = await googleToken(env, {
     grant_type: "authorization_code",
     code,
-    /* Google checks this matches the redirect_uri that started the flow, so
-       it must be the deployed address of this worker, not a guess from the
-       request — behind a proxy the two can differ. */
-    redirect_uri: env.REDIRECT_URI,
+    /* Google checks this against the redirect_uri that started the flow.
+       It defaults to this worker's own /callback — which is the address Google
+       just redirected to, so it matches by construction and is one setting
+       nobody has to type twice. REDIRECT_URI overrides it for the case where
+       something in front of the worker rewrites the host. */
+    redirect_uri: callbackUrl(url, env),
   });
   if (!r.ok) return relay({ state, error: r.data.error || "exchange_failed" }, env);
 

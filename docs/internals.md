@@ -182,8 +182,12 @@ falls through to the existing gesture path, so the worst case is the behaviour
 you already had. A 400 from Google also clears the stored pass, or every save
 would retry a revoked credential forever.
 
-The worker is [`server/auth-worker.js`](../server/auth-worker.js), about 120
-lines, checked by `node server/test.mjs` in CI. It never sees a note: notes go
+The worker is [`server/auth-worker.js`](../server/auth-worker.js), about 130
+lines, checked by `node server/test.mjs` in CI. It is deployed by its own
+workflow from settings held in GitHub, so nothing account-specific lives in the
+repository and a fork inherits the serverless default without touching anything.
+With a required setting missing it answers `500 not_configured` and names it,
+rather than sending an empty value to Google. It never sees a note: notes go
 from the browser straight to `googleapis.com`. It never echoes the pass back to
 the browser, never relays Google's error *descriptions* (only the codes), and
 escapes `<` in everything it prints into that callback page — a `state` value

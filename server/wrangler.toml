@@ -1,20 +1,28 @@
 # Cloudflare Worker config for the Typewell sign-in helper.
 #
-#   npx wrangler deploy          from inside this folder
+# Deliberately generic. Nothing about any particular account, domain or Google
+# project belongs in this file — it is in a public repository, and a config full
+# of somebody's real values is a config every fork has to un-edit before it can
+# be used.
 #
-# Everything secret is set with `wrangler secret put`, never written here —
-# this file is in a public repository.
+# The settings live in GitHub instead, and .github/workflows/auth-worker.yml
+# passes them in at deploy time. See server/README.md.
+#
+# To deploy by hand instead, from this folder:
+#
+#   npx wrangler@4 deploy --var "GOOGLE_CLIENT_ID:..." --var "ALLOWED_ORIGIN:https://example.com"
+#   npx wrangler@4 secret put GOOGLE_CLIENT_SECRET
 
 name = "typewell-auth"
 main = "auth-worker.js"
 compatibility_date = "2025-01-01"
 
-[vars]
-# Public, both of them. The client ID ships to every visitor anyway, and the
-# allowed origin is just the address of your own site.
-GOOGLE_CLIENT_ID = "PASTE-YOUR-CLIENT-ID.apps.googleusercontent.com"
-ALLOWED_ORIGIN   = "https://typewell.net"
-REDIRECT_URI     = "https://typewell-auth.YOUR-SUBDOMAIN.workers.dev/callback"
-
-# GOOGLE_CLIENT_SECRET is NOT here on purpose. Set it once with:
-#   npx wrangler secret put GOOGLE_CLIENT_SECRET
+# No [vars] block on purpose. The worker refuses to run with its settings
+# missing and names the one that is absent, which is a clearer failure than a
+# placeholder that looks configured and is not.
+#
+# It reads:
+#   GOOGLE_CLIENT_ID       public — the same value the web page ships
+#   ALLOWED_ORIGIN         public — the one site allowed to use this helper
+#   GOOGLE_CLIENT_SECRET   secret — set with `wrangler secret put`, never here
+#   REDIRECT_URI           optional — defaults to this worker's own /callback

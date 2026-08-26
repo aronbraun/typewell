@@ -37,7 +37,7 @@ Works offline once loaded. Source: https://github.com/aronbraun/typewell
 - No server by default. Google only lets a browser hold a Drive token for about
   an hour and will not give a page with no server the pass needed to renew, so
   Typewell asks you to press Sign in again rather than opening a window by
-  itself. Self-hosters can deploy server/auth-worker.js (about 120 lines, never
+  itself. Self-hosters can deploy server/auth-worker.js (about 130 lines, never
   sees a note) to make renewal silent; typewell.net's own behaviour is stated on
   the site
 

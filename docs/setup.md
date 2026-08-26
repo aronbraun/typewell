@@ -85,7 +85,7 @@ when you do. Or you can take it: see below.
 
 ### Taking the trade: the optional sign-in helper
 
-[`server/auth-worker.js`](../server/auth-worker.js) is about 120 lines and is
+[`server/auth-worker.js`](../server/auth-worker.js) is about 130 lines and is
 the only server Typewell has. It holds the client secret, swaps authorization
 codes for tokens, and does nothing else. **It never sees a note** — notes go
 from the browser straight to Google's Drive API and never pass through it.
@@ -93,18 +93,31 @@ from the browser straight to Google's Drive API and never pass through it.
 Point `AUTH_ENDPOINT` at a deployed copy and Drive stops asking. Leave it unset
 and not one line of that code runs.
 
-Full instructions: [`server/README.md`](../server/README.md). It is four steps
-and a free Cloudflare Workers account.
+**Nothing about your account goes in the repository.** The settings live in
+GitHub — two secrets and three variables — and
+[`.github/workflows/auth-worker.yml`](../.github/workflows/auth-worker.yml)
+pushes them to Cloudflare for you. You never install Cloudflare's command-line
+tool and the client secret never sits on your own machine.
+
+That workflow skips itself quietly when those settings are absent, which is the
+state every fork is in, so nobody inherits a red build or a half-configured
+server. Half-configured is treated differently from unconfigured: it names the
+missing setting and fails, because that is the state somebody is actually stuck
+in.
+
+Full instructions: [`server/README.md`](../server/README.md). Five steps and a
+free Cloudflare Workers account.
 
 Two things worth knowing before you do it:
 
 - **Publish the consent screen first.** With the app in *Testing*, Google
   expires the lasting sign-in after 7 days too, so the helper buys you nothing.
   The section above covers this.
-- **If you deploy it, say so on your privacy page.** Typewell's own
-  `privacy.html` states there is no server, which is true for typewell.net. Run
-  the helper and that sentence needs a qualifier — the helper handles your
-  Google tokens, even though it never handles your writing.
+- **The privacy pages update themselves.** `privacy.html` and `terms.html` each
+  carry both accounts of the sign-in and the build shows whichever matches
+  `AUTH_ENDPOINT`, so a policy describing a server you do not run — or silent
+  about one you do — is not something you have to remember to prevent. The
+  deploy fails if the wrong account is ever left visible.
 
 ### That client ID is not a secret
 
@@ -152,6 +165,7 @@ tries to connect, which is the worst possible moment to find out.
 | Settings → Pages → Source | **GitHub Actions** |
 | Settings → Pages → Custom domain | `typewell.net` |
 | Settings → Secrets and variables → Actions | `GOOGLE_CLIENT_ID`, as either a variable or a secret |
+| Settings → Secrets and variables → Actions | *(only for the optional sign-in helper)* secrets `CLOUDFLARE_API_TOKEN` and `GOOGLE_CLIENT_SECRET`; variables `CLOUDFLARE_ACCOUNT_ID`, `ALLOWED_ORIGIN` and `AUTH_ENDPOINT` — see [server/README.md](../server/README.md) |
 | DNS, wherever the zone lives | apex `A`/`AAAA` records pointing at [GitHub's Pages IPs](https://docs.github.com/pages/configuring-a-custom-domain-for-your-github-pages-site/managing-a-custom-domain-for-your-github-pages-site#configuring-an-apex-domain), and `www` as a `CNAME` to `aronbraun.github.io` |
 
 ### Two things that look like missing features

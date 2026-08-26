@@ -1,0 +1,168 @@
+name: Deploy the sign-in helper
+
+# Publishes server/auth-worker.js to Cloudflare Workers.
+#
+# The helper is OPTIONAL. Typewell is designed to run with no server, and that
+# is what happens if this workflow never runs — which is exactly what happens on
+# a fork, because a fork has none of the settings below. So this workflow skips
+# itself quietly rather than failing red on somebody else's copy.
+#
+# Nothing account-specific is stored in the repository. Everything lives in
+# GitHub's own settings, under Settings -> Secrets and variables -> Actions:
+#
+#   Secrets   CLOUDFLARE_API_TOKEN    lets this workflow deploy
+#             GOOGLE_CLIENT_SECRET    the one real secret in the project
+#
+#   Variables CLOUDFLARE_ACCOUNT_ID   which Cloudflare account
+#             GOOGLE_CLIENT_ID        public; the same value the page ships
+#             ALLOWED_ORIGIN          the one site allowed to use the helper
+#
+# Note which are secrets and which are variables. An OAuth client ID is public
+# by design and a variable is its honest home; the client secret is not, and
+# GitHub encrypts secrets and masks them out of logs. Putting a real secret in
+# the variables column would defeat both.
+#
+# Deploying the helper is only half of switching it on. The site also has to be
+# told its address, which is the AUTH_ENDPOINT variable read by deploy.yml.
+# Until that is set the app stays serverless no matter what runs here.
+
+on:
+  push:
+    branches: [main]
+    # Only when the helper itself changes. Editing a note-taking feature has no
+    # business redeploying a server.
+    paths:
+      - "server/**"
+      - ".github/workflows/auth-worker.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: auth-worker
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: Deploy to Cloudflare
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7.0.1
+        with:
+          persist-credentials: false
+
+      # Runs before the deploy, not after. The helper handles the only real
+      # secret in the project, so a red check must stop it reaching the
+      # internet rather than tell us about it once it is already there.
+      - name: Check the sign-in helper
+        run: node server/test.mjs
+
+      # Secrets are not readable from a job-level `if:`, so the check happens
+      # here and every later step hangs off its answer. A fork with no
+      # Cloudflare token walks straight past the deploy and reports green,
+      # because "this repository does not run a server" is a correct outcome,
+      # not a failure.
+      - name: Is this copy configured to deploy one?
+        id: gate
+        env:
+          TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          ACCOUNT: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
+          CLIENT_ID: ${{ vars.GOOGLE_CLIENT_ID }}
+          ORIGIN: ${{ vars.ALLOWED_ORIGIN }}
+          SECRET: ${{ secrets.GOOGLE_CLIENT_SECRET }}
+        run: |
+          set -euo pipefail
+          missing=""
+          [ -n "${TOKEN:-}" ]     || missing="$missing CLOUDFLARE_API_TOKEN(secret)"
+          [ -n "${ACCOUNT:-}" ]   || missing="$missing CLOUDFLARE_ACCOUNT_ID(variable)"
+          [ -n "${CLIENT_ID:-}" ] || missing="$missing GOOGLE_CLIENT_ID(variable)"
+          [ -n "${ORIGIN:-}" ]    || missing="$missing ALLOWED_ORIGIN(variable)"
+          [ -n "${SECRET:-}" ]    || missing="$missing GOOGLE_CLIENT_SECRET(secret)"
+
+          if [ -z "$missing" ]; then
+            echo "go=yes" >> "$GITHUB_OUTPUT"
+            echo "All five settings are present. Deploying."
+          elif [ -z "${TOKEN:-}" ]; then
+            # No Cloudflare token at all: this is a fork, or a copy that has
+            # deliberately not taken the trade. Nothing to say beyond a note.
+            echo "go=no" >> "$GITHUB_OUTPUT"
+            echo "No CLOUDFLARE_API_TOKEN - this copy runs no sign-in helper, which is the default. Skipping."
+          else
+            # Half-configured is different from unconfigured, and it is the
+            # state somebody is actually stuck in. Name what is missing and
+            # fail, rather than deploying a worker that cannot work.
+            echo "::error::Partly configured. Missing:$missing"
+            exit 1
+          fi
+
+      # ALLOWED_ORIGIN reaches a shell, so it is checked rather than trusted -
+      # the same reasoning as the client ID in deploy.yml. It is also the
+      # security boundary of the whole helper: it decides which site may use it
+      # and where the tokens are allowed to be delivered. A typo here is not a
+      # cosmetic bug.
+      - name: Check the origin is a plain https origin
+        if: steps.gate.outputs.go == 'yes'
+        env:
+          ORIGIN: ${{ vars.ALLOWED_ORIGIN }}
+          CLIENT_ID: ${{ vars.GOOGLE_CLIENT_ID }}
+        run: |
+          set -euo pipefail
+          if ! printf '%s' "$ORIGIN" | grep -qE '^https://[A-Za-z0-9.-]+(:[0-9]+)?$'; then
+            echo "::error::ALLOWED_ORIGIN must be a bare https origin such as https://example.com - no path, no trailing slash"
+            exit 1
+          fi
+          if ! printf '%s' "$CLIENT_ID" | grep -qE '^[A-Za-z0-9._-]+$'; then
+            echo "::error::GOOGLE_CLIENT_ID contains characters outside [A-Za-z0-9._-]"
+            exit 1
+          fi
+          echo "Origin allowed to use the helper: $ORIGIN"
+
+      # Every ${{ }} is in env: and the shell only ever reads a quoted "$VAR".
+      # ${{ }} is substituted before the shell sees the line, so writing one
+      # inline would let a value inject shell syntax.
+      - name: Deploy
+        if: steps.gate.outputs.go == 'yes'
+        working-directory: server
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
+          CLIENT_ID: ${{ vars.GOOGLE_CLIENT_ID }}
+          ORIGIN: ${{ vars.ALLOWED_ORIGIN }}
+        run: |
+          set -euo pipefail
+          # --var rather than values in wrangler.toml, so the file in the
+          # repository stays generic and every fork gets its own settings.
+          npx --yes wrangler@4 deploy \
+            --var "GOOGLE_CLIENT_ID:$CLIENT_ID" \
+            --var "ALLOWED_ORIGIN:$ORIGIN"
+
+      # After the deploy, because a secret cannot be attached to a Worker that
+      # does not exist yet. It takes effect immediately - no second deploy - and
+      # deploys never delete secrets, so this is safe to repeat.
+      - name: Send the client secret
+        if: steps.gate.outputs.go == 'yes'
+        working-directory: server
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
+          GOOGLE_CLIENT_SECRET: ${{ secrets.GOOGLE_CLIENT_SECRET }}
+        run: |
+          set -euo pipefail
+          # printf, not echo: no trailing newline, which would become part of
+          # the secret and make every exchange fail with invalid_client.
+          printf '%s' "$GOOGLE_CLIENT_SECRET" | npx --yes wrangler@4 secret put GOOGLE_CLIENT_SECRET
+
+      - name: What to do next
+        if: steps.gate.outputs.go == 'yes'
+        run: |
+          echo "The helper is deployed."
+          echo
+          echo "Two things left, both one-off:"
+          echo "  1. In the Google console, add the worker's /callback address"
+          echo "     under Authorized redirect URIs."
+          echo "  2. Set the AUTH_ENDPOINT repository variable to the worker's"
+          echo "     address (no trailing slash), then re-run Deploy to GitHub"
+          echo "     Pages. Until then the site stays serverless."

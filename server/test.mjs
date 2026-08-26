@@ -15,8 +15,8 @@ import worker from "./auth-worker.js";
 
 const env = {
   GOOGLE_CLIENT_ID: "cid", GOOGLE_CLIENT_SECRET: "SUPER-SECRET",
-  ALLOWED_ORIGIN: "https://typewell.net",
-  REDIRECT_URI: "https://auth.example.workers.dev/callback",
+  ALLOWED_ORIGIN: "https://app.example.com",
+  REDIRECT_URI: "https://auth.example.com/callback",
 };
 let out = [], fails = 0;
 const ok = (c, m) => { if (!c) { fails++; out.push("  FAIL " + m); } else out.push("  ok   " + m); };
@@ -28,14 +28,14 @@ globalThis.fetch = async (url, opts) => {
   return new Response(JSON.stringify(r.body), { status: r.status, headers: { "Content-Type": "application/json" } });
 };
 const call = (url, init) => worker.fetch(new Request(url, init), env);
-const post = (path, body, origin = "https://typewell.net") =>
-  call("https://auth.example.workers.dev" + path,
+const post = (path, body, origin = "https://app.example.com") =>
+  call("https://auth.example.com" + path,
     { method: "POST", headers: { "Content-Type": "application/json", Origin: origin }, body: JSON.stringify(body) });
 
 /* 1. preflight */
-let r = await call("https://auth.example.workers.dev/refresh", { method: "OPTIONS", headers: { Origin: "https://typewell.net" } });
+let r = await call("https://auth.example.com/refresh", { method: "OPTIONS", headers: { Origin: "https://app.example.com" } });
 ok(r.status === 204, "preflight answers 204");
-ok(r.headers.get("Access-Control-Allow-Origin") === "https://typewell.net", "preflight names our origin only");
+ok(r.headers.get("Access-Control-Allow-Origin") === "https://app.example.com", "preflight names our origin only");
 
 /* 2. another site is turned away */
 r = await post("/refresh", { refresh_token: "x" }, "https://evil.example");
@@ -62,34 +62,34 @@ ok(!("error_description" in j), "Google's description leaked through");
 /* 5. rubbish in */
 r = await post("/refresh", { nope: 1 });
 ok(r.status === 400, "a body with no pass is refused");
-r = await call("https://auth.example.workers.dev/refresh", { method: "POST", headers: { Origin: "https://typewell.net" }, body: "not json" });
+r = await call("https://auth.example.com/refresh", { method: "POST", headers: { Origin: "https://app.example.com" }, body: "not json" });
 ok(r.status === 400, "a body that is not JSON is refused");
 
 /* 6. the callback exchange */
 googleCalls = []; googleReply = { status: 200, body: { access_token: "AT2", expires_in: 3600, refresh_token: "1//new" } };
-r = await call("https://auth.example.workers.dev/callback?code=abc&state=st1");
+r = await call("https://auth.example.com/callback?code=abc&state=st1");
 let html = await r.text();
 ok(googleCalls[0][1].grant_type === "authorization_code" && googleCalls[0][1].code === "abc", "the code was not exchanged");
 ok(googleCalls[0][1].redirect_uri === env.REDIRECT_URI, "redirect_uri did not match the registered one");
-ok(html.includes('"https://typewell.net"'), "postMessage is not aimed at our origin");
+ok(html.includes('"https://app.example.com"'), "postMessage is not aimed at our origin");
 ok(html.includes('"1//new"') && html.includes('"AT2"'), "the tokens are not in the reply");
 ok(r.headers.get("X-Frame-Options") === "DENY" && r.headers.get("Cache-Control") === "no-store", "the token page is framable or cacheable");
 
 /* 7. consent given but no lasting pass */
 googleReply = { status: 200, body: { access_token: "AT3", expires_in: 3600 } };
-r = await call("https://auth.example.workers.dev/callback?code=abc&state=st1");
+r = await call("https://auth.example.com/callback?code=abc&state=st1");
 html = await r.text();
 ok(html.includes("no_refresh_token"), "a sign-in with no lasting pass was passed off as a success");
 ok(!html.includes("AT3"), "handed back an hourly token that will fail in an hour");
 
 /* 8. the user pressed Cancel */
-r = await call("https://auth.example.workers.dev/callback?error=access_denied&state=st1");
+r = await call("https://auth.example.com/callback?error=access_denied&state=st1");
 html = await r.text();
 ok(html.includes("access_denied"), "a refusal was not relayed");
 
 /* 9. nothing can break out of the script tag */
 googleReply = { status: 200, body: { access_token: "A", expires_in: 1, refresh_token: "B" } };
-r = await call("https://auth.example.workers.dev/callback?code=c&state=" + encodeURIComponent('</script><img src=x onerror=alert(1)>'));
+r = await call("https://auth.example.com/callback?code=c&state=" + encodeURIComponent('</script><img src=x onerror=alert(1)>'));
 html = await r.text();
 ok(!html.includes("</script><img"), "a crafted state value closed the script tag");
 ok(html.includes("\\u003c/script"), "the '<' was not escaped");
@@ -100,8 +100,32 @@ r = await post("/revoke", { refresh_token: "1//bye" });
 ok(r.status === 200, "revoke answers 200");
 ok(googleCalls[0][0].includes("revoke") && googleCalls[0][1].token === "1//bye", "Google was not told to forget the pass");
 
-/* 11. unknown route */
-r = await call("https://auth.example.workers.dev/", { headers: { Origin: "https://typewell.net" } });
+/* 11. a half-configured deployment says so instead of blaming Google */
+for (const gap of ["GOOGLE_CLIENT_ID", "GOOGLE_CLIENT_SECRET", "ALLOWED_ORIGIN"]) {
+  const holed = { ...env }; delete holed[gap];
+  const res = await worker.fetch(new Request("https://auth.example.com/refresh",
+    { method: "POST", headers: { "Content-Type": "application/json" }, body: "{}" }), holed);
+  const b = await res.json();
+  ok(res.status === 500 && b.error === "not_configured" && b.missing.includes(gap),
+    `a deployment missing ${gap} did not say which setting was absent`);
+}
+
+/* 12. the callback address defaults to the worker's own, so nobody types it twice */
+googleCalls = []; googleReply = { status: 200, body: { access_token: "A", expires_in: 1, refresh_token: "B" } };
+const noRedirect = { ...env }; delete noRedirect.REDIRECT_URI;
+await worker.fetch(new Request("https://auth.example.com/callback?code=c&state=s"), noRedirect);
+ok(googleCalls[0][1].redirect_uri === "https://auth.example.com/callback",
+  "the callback address was not derived from the request: " + googleCalls[0][1].redirect_uri);
+
+/* ...and an explicit one still wins, for a proxy that rewrites the host */
+googleCalls = [];
+await worker.fetch(new Request("https://internal.example/callback?code=c&state=s"),
+  { ...env, REDIRECT_URI: "https://public.example/callback" });
+ok(googleCalls[0][1].redirect_uri === "https://public.example/callback",
+  "REDIRECT_URI did not override the derived address");
+
+/* 13. unknown route */
+r = await call("https://auth.example.com/", { headers: { Origin: "https://app.example.com" } });
 ok(r.status === 404, "an unknown route answers 404");
 
 console.log(out.join("\n"));
