@@ -25,12 +25,21 @@ All in `localStorage`, which gives roughly 5 MB. Settings shows how much is used
 | `typewell.settings.v1` | settings |
 | `typewell.drive.v1` | which Drive file is which note, and when each last synced — no note text |
 | `typewell.drive.token.v1` | the current Google access token and when it expires |
+| `typewell.drive.refresh.v1` | the lasting sign-in — **only ever present when `AUTH_ENDPOINT` is set** |
+| `typewell.lastnote.v1` | which note you were last reading |
 
 The token is kept so that a sync straight after a reload does not have to reopen
 the sign-in window for a token that is still perfectly good. It is dropped on
 expiry, on disconnect, and on *Erase everything*. It only reaches files this app
 created, and anything able to read it can already read every note in the same
 store — so it does not open a door that was not already the same door.
+
+`typewell.drive.refresh.v1` is the same argument with one difference that
+matters: it does **not** expire on its own. It is written only when a sign-in
+helper is configured, is cleared by *Disconnect* (which also asks Google to
+revoke it), and `drive.loadRefresh()` refuses to read it at all when
+`AUTH_ENDPOINT` is empty — so removing the helper cannot leave the app trying to
+redeem a pass with nothing to redeem it at.
 
 Pictures are stored as data URLs inside the note, so they count against that
 5 MB. The app warns above about 800 KB, and the size buttons on a selected
@@ -132,6 +141,59 @@ What replaced it:
 - A depth *count* rather than a boolean, because `backup()` calls `api()` calls
   `ensureToken()`; an inner `finally` resetting a boolean would strand the
   outer call in background mode halfway through.
+
+### The other half: `AUTH_ENDPOINT`
+
+Everything above describes the app with no server, which is the default and what
+runs on typewell.net. The trade it refuses is available, and taking it is one
+constant:
+
+```js
+const AUTH_ENDPOINT_RAW = "https://typewell-auth.example.workers.dev";
+```
+
+Set, it must parse as an **https** URL or it is discarded and treated as unset —
+a typo degrades to today's behaviour rather than posting an authorization code
+somewhere unexpected. The deploy workflow substitutes it from the `AUTH_ENDPOINT`
+repository variable, and unlike the client ID an empty value is a clean build,
+not a warning: running without a server is the documented normal case.
+
+With it set, `drive.connect()` takes a different route entirely — Google's
+`gsi/client` script is never even loaded:
+
+1. `connectViaServer()` opens `accounts.google.com` asking for a **code**, with
+   `access_type=offline` and `prompt=consent`. Both are needed: without the
+   second, someone who has approved before is handed a token and no lasting
+   pass, and the feature silently degrades to the hourly flow.
+2. Google redirects the popup to the worker's `/callback`. The worker adds the
+   client secret — the one value that cannot live in `index.html` — exchanges
+   the code, and returns a page that `postMessage`s the tokens to the opener at
+   exactly one target origin.
+3. The listener checks **both** `event.origin` (it came from our worker) and
+   `state` (it answers the request we just made, and is not a replay). Either
+   one wrong and the message is ignored.
+4. `drive.renew()` then does the actual work, forever: `POST /refresh` with the
+   pass, back comes another hour. It runs at the top of `ensureToken()`, ahead
+   of the queueing branch, so a background save simply renews and carries on.
+
+`renew()` returns `false` rather than throwing when the pass is dead, the worker
+is down, or the browser is offline. That is deliberate — every one of those
+falls through to the existing gesture path, so the worst case is the behaviour
+you already had. A 400 from Google also clears the stored pass, or every save
+would retry a revoked credential forever.
+
+The worker is [`server/auth-worker.js`](../server/auth-worker.js), about 120
+lines, checked by `node server/test.mjs` in CI. It never sees a note: notes go
+from the browser straight to `googleapis.com`. It never echoes the pass back to
+the browser, never relays Google's error *descriptions* (only the codes), and
+escapes `<` in everything it prints into that callback page — a `state` value
+containing `</script>` is a real attack, and there is a test for it.
+
+What the browser suite covers is the **off** half — that `AUTH_ENDPOINT` unset
+changes nothing — because the on half needs a live Google account and a deployed
+worker, which a browser suite cannot honestly claim to test.
+
+### The scope
 
 The scope is `drive.file` and nothing else — never widen it. That is what keeps
 Typewell out of Google's CASA security review, and it is why a file *you* create
@@ -293,6 +355,16 @@ one when you fix something is the whole point; the suite is only worth what it
 remembers. CI runs it on every pull request, and the deploy job will not publish
 a red build.
 
+The sign-in helper is the exception, because it does not run in a browser at
+all. It has its own runner — plain Node, no Chrome, Google stubbed out — so it
+can be checked without a real account and a real deploy:
+
+```bash
+node server/test.mjs
+```
+
+Both jobs run in CI, and both gate the deploy.
+
 ## Honest limits
 
 - **No syntax colouring inside code blocks.** That needs a highlighting library,
@@ -304,3 +376,6 @@ a red build.
 - **`localStorage` is per browser profile.** Connect Drive if you move between
   machines.
 - **A share link cannot be recalled or edited.** See above.
+- **Drive asks you to sign in again about once an hour** unless you self-host
+  the sign-in helper. This is a consequence of having no server, not of being a
+  browser; `AUTH_ENDPOINT` above is the way out, and it is off by default.

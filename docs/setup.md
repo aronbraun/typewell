@@ -77,9 +77,34 @@ does issue a refresh token — and **requires a backend platform**. Redeeming th
 token needs a client secret, which a single public HTML file cannot hold.
 
 So a permanently connected Typewell is possible, but only by giving it a small
-server. That is the trade, stated plainly. Everything in
-[docs/internals.md](internals.md) about the quiet renewal is what is left once
-you refuse that trade.
+server. That is the trade, stated plainly.
+
+You can refuse the trade — that is the default, and everything in
+[docs/internals.md](internals.md) about the quiet renewal describes what is left
+when you do. Or you can take it: see below.
+
+### Taking the trade: the optional sign-in helper
+
+[`server/auth-worker.js`](../server/auth-worker.js) is about 120 lines and is
+the only server Typewell has. It holds the client secret, swaps authorization
+codes for tokens, and does nothing else. **It never sees a note** — notes go
+from the browser straight to Google's Drive API and never pass through it.
+
+Point `AUTH_ENDPOINT` at a deployed copy and Drive stops asking. Leave it unset
+and not one line of that code runs.
+
+Full instructions: [`server/README.md`](../server/README.md). It is four steps
+and a free Cloudflare Workers account.
+
+Two things worth knowing before you do it:
+
+- **Publish the consent screen first.** With the app in *Testing*, Google
+  expires the lasting sign-in after 7 days too, so the helper buys you nothing.
+  The section above covers this.
+- **If you deploy it, say so on your privacy page.** Typewell's own
+  `privacy.html` states there is no server, which is true for typewell.net. Run
+  the helper and that sentence needs a qualifier — the helper handles your
+  Google tokens, even though it never handles your writing.
 
 ### That client ID is not a secret
 

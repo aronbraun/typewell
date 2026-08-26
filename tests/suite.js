@@ -1252,16 +1252,26 @@ export async function suite(win) {
      stored token back exactly as it found it — the suite shares localStorage
      with whatever notes are open in this browser. */
   const withToken = (fn) => {
-    const { drive, LS_DTOK } = win.__typewell;
+    const { drive, LS_DTOK, LS_DREF } = win.__typewell;
     const keep = win.localStorage.getItem(LS_DTOK);
-    const was = { t: drive.token, e: drive.tokenExp, c: drive.connected, l: drive.linked };
-    try { fn(drive, LS_DTOK); }
-    finally {
+    const keepRef = win.localStorage.getItem(LS_DREF);
+    const was = { t: drive.token, e: drive.tokenExp, c: drive.connected, l: drive.linked, r: drive.refresh };
+    const restore = () => {
       drive.token = was.t; drive.tokenExp = was.e;
-      drive.connected = was.c; drive.linked = was.l;
+      drive.connected = was.c; drive.linked = was.l; drive.refresh = was.r;
       if (keep === null) win.localStorage.removeItem(LS_DTOK);
       else win.localStorage.setItem(LS_DTOK, keep);
-    }
+      if (keepRef === null) win.localStorage.removeItem(LS_DREF);
+      else win.localStorage.setItem(LS_DREF, keepRef);
+    };
+    /* Some of these bodies are async. A plain try/finally would put the stored
+       token back at the first await, while the check was still running against
+       it — so an async body gets its restore hung off the promise instead. */
+    let out;
+    try { out = fn(drive, LS_DTOK, LS_DREF); }
+    catch (e) { restore(); throw e; }
+    if (out && typeof out.then === "function") return out.finally(restore);
+    restore(); return out;
   };
 
   test("a live token survives a reload instead of costing another auth window", () => {
@@ -1302,6 +1312,74 @@ export async function suite(win) {
       eq(win.localStorage.getItem(key), null, "the token outlived the disconnect");
       eq(drive.token, null);
       ok(!drive.linked, "still linked after disconnecting");
+    });
+  });
+
+  /* ═════════ the optional sign-in helper ═════════
+     The whole feature is a switch: AUTH_ENDPOINT set, or not. The test build
+     never sets it, so what these check is the OFF half — that adding the
+     server-side path did not change a single thing for the copy that has no
+     server, which is every copy by default. The ON half needs a live Google
+     account and a deployed worker, so it is not something a browser suite can
+     honestly claim to cover; these guard the fallback instead, which is the
+     part a regression would actually break for people. */
+
+  test("with no sign-in helper configured, nothing about the old flow changes", () => {
+    const { drive, AUTH_ENDPOINT } = win.__typewell;
+    eq(AUTH_ENDPOINT, "", "the unsubstituted placeholder was treated as a real address");
+    ok(!drive.hasServer(), "reports a sign-in helper that is not configured");
+    ok(!drive.silent(), "claims it can renew quietly with nothing to renew with");
+  });
+
+  atest("a leftover lasting sign-in is ignored once the helper is removed", async () => {
+    /* The dangerous shape: someone runs a helper, stops, and redeploys without
+       AUTH_ENDPOINT. The pass is still sitting in localStorage. Loading it back
+       would leave the app believing it can renew, so every save would take the
+       silent path, fail, and never fall through to the button that works. */
+    await withToken(async (drive, _tok, ref) => {
+      win.localStorage.setItem(ref, "1//stale-pass");
+      drive.loadRefresh();
+      eq(drive.refresh, null, "a stale pass was loaded with no server to redeem it");
+      ok(!drive.silent(), "believes it can renew quietly with no server");
+      eq(await drive.renew(), false, "renew() claimed success with no server");
+    });
+  });
+
+  atest("a background save with no helper still queues instead of opening a window", async () => {
+    /* renew() runs before the queueing branch in ensureToken. If it ever threw
+       rather than returning false, the error that reaches the caller would lose
+       needsSignIn, and the footer would show "backup failed" instead of the one
+       button that fixes it. */
+    await withToken(async (drive) => {
+      drive.linked = true; drive.token = null; drive.tokenExp = 0; drive.refresh = null;
+      drive.pending = false;
+      win.localStorage.removeItem(win.__typewell.LS_DTOK);
+      let caught = null;
+      try { await drive.ensureToken(); } catch (e) { caught = e; }
+      ok(caught, "a background save with no token resolved instead of queueing");
+      ok(caught.needsSignIn, "the queueing signal was lost: " + caught.message);
+      ok(drive.pending, "nothing was queued, so the footer has no Sign in button");
+      drive.pending = false;
+    });
+  });
+
+  test("saving and clearing the lasting sign-in leaves no copy behind", () => {
+    withToken((drive, _tok, ref) => {
+      drive.saveRefresh("1//keep-me");
+      eq(win.localStorage.getItem(ref), "1//keep-me", "the pass was never written down");
+      drive.saveRefresh(null);
+      eq(win.localStorage.getItem(ref), null, "the pass outlived being cleared");
+      eq(drive.refresh, null);
+    });
+  });
+
+  test("disconnecting removes the lasting sign-in too", () => {
+    withToken((drive, _tok, ref) => {
+      drive.linked = true;
+      drive.saveRefresh("1//bye");
+      drive.disconnect();
+      eq(win.localStorage.getItem(ref), null, "the lasting pass outlived the disconnect");
+      eq(drive.refresh, null, "still holding the pass after disconnecting");
     });
   });
 

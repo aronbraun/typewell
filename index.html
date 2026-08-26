@@ -1204,7 +1204,7 @@ body.zen #zenExit{display:grid}
           <button class="btn" id="driveDisconnectBtn" title="Disconnect  (notes stay in this browser)" disabled>Disconnect</button>
         </div>
         <label class="chk" title="Back up automatically after you stop typing" style="margin-top:11px"><input type="checkbox" id="autoBackupChk"> Auto-back up ~45 s after I stop typing</label>
-        <p class="hint" style="margin:9px 0 0"><b>A Google window never opens on its own.</b> Google only gives a browser about an hour at a time, and there is no way for an app with no server to renew that quietly — so Typewell does not try. When the hour runs out mid-session, a background backup simply waits: your notes are already saved here, and the corner says <i>Waiting to back up</i> with a <b>Sign in</b> button. Press it whenever suits you and everything waiting goes up at once.</p>
+        <p class="hint" style="margin:9px 0 0" id="driveRenewHint"></p>
       </div>
 
       <div class="section">
@@ -1319,10 +1319,27 @@ body.zen #zenExit{display:grid}
       GOOGLE_CLIENT_ID at deploy time. If it is never substituted — this
       file opened directly, or served without the workflow — it falls
       back to "" and Drive just reports "not configured", as before.
-   2. DEFAULT_THEME — white | paper | dark | navy
+   2. AUTH_ENDPOINT — OPTIONAL, and off by default. Leave it alone and
+      nothing changes: Drive works exactly as it always has, with Google's
+      one-hour token and a Sign in button when the hour runs out.
+      Point it at a deployed server/auth-worker.js and that hour becomes
+      forever — the app renews quietly in the background and never asks
+      again. That is the only thing it does; see server/README.md.
+      No trailing slash.
+   3. DEFAULT_THEME — white | paper | dark | navy
    ═════════════════════════════════════════════════════════════ */
 const GOOGLE_CLIENT_ID_RAW = "__GOOGLE_CLIENT_ID__";   // ← or paste yours here
 const GOOGLE_CLIENT_ID = /^__.+__$/.test(GOOGLE_CLIENT_ID_RAW) ? "" : GOOGLE_CLIENT_ID_RAW;
+const AUTH_ENDPOINT_RAW = "__AUTH_ENDPOINT__";         // ← or paste yours here
+/* Only an https address is accepted. An unsubstituted placeholder, a blank, or
+   anything that is not a URL all mean the same thing — no server — and that is
+   the safe answer, so a typo degrades to today's behaviour instead of sending
+   an auth code somewhere unexpected. */
+const AUTH_ENDPOINT = (()=>{
+  const v=AUTH_ENDPOINT_RAW;
+  if(!v||/^__.+__$/.test(v))return "";
+  try{return new URL(v).protocol==="https:"?v.replace(/\/+$/,""):"";}catch(_){return "";}
+})();
 const DEFAULT_THEME    = "paper";
 /* ════════════════════════ end config ════════════════════════ */
 
@@ -4450,6 +4467,11 @@ const BACKUP_NAME="typewell-backup.json";
 const DRIVE_FOLDER="Typewell";
 const FOLDER_MIME="application/vnd.google-apps.folder";
 const LS_DMAP="typewell.drive.v1", LS_DTOK="typewell.drive.token.v1";
+/* The long-lived pass, and only ever present when AUTH_ENDPOINT is set —
+   Google will not give one to a browser otherwise. Kept apart from LS_DTOK
+   because the two have different lifetimes and different consequences: the
+   hourly token expires by itself, this one has to be thrown away deliberately. */
+const LS_DREF="typewell.drive.refresh.v1";
 
 /* noteId → {fid,name,mtime,lmtime,trashed}
    mtime  = Drive modifiedTime at the last sync   (the remote sync point)
@@ -4572,6 +4594,115 @@ const drive={
     this.token=null;this.tokenExp=0;this.connected=false;
     try{localStorage.removeItem(LS_DTOK)}catch(_){}
   },
+
+  /* ── the long-lived pass, present only when a sign-in server is configured ──
+     Everything below is inert with AUTH_ENDPOINT empty, which is the default.
+     `refresh` stays null, hasServer() is false, and every path falls through
+     to the hour-at-a-time flow above exactly as before. */
+  refresh:null,
+  hasServer(){return !!AUTH_ENDPOINT;},
+  /* true when renewal can happen on its own, with nothing for you to press */
+  silent(){return !!(AUTH_ENDPOINT&&this.refresh);},
+  loadRefresh(){
+    if(!AUTH_ENDPOINT){this.refresh=null;return;}   /* server removed: ignore a stale one */
+    try{this.refresh=localStorage.getItem(LS_DREF)||null;}catch(_){this.refresh=null;}
+  },
+  saveRefresh(v){
+    this.refresh=v||null;
+    try{ if(v)localStorage.setItem(LS_DREF,v); else localStorage.removeItem(LS_DREF); }catch(_){}
+  },
+  /* Ask the server to turn the pass into another hour. Returns false when the
+     pass is dead — that is not an error, it is "the human has to say yes
+     again", and the caller falls back to the ordinary sign-in. A server that
+     is down or unreachable throws, and lands in the same place. */
+  async renew(){
+    if(!this.silent())return false;
+    let res;
+    try{
+      res=await fetch(AUTH_ENDPOINT+"/refresh",{method:"POST",
+        headers:{"Content-Type":"application/json"},
+        body:JSON.stringify({refresh_token:this.refresh})});
+    }catch(_){return false;}                 /* offline, or the worker is gone */
+    if(!res.ok){
+      /* 400 is Google saying the pass is revoked or expired. Keeping it would
+         mean retrying a dead credential on every single save. */
+      if(res.status===400||res.status===401)this.saveRefresh(null);
+      return false;
+    }
+    const j=await res.json().catch(()=>null);
+    if(!j||!j.access_token)return false;
+    this.token=j.access_token;
+    this.tokenExp=now()+((j.expires_in||3600)-60)*1000;
+    this.connected=true;this.linked=true;
+    this.saveToken();
+    settings.driveGranted=true;saveSettings();
+    return true;
+  },
+  /* The sign-in window for the server flow. Google is asked for a `code`
+     rather than a token; the code goes to the worker, which is the only place
+     that holds the client secret, and the worker hands back the pass.
+     access_type=offline plus prompt=consent is what makes Google issue one at
+     all — without the second, someone who has approved before gets a token and
+     no pass, and the whole thing quietly degrades to the old behaviour. */
+  connectViaServer(){
+    const st=(crypto.randomUUID?crypto.randomUUID():String(Math.random()).slice(2)+String(now()));
+    const q=new URLSearchParams({
+      client_id:GOOGLE_CLIENT_ID,
+      redirect_uri:AUTH_ENDPOINT+"/callback",
+      response_type:"code",
+      scope:"https://www.googleapis.com/auth/drive.file",
+      access_type:"offline",
+      prompt:"consent",
+      include_granted_scopes:"true",
+      state:st,
+    });
+    if(settings.driveEmail)q.set("login_hint",settings.driveEmail);
+    const w=window.open("https://accounts.google.com/o/oauth2/v2/auth?"+q,
+      "typewell_auth","width=520,height=660");
+    if(!w)return Promise.reject(new Error("Your browser blocked the Google window"));
+    const from=new URL(AUTH_ENDPOINT).origin;
+    return new Promise((ok,bad)=>{
+      let done=false;
+      const finish=(err)=>{
+        if(done)return; done=true;
+        window.removeEventListener("message",onMsg);
+        clearInterval(watch);
+        try{w.close()}catch(_){}
+        err?bad(err):ok();
+      };
+      const onMsg=e=>{
+        /* Both checks matter. The origin says it came from our worker and not
+           from any other page that guessed the window name; the state says it
+           answers the request we just made and is not a replay. */
+        if(e.origin!==from)return;
+        const d=e.data;
+        if(!d||typeof d!=="object"||d.state!==st)return;
+        if(d.error){
+          finish(new Error(d.error==="no_refresh_token"
+            ? "Google did not grant a lasting sign-in — try Disconnect, then Connect again"
+            : "Google said: "+d.error));
+          return;
+        }
+        if(!d.access_token||!d.refresh_token){finish(new Error("The sign-in server sent an incomplete reply"));return;}
+        this.token=d.access_token;
+        this.tokenExp=now()+((d.expires_in||3600)-60)*1000;
+        this.connected=true;this.linked=true;
+        this.saveToken();this.saveRefresh(d.refresh_token);
+        settings.driveGranted=true;saveSettings();
+        syncSettingsUI();renderFoot();refreshBeacon();
+        finish(null);
+      };
+      window.addEventListener("message",onMsg);
+      /* Watching for the window to shut, rather than counting down to a
+         deadline: closing it is the answer "no", and the app should hear that
+         the moment it happens instead of hanging for minutes. */
+      let ticks=0;
+      const watch=setInterval(()=>{
+        if(w.closed)finish(new Error("Sign-in window closed"));
+        else if(++ticks>1200)finish(new Error("Sign-in timed out"));   /* 10 min */
+      },500);
+    });
+  },
   async loadGis(){
     if(window.google?.accounts?.oauth2)return;
     await new Promise((ok,bad)=>{
@@ -4621,6 +4752,9 @@ const drive={
      the platform. So a token is only ever fetched inside a real user gesture,
      and being linked is remembered separately from holding one. */
   async connect(){
+    /* With a sign-in server configured this is the only time a window opens,
+       ever. Google's own script is not even loaded for it. */
+    if(AUTH_ENDPOINT)return this.connectViaServer();
     const tc=await this.client();
     if(this.waiting)throw new Error("A Google window is already open");
     return new Promise((ok,bad)=>{
@@ -4633,12 +4767,21 @@ const drive={
   /* THE RULE THIS SECTION EXISTS TO ENFORCE: a Google window never opens by
      itself. It opens only when you pressed something that said it would.
 
-     Why there is no silent alternative. Google's browser flow hands out an
-     access token good for about an hour and no refresh token. The other flow
-     does issue one that lasts indefinitely, but redeeming it needs a client
-     secret, so Google's own comparison table marks it "requires backend
-     platform: yes" - and Typewell has no backend on purpose. Three things
-     that look like escapes and are not:
+     Why there is no silent alternative IN THE BROWSER ALONE. Google's browser
+     flow hands out an access token good for about an hour and no refresh
+     token. The other flow does issue one that lasts indefinitely, but
+     redeeming it needs a client secret, so Google's own comparison table marks
+     it "requires backend platform: yes". A secret shipped inside a public HTML
+     file is not a secret, so that flow is genuinely closed to a page on its
+     own - this is a limit of having no server, not a limit of browsers.
+
+     Which is why AUTH_ENDPOINT exists. Point it at server/auth-worker.js and
+     the second flow opens up: the secret lives in the worker, the pass lives
+     here, and renew() above does the renewal with nothing on screen. Unset -
+     the default - none of that runs and everything below still holds.
+
+     Three things that look like escapes for a page with no server, and are
+     not:
        - prompt:""/prompt:"none" do NOT suppress the popup. The library opens
          one regardless; prompt only changes what happens inside it.
        - A hidden iframe cannot work: accounts.google.com refuses to be framed,
@@ -4671,6 +4814,11 @@ const drive={
   async ensureToken(){
     if(this.token&&now()<this.tokenExp)return;
     if(this.restoreToken())return;    /* still good from an earlier page load */
+    /* The whole reason the server exists. No window, no gesture, no waiting
+       line in the corner - a background save just renews and carries on. When
+       there is no server, or the pass has died, this is false and everything
+       below runs exactly as it did before. */
+    if(await this.renew()){this.pending=false;return;}
     if(!this.gestures){
       /* background. Put it down rather than pop a window mid-sentence. */
       this.pending=true;refreshBeacon();renderFoot();
@@ -4853,6 +5001,17 @@ const drive={
   },
   disconnect(){
     if(this.token&&window.google?.accounts?.oauth2)google.accounts.oauth2.revoke(this.token,()=>{});
+    /* Ask Google to forget the lasting pass as well. Deleting our copy alone
+       would leave a live permission sitting in the Google account with nothing
+       here to show for it, which is the opposite of what Disconnect promises.
+       Fire and forget: the local copy goes either way, so a failed request
+       must not leave the app half-disconnected. */
+    if(this.refresh&&AUTH_ENDPOINT){
+      fetch(AUTH_ENDPOINT+"/revoke",{method:"POST",
+        headers:{"Content-Type":"application/json"},
+        body:JSON.stringify({refresh_token:this.refresh})}).catch(()=>{});
+    }
+    this.saveRefresh(null);
     this.dropToken();this.linked=false;this.pending=false;
     settings.driveGranted=false;settings.driveEmail="";saveSettings();
     syncSettingsUI();renderFoot();refreshBeacon();
@@ -4962,6 +5121,21 @@ function syncSettingsUI(){
     $("#driveCfgHint").textContent="";
   }
   else{pill.textContent="ready — one click";pill.className="pill";$("#driveCfgHint").textContent="";}
+  /* The one paragraph in Settings that is a promise about behaviour, so it has
+     to describe the behaviour this copy actually has. With a sign-in server
+     configured the old text is not merely stale, it is wrong. */
+  $("#driveRenewHint").innerHTML=drive.hasServer()
+    ? "<b>Signing in once is enough.</b> This copy of Typewell has a sign-in helper, so Google's "
+      + "one-hour limit is renewed quietly in the background and you are not asked again. Nothing "
+      + "of yours passes through it — notes go straight from this browser to Google. The lasting "
+      + "sign-in is kept here in this browser; <b>Disconnect</b> tells Google to forget it."
+    : "<b>A Google window never opens on its own.</b> Google only gives a browser about an hour at "
+      + "a time, and it will not give a page with no server the pass needed to renew quietly — so "
+      + "Typewell does not try. When the hour runs out mid-session, a background backup simply "
+      + "waits: your notes are already saved here, and the corner says <i>Waiting to back up</i> "
+      + "with a <b>Sign in</b> button. Press it whenever suits you and everything waiting goes up "
+      + "at once. <i>(Self-hosting? <code>server/auth-worker.js</code> in the repository removes "
+      + "this, and is the only server Typewell has.)</i>";
   const on=drive.linked;
   $("#driveBackupBtn").disabled=!on;
   $("#driveRestoreBtn").disabled=!on;
@@ -5137,7 +5311,12 @@ editor.focus();
    were already given costs nothing and is why a sync straight after a reload
    no longer opens a window. */
 if(GOOGLE_CLIENT_ID&&settings.driveGranted){
-  drive.linked=true;drive.restoreToken();renderFoot();refreshBeacon();
+  drive.linked=true;drive.restoreToken();
+  /* Read back the lasting pass too, if there is a server to redeem it with.
+     Still no request to Google here: renewal happens when something actually
+     needs a token, not on the way in. */
+  drive.loadRefresh();
+  renderFoot();refreshBeacon();
 }
 openSharedFromHash();
 /* Opening a share link while Typewell is already open on the same tab is a
@@ -5823,7 +6002,7 @@ editor.addEventListener("keydown",e=>{
    token's lifetime can be tested without a Google account in the loop.
    `notes` is a getter and not the array itself: a drop rebuilds it rather than
    splicing, so a reference handed out once would be testing a dead copy. */
-window.__typewell={WELCOME_HTML,FONTS,BLOCKS,drive,LS_DTOK,settings,version:"2026-08-25",
+window.__typewell={WELCOME_HTML,FONTS,BLOCKS,drive,LS_DTOK,LS_DREF,AUTH_ENDPOINT,settings,version:"2026-08-26",
   notes:()=>notes,setNotes:v=>{notes=v;},LS_NOTES,
   pageWidth,setPageWidth,LS_LAST,openLastNote,shareMarkdown,shrinkForShare,SHARE_MAX,
   homeTaskImages,markTallImages,IMG_TALL_LINES,

@@ -25,3 +25,8 @@ jobs:
         # and the runner script talks to it over the DevTools Protocol with
         # node's own global WebSocket.
         run: node tests/run.mjs
+
+      - name: Check the sign-in helper
+        # Plain node, no Chrome, no network - Google is stubbed. It guards the
+        # one place in the project that handles a real secret.
+        run: node server/test.mjs

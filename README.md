@@ -104,6 +104,13 @@ and *Import backup* in the same menu brings them back.
 > back up* with a **Sign in** button. Press it whenever suits you and
 > everything waiting goes up at once.
 >
+> **Hosting it yourself and want that gone?** The reason there is no quiet
+> renewal is that Google will only issue the lasting pass to something holding a
+> secret, and a public HTML file cannot hold one.
+> [`server/auth-worker.js`](server/auth-worker.js) is that something: about 120
+> lines, free to run, and it never sees a note. Set `AUTH_ENDPOINT` and Drive
+> stops asking; leave it unset — the default — and none of it runs.
+>
 > [docs/setup.md](docs/setup.md) has the details, including the one console
 > setting that makes Drive drop out every 7 days if you get it wrong.
 
@@ -113,6 +120,7 @@ and *Import backup* in the same menu brings them back.
 |---|---|
 | [**Every trigger and shortcut**](docs/shortcuts.md) | what to type, and what key does what |
 | [**Hosting and deploying**](docs/setup.md) | GitHub Pages, the Google client ID, DNS |
+| [**The optional sign-in helper**](server/README.md) | the only server Typewell has, and how to do without it |
 | [**How it works inside**](docs/internals.md) | storage keys, sync rules, the tests, honest limits |
 | [Privacy policy](https://typewell.net/privacy.html) · [Terms](https://typewell.net/terms.html) | |
 | [Report a bug or ask for something](https://github.com/aronbraun/typewell/issues/new) | |
@@ -127,7 +135,14 @@ node tests/run.mjs
 ```
 
 That runs the regression suite in headless Chrome and exits non-zero on any
-failure. **Run it before you push**, and add a check for whatever you fixed —
+failure. If you touch `server/`, run its own checks too — they are plain Node,
+no browser, and they stub Google out:
+
+```bash
+node server/test.mjs
+```
+
+Back to the browser suite. **Run it before you push**, and add a check for whatever you fixed —
 one file of `contenteditable` is a place where a fix to one control lands on
 another, and the suite is only worth what it remembers. You can also open
 `tests/index.html` in a browser and read the list.
