@@ -12,6 +12,9 @@
  * accusations when they pass.
  */
 import worker from "./auth-worker.js";
+import { readFileSync } from "node:fs";
+
+const read = (f) => readFileSync(new URL(f, import.meta.url), "utf8");
 
 const env = {
   GOOGLE_CLIENT_ID: "cid", GOOGLE_CLIENT_SECRET: "SUPER-SECRET",
@@ -124,7 +127,17 @@ await worker.fetch(new Request("https://internal.example/callback?code=c&state=s
 ok(googleCalls[0][1].redirect_uri === "https://public.example/callback",
   "REDIRECT_URI did not override the derived address");
 
-/* 13. unknown route */
+/* 13. nothing this worker handles may end up in a logfile.
+   Cloudflare's invocation log records "<method> <URL>" for every request, and
+   /callback is reached with Google's authorization code in the query string.
+   These two checks are what stops that line being written. */
+const config = read("./wrangler.toml");
+ok(/^\s*invocation_logs\s*=\s*false\s*$/m.test(config),
+  "wrangler.toml would log the callback URL, which carries the authorization code");
+ok(!/console\s*\.\s*(log|error|warn|info|debug)/.test(read("./auth-worker.js")),
+  "the worker prints something, and everything it handles is a credential");
+
+/* 14. unknown route */
 r = await call("https://auth.example.com/", { headers: { Origin: "https://app.example.com" } });
 ok(r.status === 404, "an unknown route answers 404");
 

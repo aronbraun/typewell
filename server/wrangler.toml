@@ -31,3 +31,30 @@ keep_vars = true
 #   ALLOWED_ORIGIN         public — the one site allowed to use this helper
 #   GOOGLE_CLIENT_SECRET   secret — never in this file, never in the repository
 #   REDIRECT_URI           optional — defaults to this worker's own /callback
+
+# ── Logging ─────────────────────────────────────────────────────────────
+#
+# On, because this is the one piece of Typewell you cannot open in a browser
+# and inspect when it misbehaves. Errors and uncaught exceptions are worth
+# having.
+#
+# But invocation logs are OFF, and that is not a preference. Cloudflare writes
+# one line per request, and for a fetch handler that line is "<method> <URL>" —
+# the FULL url, query string included. This worker's /callback is reached as
+#
+#   GET https://auth.example.com/callback?code=4/0Ab...&state=...
+#
+# so leaving them on would file Google's authorization code into a log store,
+# readable in the dashboard for days. The code is single-use and already spent
+# by the time anyone reads it, and redeeming it would need the client secret
+# too — so this is not a hole, it is a credential in a logfile for no reason.
+# There is nothing here worth logging per request: the whole service is three
+# routes and roughly one request per hour per person.
+#
+# Turning this back on is a decision about privacy, not about debugging.
+# server/test.mjs fails if it is, so it cannot happen by accident.
+[observability]
+enabled = true
+
+[observability.logs]
+invocation_logs = false

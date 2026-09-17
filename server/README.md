@@ -262,6 +262,48 @@ npx wrangler@4 deploy
 npx wrangler@4 secret put GOOGLE_CLIENT_SECRET
 ```
 
+## Logging: leave the one checkbox alone
+
+Cloudflare will offer to log this worker, and the panel it offers it in is
+reasonable advice for almost any other Worker. Here it needs one change.
+
+`wrangler.toml` already makes that change, and because the repository is what
+gets deployed, **the file wins**. You do not have to set anything. This section
+is here so that the day you see the dashboard offering it, you know why the
+answer is what it is.
+
+- **Logs: enabled** — yes. This is the one piece of Typewell you cannot open in
+  a browser and poke at when it misbehaves, so errors are worth keeping.
+- **Include invocation logs: off** — and this one matters.
+
+Cloudflare writes one line per request, and for a web request that line is the
+method and the **full address, query string included**. This worker's callback
+is reached as:
+
+```
+GET https://auth.typewell.net/callback?code=4/0Ab...&state=...
+```
+
+That `code` is Google's authorization code. Leaving invocation logs on files it
+into a log store where it is readable for days.
+
+**How bad is it, honestly?** Not very. The code is single-use, expires in
+minutes, is already spent by the time anyone could read the log, and redeeming
+it would need the client secret as well. It is not a hole. It is a credential
+sitting in a logfile for no reason at all — and *no reason* is the point, because
+this worker has three routes and serves about one request per hour per person.
+There is nothing in a per-request log worth having.
+
+The other two routes are safe either way: a refresh token travels in the POST
+body, and bodies are never logged.
+
+`node server/test.mjs` fails if either of these slips — if the config starts
+logging invocations, or if anyone adds a `console.log` to a worker where every
+value passing through is a credential.
+
+If you do turn the dashboard toggle on by hand, remember the file is the source
+of truth: the next push puts it back.
+
 ## What changes once it is on
 
 - **Connect** asks Google for permission once. After that, renewal is silent

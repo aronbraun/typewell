@@ -222,7 +222,9 @@ tokens. <strong>It never receives a note, a title, or any part of what you write
 travel from this browser directly to Google's Drive API and do not pass through it. What it
 necessarily handles is the sign-in codes and tokens themselves, plus the IP address of the request,
 as any server sees. It keeps no database and stores nothing between requests; it runs on Cloudflare
-Workers, which may log requests as its infrastructure provider. The long-lived credential is kept in
+Workers, which may log requests as its infrastructure provider. We keep error reports there for a few
+days so that we notice when it breaks, and we deliberately switch off the per-request log, because
+that log would record the full address of every request and Google's sign-in code travels inside one. The long-lived credential is kept in
 your browser, not by us, and pressing <b>Disconnect</b> asks Google to revoke it immediately. Its
 complete source is
 <a href="https://github.com/aronbraun/typewell/blob/main/server/auth-worker.js" target="_blank" rel="noopener">auth-worker.js</a>
