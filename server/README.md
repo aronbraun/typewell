@@ -41,9 +41,10 @@ Google counts as non-sensitive, so **no app review is needed**.
 
 ## What you are about to do
 
-Copy one file into Cloudflare's website, type three settings next to it, and
-tell Google the new address. No software to install, no command line, no tokens
-handed to anything. About ten minutes.
+Point Cloudflare at this repository, type three settings, and tell Google the
+new address. About ten minutes, all of it clicking. After that, **every push to
+`main` redeploys the worker by itself** — the file here is the live one, for
+good.
 
 ```
 your browser ──once an hour──▶ the worker ──▶ Google's token endpoint
@@ -52,30 +53,49 @@ your browser ──once an hour──▶ the worker ──▶ Google's token end
 Your notes are not on that diagram, and that is not an omission. They go from
 your browser straight to Google's Drive API and never touch the worker.
 
+**Who holds what.** Cloudflare gets read access to the repository, through
+GitHub's normal "install an app" screen, scoped to whichever repositories you
+pick. You create no API token, hand no credential to GitHub, and add no secret
+to GitHub. The one real secret lives in Cloudflare and nowhere else.
+
 The examples below use **typewell.net**. Swap in your own site wherever you see
 it.
 
 ---
 
-## Step 1 — Put the file on Cloudflare
+## Step 1 — Create the worker, linked to this repository
 
 You need a free Cloudflare account. The free Workers plan allows 100,000
-requests a day; this uses roughly one per hour per person, so you will not get
-near it.
+requests a day, and the free build allowance is 3,000 minutes a month; this uses
+roughly one request per hour per person and a build measured in seconds, so you
+will not get near either.
 
-1. Go to the Cloudflare dashboard → **Workers & Pages** → **Create
-   application** → **Workers** → **Create Worker**. If you are offered
-   templates, take **Hello World** — you are going to replace the code anyway.
-2. Name it `typewell-auth` and press **Deploy**. It now exists and does
-   nothing useful.
-3. Press **Edit code** (in some screens the button still reads *Quick edit*).
-4. Delete everything in the editor. Open
-   [`auth-worker.js`](auth-worker.js) from this folder, copy the whole file,
-   paste it in.
-5. Press **Deploy**.
+1. Cloudflare dashboard → **Workers & Pages** → **Create application**.
+2. Next to **Import a repository**, press **Get started**.
+3. Connect your GitHub account when asked. On GitHub's screen choose **Only
+   select repositories** and pick just this one — it does not need to see the
+   rest of your account.
+4. Choose the repository, then fill in the build settings:
 
-It is now live and will answer `500 not_configured`, because you have not told
-it anything yet. That is correct — the next steps are what it is waiting for.
+   | Field | Value | Why |
+   |---|---|---|
+   | **Git branch** | `main` | |
+   | **Root directory** | `server` | where `wrangler.toml` lives |
+   | **Build command** | *leave empty* | there is nothing to build |
+   | **Deploy command** | `npx wrangler@4 deploy` | the `@4` pins the tool, so a future major version cannot break your deploys unasked |
+
+5. Press **Save and Deploy**.
+
+⚠️ **The Worker's name must be `typewell-auth`**, because that is the `name` in
+`wrangler.toml`. If they disagree the build fails and says so.
+
+It is live now and answers `500 not_configured`, because you have not told it
+anything yet. That is correct — the next steps are what it is waiting for.
+
+**Optional, once it works:** **Settings** → **Build** → **Build watch paths** →
+set the include path to `server/*`. Without it, every push to Typewell rebuilds
+the worker even when you only edited a note-taking feature. It costs nothing to
+leave alone; it is just tidier.
 
 ## Step 2 — Decide its address
 
@@ -145,6 +165,11 @@ clear and shown back to you in the dashboard; a *Secret* is hidden the moment
 you save it. The client **ID** is public and Text is honest for it. The client
 **secret** is not.
 
+**These survive every automatic deploy.** That is not luck: `wrangler.toml`
+carries `keep_vars = true`, without which a deploy would treat the file as the
+whole truth and wipe anything typed in the dashboard. Secrets are never removed
+by a deploy in any case.
+
 `ALLOWED_ORIGIN` is not decoration — it is the security boundary of the whole
 helper. It decides which site is allowed to use the worker and where tokens may
 be delivered. Write it exactly: `https://`, the bare host, **no trailing
@@ -168,15 +193,51 @@ const AUTH_ENDPOINT_RAW = "https://auth.typewell.net";
 
 No trailing slash, and no `/callback` — the app adds the paths it needs.
 
-If you deploy through this repository's GitHub Actions workflow instead, leave
-the `__AUTH_ENDPOINT__` placeholder alone and set a repository variable named
-`AUTH_ENDPOINT` to the same value, under **Settings → Secrets and variables →
-Actions**. The build fills it in. That variable is the only Typewell setting
-that lives in GitHub, and it is not a secret — it is a public address.
+If you deploy the site through this repository's GitHub Actions workflow
+instead, leave the `__AUTH_ENDPOINT__` placeholder alone and set a repository
+variable named `AUTH_ENDPOINT` to the same value, under **Settings → Secrets and
+variables → Actions**. The build fills it in. That variable is the only Typewell
+setting that lives in GitHub, and it is not a secret — it is a public address.
 
 Until this step is done, the app stays serverless no matter what else you have
 built. That is deliberate: deploying the helper and switching it on are
 separate decisions.
+
+## After that: it keeps itself up to date
+
+Push a change to `server/auth-worker.js` and Cloudflare builds and deploys it
+within a minute. You can watch it under the Worker's **Deployments** tab.
+
+- A failed build **does not take the worker down.** The version that is already
+  live stays live until a good one replaces it.
+- A commit on a branch other than `main` is uploaded as a preview version, not
+  promoted to live.
+- To stop the automatic deploys: the Worker → **Settings** → **Build** →
+  **Disconnect**. To cut Cloudflare off from GitHub entirely, remove the
+  *Cloudflare Workers and Pages* app at
+  [github.com/settings/installations](https://github.com/settings/installations).
+
+## If you would rather not link the accounts
+
+Everything above works by hand too, and the worker has no build step, so this is
+genuinely just copying a file:
+
+1. **Workers & Pages** → **Create application** → **Workers** → **Create
+   Worker**, name it `typewell-auth`, press **Deploy**.
+2. Press **Edit code** (on some screens the button reads *Quick edit*).
+3. Delete what is in the editor, paste the whole of
+   [`auth-worker.js`](auth-worker.js), press **Deploy**.
+
+Then steps 2 to 5 exactly as above. The cost is that you have to remember to
+repeat this whenever the file changes.
+
+There is also a terminal route, which is what `wrangler.toml` is for:
+
+```bash
+cd server
+npx wrangler@4 deploy
+npx wrangler@4 secret put GOOGLE_CLIENT_SECRET
+```
 
 ## What changes once it is on
 
@@ -222,22 +283,6 @@ runs on Vercel, Netlify, Deno Deploy or a small Node server:
 With a required one missing, the worker answers `500 not_configured` and names
 it, rather than sending an empty value to Google and letting you hunt for the
 bug in the browser.
-
-## If you prefer the command line
-
-Everything above can be done from a terminal instead. `wrangler.toml` in this
-folder is already set up for it:
-
-```bash
-cd server
-npx wrangler@4 deploy \
-  --var "GOOGLE_CLIENT_ID:123-abc.apps.googleusercontent.com" \
-  --var "ALLOWED_ORIGIN:https://typewell.net"
-npx wrangler@4 secret put GOOGLE_CLIENT_SECRET
-```
-
-Then steps 2, 3 and 5 exactly as above. Note that a `wrangler deploy` replaces
-the variables with the ones on that command line, so pass them every time.
 
 ## Checking it
 

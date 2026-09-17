@@ -1,12 +1,8 @@
 # Cloudflare Worker config for the Typewell sign-in helper.
 #
-# You only need this file if you deploy from a terminal. The documented way is
-# to paste auth-worker.js into the Cloudflare dashboard, which ignores this file
-# entirely. See server/README.md.
-#
-#   cd server
-#   npx wrangler@4 deploy --var "GOOGLE_CLIENT_ID:..." --var "ALLOWED_ORIGIN:https://typewell.net"
-#   npx wrangler@4 secret put GOOGLE_CLIENT_SECRET
+# This file is what makes automatic deploys possible. Point Cloudflare's Git
+# integration at this repository with a root directory of `server`, and every
+# push to main redeploys the worker. Nothing else to run. See server/README.md.
 #
 # Deliberately generic. Nothing about any particular account, domain or Google
 # project belongs in this file — it is in a public repository, and a config full
@@ -17,12 +13,21 @@ name = "typewell-auth"
 main = "auth-worker.js"
 compatibility_date = "2025-01-01"
 
-# No [vars] block on purpose. The worker refuses to run with its settings
-# missing and names the one that is absent, which is a clearer failure than a
-# placeholder that looks configured and is not.
+# THE IMPORTANT LINE. A deploy normally treats this file as the whole truth and
+# wipes any variable set in the Cloudflare dashboard that is not repeated here.
+# With automatic deploys that would mean every push silently emptying the
+# worker's settings and breaking sign-in. This keeps the dashboard's values.
+#
+# Secrets are safe either way: Cloudflare never removes an encrypted value on a
+# deploy, only on an explicit delete.
+keep_vars = true
+
+# No [vars] block on purpose — see above, and because the worker refuses to run
+# with a setting missing and names the one that is absent, which is a clearer
+# failure than a placeholder that looks configured and is not.
 #
 # It reads:
 #   GOOGLE_CLIENT_ID       public — the same value the web page ships
 #   ALLOWED_ORIGIN         public — the one site allowed to use this helper
-#   GOOGLE_CLIENT_SECRET   secret — set in the dashboard or with `secret put`
+#   GOOGLE_CLIENT_SECRET   secret — never in this file, never in the repository
 #   REDIRECT_URI           optional — defaults to this worker's own /callback

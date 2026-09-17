@@ -93,13 +93,23 @@ from the browser straight to Google's Drive API and never pass through it.
 Point `AUTH_ENDPOINT` at a deployed copy and Drive stops asking. Leave it unset
 and not one line of that code runs.
 
-**Nothing about your account goes in the repository.** You paste that one file
-into a free Cloudflare Worker through their website, type three settings next to
-it, and add one address in the Google console. No software to install, no
-command line, and the client secret exists in exactly one place: Cloudflare.
+**Nothing about your account goes in the repository.** You point Cloudflare's
+Git integration at this repository, type three settings next to the worker, and
+add one address in the Google console. After that every push to `main` deploys
+the worker by itself. No software to install, no command line, no API token to
+create, and the client secret exists in exactly one place: Cloudflare.
+
+Note the direction that runs in. Cloudflare gets scoped read access to the
+repository through GitHub's own app screen; GitHub is handed nothing. That is
+why this is not the usual "give your CI a deploy token" arrangement, and why
+there is no workflow file for it.
+
+`server/wrangler.toml` carries `keep_vars = true`, which is what stops each
+automatic deploy from wiping the settings typed into the Cloudflare dashboard.
 
 Full instructions: [`server/README.md`](../server/README.md). Five steps, about
-ten minutes.
+ten minutes, and a by-hand alternative if you would rather not link the
+accounts.
 
 Two things worth knowing before you do it:
 

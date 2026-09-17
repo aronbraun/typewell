@@ -183,10 +183,13 @@ you already had. A 400 from Google also clears the stored pass, or every save
 would retry a revoked credential forever.
 
 The worker is [`server/auth-worker.js`](../server/auth-worker.js), about 130
-lines, checked by `node server/test.mjs` in CI. It is deployed by pasting that
-one file into a Cloudflare Worker and typing three settings beside it, so
+lines, checked by `node server/test.mjs` in CI. Cloudflare's Git integration
+deploys it straight from this repository — `server/` as the root directory, no
+build step — with its three settings typed into the Cloudflare dashboard, so
 nothing account-specific lives in the repository and a fork inherits the
-serverless default without touching anything. With a required setting missing it
+serverless default without touching anything. `keep_vars = true` in
+`wrangler.toml` is load-bearing: without it every automatic deploy would treat
+that file as the whole truth and empty those settings. With a required setting missing it
 answers `500 not_configured` and names it, rather than sending an empty value to
 Google. It never sees a note: notes go
 from the browser straight to `googleapis.com`. It never echoes the pass back to

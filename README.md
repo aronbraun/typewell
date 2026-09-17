@@ -108,9 +108,9 @@ and *Import backup* in the same menu brings them back.
 > renewal is that Google will only issue the lasting pass to something holding a
 > secret, and a public HTML file cannot hold one.
 > [`server/auth-worker.js`](server/auth-worker.js) is that something: one file,
-> about 130 lines, free to run, and it never sees a note. Paste it into a
-> Cloudflare Worker, set `AUTH_ENDPOINT`, and Drive stops asking; leave it unset
-> — the default — and none of it runs.
+> about 130 lines, free to run, and it never sees a note. Point Cloudflare at
+> this repository so it deploys itself, set `AUTH_ENDPOINT`, and Drive stops
+> asking; leave it unset — the default — and none of it runs.
 >
 > [docs/setup.md](docs/setup.md) has the details, including the one console
 > setting that makes Drive drop out every 7 days if you get it wrong.
