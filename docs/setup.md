@@ -93,20 +93,13 @@ from the browser straight to Google's Drive API and never pass through it.
 Point `AUTH_ENDPOINT` at a deployed copy and Drive stops asking. Leave it unset
 and not one line of that code runs.
 
-**Nothing about your account goes in the repository.** The settings live in
-GitHub — two secrets and three variables — and
-[`.github/workflows/auth-worker.yml`](../.github/workflows/auth-worker.yml)
-pushes them to Cloudflare for you. You never install Cloudflare's command-line
-tool and the client secret never sits on your own machine.
+**Nothing about your account goes in the repository.** You paste that one file
+into a free Cloudflare Worker through their website, type three settings next to
+it, and add one address in the Google console. No software to install, no
+command line, and the client secret exists in exactly one place: Cloudflare.
 
-That workflow skips itself quietly when those settings are absent, which is the
-state every fork is in, so nobody inherits a red build or a half-configured
-server. Half-configured is treated differently from unconfigured: it names the
-missing setting and fails, because that is the state somebody is actually stuck
-in.
-
-Full instructions: [`server/README.md`](../server/README.md). Five steps and a
-free Cloudflare Workers account.
+Full instructions: [`server/README.md`](../server/README.md). Five steps, about
+ten minutes.
 
 Two things worth knowing before you do it:
 
@@ -165,7 +158,7 @@ tries to connect, which is the worst possible moment to find out.
 | Settings → Pages → Source | **GitHub Actions** |
 | Settings → Pages → Custom domain | `typewell.net` |
 | Settings → Secrets and variables → Actions | `GOOGLE_CLIENT_ID`, as either a variable or a secret |
-| Settings → Secrets and variables → Actions | *(only for the optional sign-in helper)* secrets `CLOUDFLARE_API_TOKEN` and `GOOGLE_CLIENT_SECRET`; variables `CLOUDFLARE_ACCOUNT_ID`, `ALLOWED_ORIGIN` and `AUTH_ENDPOINT` — see [server/README.md](../server/README.md) |
+| Settings → Secrets and variables → Actions | *(only for the optional sign-in helper)* the `AUTH_ENDPOINT` variable, which is the helper's address and not a secret — see [server/README.md](../server/README.md) |
 | DNS, wherever the zone lives | apex `A`/`AAAA` records pointing at [GitHub's Pages IPs](https://docs.github.com/pages/configuring-a-custom-domain-for-your-github-pages-site/managing-a-custom-domain-for-your-github-pages-site#configuring-an-apex-domain), and `www` as a `CNAME` to `aronbraun.github.io` |
 
 ### Two things that look like missing features

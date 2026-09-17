@@ -1,17 +1,17 @@
 # Cloudflare Worker config for the Typewell sign-in helper.
 #
+# You only need this file if you deploy from a terminal. The documented way is
+# to paste auth-worker.js into the Cloudflare dashboard, which ignores this file
+# entirely. See server/README.md.
+#
+#   cd server
+#   npx wrangler@4 deploy --var "GOOGLE_CLIENT_ID:..." --var "ALLOWED_ORIGIN:https://typewell.net"
+#   npx wrangler@4 secret put GOOGLE_CLIENT_SECRET
+#
 # Deliberately generic. Nothing about any particular account, domain or Google
 # project belongs in this file — it is in a public repository, and a config full
 # of somebody's real values is a config every fork has to un-edit before it can
 # be used.
-#
-# The settings live in GitHub instead, and .github/workflows/auth-worker.yml
-# passes them in at deploy time. See server/README.md.
-#
-# To deploy by hand instead, from this folder:
-#
-#   npx wrangler@4 deploy --var "GOOGLE_CLIENT_ID:..." --var "ALLOWED_ORIGIN:https://example.com"
-#   npx wrangler@4 secret put GOOGLE_CLIENT_SECRET
 
 name = "typewell-auth"
 main = "auth-worker.js"
@@ -24,5 +24,5 @@ compatibility_date = "2025-01-01"
 # It reads:
 #   GOOGLE_CLIENT_ID       public — the same value the web page ships
 #   ALLOWED_ORIGIN         public — the one site allowed to use this helper
-#   GOOGLE_CLIENT_SECRET   secret — set with `wrangler secret put`, never here
+#   GOOGLE_CLIENT_SECRET   secret — set in the dashboard or with `secret put`
 #   REDIRECT_URI           optional — defaults to this worker's own /callback

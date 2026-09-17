@@ -21,9 +21,9 @@
  *   POST /refresh    {refresh_token} -> {access_token, expires_in}
  *   POST /revoke     {refresh_token} -> tells Google to forget it
  *
- * SETUP: see server/README.md. Two settings and one secret, all held in GitHub,
- * pushed to Cloudflare by .github/workflows/auth-worker.yml. Nothing about any
- * particular account lives in this repository.
+ * SETUP: see server/README.md. Paste this file into a Cloudflare Worker, add
+ * two settings and one secret beside it, and tell Google the callback address.
+ * Nothing about any particular account lives in this repository.
  */
 
 const GOOGLE_TOKEN  = "https://oauth2.googleapis.com/token";
