@@ -61,6 +61,13 @@ to GitHub. The one real secret lives in Cloudflare and nowhere else.
 The examples below use **typewell.net**. Swap in your own site wherever you see
 it.
 
+**If a menu name does not match what you see**, trust your screen. Cloudflare
+renames these labels faster than anybody's documentation keeps up, including
+their own — at the time of writing their docs call the same screen both
+*Settings → Build* and *Settings → Builds* on different pages. What each step
+actually needs is described alongside the name, so look for the thing that does
+that job.
+
 ---
 
 ## Step 1 — Create the worker, linked to this repository
@@ -70,7 +77,8 @@ requests a day, and the free build allowance is 3,000 minutes a month; this uses
 roughly one request per hour per person and a build measured in seconds, so you
 will not get near either.
 
-1. Cloudflare dashboard → **Workers & Pages** → **Create application**.
+1. Open [**Workers & Pages**](https://dash.cloudflare.com/?to=/:account/workers-and-pages)
+   in the Cloudflare dashboard → **Create application**.
 2. Next to **Import a repository**, press **Get started**.
 3. Connect your GitHub account when asked. On GitHub's screen choose **Only
    select repositories** and pick just this one — it does not need to see the
@@ -80,9 +88,9 @@ will not get near either.
    | Field | Value | Why |
    |---|---|---|
    | **Git branch** | `main` | |
-   | **Root directory** | `server` | where `wrangler.toml` lives |
+   | **Root directory** | `/server` | where `wrangler.toml` lives. It is a path, so it takes a leading slash — the repository root would be `/` |
    | **Build command** | *leave empty* | there is nothing to build |
-   | **Deploy command** | `npx wrangler@4 deploy` | the `@4` pins the tool, so a future major version cannot break your deploys unasked |
+   | **Deploy command** | `npx wrangler@4 deploy` | the `@4` pins the tool, so a future major version cannot change how a live sign-in service deploys without you asking |
 
 5. Press **Save and Deploy**.
 
@@ -92,10 +100,25 @@ will not get near either.
 It is live now and answers `500 not_configured`, because you have not told it
 anything yet. That is correct — the next steps are what it is waiting for.
 
-**Optional, once it works:** **Settings** → **Build** → **Build watch paths** →
-set the include path to `server/*`. Without it, every push to Typewell rebuilds
-the worker even when you only edited a note-taking feature. It costs nothing to
-leave alone; it is just tidier.
+## Step 1b — Build only when this folder changes
+
+Skip this and everything still works; you will just rebuild the worker every
+time you edit a note-taking feature, which is harmless and a little silly.
+
+Worker → **Settings** → **Builds** → **Build watch paths**.
+
+⚠️ **The two boxes have no labels and no placeholder text.** This is a known
+gap that Cloudflare has not filled, so here is how to tell them apart: the
+**first box already contains `*`** — that is the *include* box. The empty one
+below it is *exclude*.
+
+- **Include:** replace the `*` with `server/*`
+- **Exclude:** leave empty
+
+Now only a change inside `server/` triggers a build. Two things worth knowing:
+editing this README also counts, because it lives in that folder and a rebuild
+of unchanged code is harmless; and a push carrying 20 or more commits, or 3,000
+or more changed files, skips the matching and builds anyway.
 
 ## Step 2 — Decide its address
 
@@ -212,7 +235,7 @@ within a minute. You can watch it under the Worker's **Deployments** tab.
   live stays live until a good one replaces it.
 - A commit on a branch other than `main` is uploaded as a preview version, not
   promoted to live.
-- To stop the automatic deploys: the Worker → **Settings** → **Build** →
+- To stop the automatic deploys: the Worker → **Settings** → **Builds** →
   **Disconnect**. To cut Cloudflare off from GitHub entirely, remove the
   *Cloudflare Workers and Pages* app at
   [github.com/settings/installations](https://github.com/settings/installations).

@@ -184,7 +184,7 @@ would retry a revoked credential forever.
 
 The worker is [`server/auth-worker.js`](../server/auth-worker.js), about 130
 lines, checked by `node server/test.mjs` in CI. Cloudflare's Git integration
-deploys it straight from this repository — `server/` as the root directory, no
+deploys it straight from this repository — `/server` as the root directory, no
 build step — with its three settings typed into the Cloudflare dashboard, so
 nothing account-specific lives in the repository and a fork inherits the
 serverless default without touching anything. `keep_vars = true` in
