@@ -11,7 +11,7 @@ and the line changes.
 |---|---|
 | `- ` / `* ` / `+ ` | a bullet list |
 | `1. ` / `1) ` | a numbered list |
-| `[] ` / `[ ] ` / `- [] ` | a checkbox |
+| `[] ` / `[ ] ` / `- [ ] ` | a checkbox. `[x] ` makes one already ticked |
 | `# ` … `###### ` | headings, six sizes |
 | `> ` | a quote |
 | `[!note]` `[!tip]` `[!important]` `[!warning]` `[!caution]` then Enter | a coloured box (with or without a `> ` in front) |
@@ -30,7 +30,9 @@ In the middle of a sentence, these close themselves as you type:
 | any web address, then space or Enter | a link (a trailing `)` or `.` stays plain) |
 
 Triggers work anywhere — on the first line of an empty note, and on lines that
-already have words after the cursor.
+already have words after the cursor. Inside a list or a checkbox list, a
+heading, quote, callout, code block or line takes the row out of the list and
+goes between the rows around it; `[ ] ` on a bullet turns it into a checkbox.
 
 ## Keys
 
@@ -51,7 +53,10 @@ already have words after the cursor.
 | `Ctrl+Alt+N` | new note |
 | `Ctrl+Shift+F` | zen mode — hide everything but the words |
 | `Ctrl+Enter` | get out of a code block, quote or list |
-| `Tab` / `Shift+Tab` | move a list item, or a code line, in and out |
+| `Tab` / `Shift+Tab` | move a list item (or every selected one), or a code line, in and out |
+| `Backspace` at the start of a list item or checkbox | one level out, then out of the list |
+| `Delete` at the end of a checkbox | pull the next line up into it |
+| `Ctrl+Shift+V` | paste as plain text (other pastes turn Markdown into formatting) |
 | `/` | jump to the note search |
 | `Esc` | close whatever is open; leave zen mode |
 
