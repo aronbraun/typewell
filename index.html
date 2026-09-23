@@ -1832,13 +1832,9 @@ function openNote(id){
   try{localStorage.setItem(LS_LAST,id);}catch(_){}
   fileName.value=n.title==="Untitled"?"":n.title;
   editor.innerHTML=n.html;
-  /* Quotes saved before callouts existed hold their text inline, with no <p>.
-     Chrome's native Enter splits those into a fresh sibling <blockquote> every
-     press, so you pile up empty quotes with no way back to plain text. Normalise
-     on open, while nothing is focused and there is no caret to disturb. */
-  editor.querySelectorAll("blockquote").forEach(blockifyQuote);
-  /* notes written before images knew to stay out of a flex row */
-  homeTaskImages(editor);
+  /* a note saved by an older version, or one written anywhere else, comes in
+     the shape every editing rule here expects */
+  tidy();
   markTallImages(editor);
   editor.style.fontFamily=`"${settings.defaultFont}",monospace`;
   $("#editStamp").textContent="edited "+fmtDate(n.updated);
@@ -1853,7 +1849,13 @@ function newNote(){
   saveNotes();setTab("notes");openNote(n.id);editor.focus();
 }
 let saveTimer=null;
+/* Every edit ends here, the app's own commands as well as the browser's, so
+   this is where the note is put back into shape - once, for all of them.
+   Not mid-composition (an accent, a CJK word, a phone keyboard's guess): the
+   browser owns the words then, and moving them would end the composition. */
+let composing=false;
 function scheduleSave(){
+  if(!composing)tidy();
   clearTimeout(saveTimer);saveTimer=setTimeout(flushSave,400);
   hist.dirty=true;updateUndoBtns();
   clearTimeout(hist.timer);hist.timer=setTimeout(histPush,600);
@@ -1873,12 +1875,47 @@ function markDirty(){
   dirtySinceBackup=true;refreshBeacon();
   if(settings.autoBackup&&drive.linked)drive.scheduleAuto();
 }
+/* What was in the note just before the browser edited it, so that afterwards
+   the app can tell what the browser made. Two edits need that answer:
+   - a paste, because its colours and fonts are scrubbed - its own, and not
+     the size or highlight you set by hand three paragraphs up;
+   - a Backspace, Delete or Enter that joins or splits lines. Chrome keeps
+     moved words looking the way they did by writing the look into new
+     <span style>s, which is how a callout's tint or a heading's size turned
+     up as a highlight in the paragraph it was joined to. A look that no span
+     had before the key was pressed is Chrome's, not yours, and goes; a look
+     one did have is yours, carried along, and stays. */
+let preEdit=null;
+const looks=els=>new Set(els.flatMap(el=>[...el.style].map(p=>p+":"+el.style.getPropertyValue(p))));
+editor.addEventListener("beforeinput",e=>{
+  const t=e.inputType;
+  if(t==="insertFromPaste"||t==="insertFromDrop")preEdit={paste:new Set(editor.querySelectorAll("*"))};
+  else if(/^delete/.test(t)||t==="insertParagraph"){
+    const spans=[...editor.querySelectorAll("span[style]")];
+    preEdit={spans:new Set(spans),looks:looks(spans)};
+  }
+  else preEdit=null;
+});
+function dropInventedLooks(pre){
+  editor.querySelectorAll("span[style]").forEach(sp=>{
+    if(pre.spans.has(sp))return;
+    for(const p of [...sp.style])if(!pre.looks.has(p+":"+sp.style.getPropertyValue(p)))sp.style.removeProperty(p);
+    if(!sp.style.length)sp.replaceWith(...sp.childNodes);
+  });
+}
 editor.addEventListener("input",e=>{
+  const pre=preEdit;preEdit=null;
   /* after the browser has done the paste, not instead of it - the markup it
      produces is better than anything reconstructed from the HTML string */
-  if(e.inputType==="insertFromPaste"||e.inputType==="insertFromDrop")scrubPasted();
+  if(e.inputType==="insertFromPaste"||e.inputType==="insertFromDrop"){
+    const at=rememberCaret();
+    scrubPasted(pre?.paste?[...editor.querySelectorAll("*")].filter(el=>!pre.paste.has(el)):null);
+    restoreCaret(at);
+  }else if(pre?.spans)dropInventedLooks(pre);
   scheduleSave();updateCounts();
 });
+editor.addEventListener("compositionstart",()=>{composing=true;});
+editor.addEventListener("compositionend",()=>{composing=false;scheduleSave();});
 fileName.addEventListener("input",scheduleSave);
 fileName.addEventListener("keydown",e=>{if(e.key==="Enter"){e.preventDefault();editor.focus();}});
 window.addEventListener("beforeunload",flushSave);
@@ -2137,7 +2174,7 @@ const fontDD=makeDropdown($("#fontSelect"),FONTS,applyFont,
 function applyBlock(tag){
   editor.focus();
   const b=getBlock();
-  if(b&&b.tagName==="LI")liftItem(b,tag);
+  if(b&&b.tagName==="LI"){liftItem(b,tag);scheduleSave();}
   else cmd("formatBlock",tag);
   stripHeadingSizes(getBlock());
   syncToolbar();
@@ -2156,30 +2193,26 @@ function stripHeadingSizes(nb){
   nb.style.removeProperty("font-size");
   scheduleSave();
 }
-/* pull one <li> out of its list and make it a block of its own, splitting the
-   list in two if it came from the middle */
-function liftItem(li,tag){
+/* Pull one <li> out of every list it is in and make it a block of its own,
+   splitting each of those lists where it came out. Whatever was nested under
+   it stays in the list below, still indented. A heading, a quote or a code
+   block does not live inside a list, so this is where a list line typed into
+   one of those goes first. The caret stays in the words it was in. */
+function liftItem(li,tag="P"){
   histPush();
-  const list=li.parentElement;
+  const at=rememberCaret();
   const el=document.createElement(tag==="P"?"p":tag);
   /* a task item keeps its text in .task-text next to a contenteditable=false
      checkbox; the checkbox has no meaning outside a list */
-  const src=li.querySelector(".task-text")||li;
-  while(src.firstChild)el.appendChild(src.firstChild);
+  const own=taskOwnText(li)||li;
+  for(const n of [...own.childNodes])if(!/^(UL|OL)$/.test(n.nodeName))el.appendChild(n);
   if(!el.firstChild)el.innerHTML="<br>";
-
-  const after=[...list.children].slice([...list.children].indexOf(li)+1);
-  list.after(el);
-  if(after.length){
-    const rest=document.createElement(list.tagName);
-    if(list.className)rest.className=list.className;
-    after.forEach(n=>rest.appendChild(n));
-    el.after(rest);
-  }
-  li.remove();
-  if(!list.children.length)list.remove();
-  placeCaret(el);
-  scheduleSave();
+  li.after(...[...li.children].filter(c=>/^(UL|OL)$/.test(c.tagName)));
+  li.replaceWith(el);
+  liftOutOfLists(el);
+  restoreCaret(at);
+  if(!editor.contains(window.getSelection().anchorNode))placeCaret(el);
+  return el;
 }
 const blockDD=makeDropdown($("#blockSelect"),BLOCKS,applyBlock);
 const defFontDD=makeDropdown($("#defaultFontSelect"),FONTS,v=>{
@@ -2667,7 +2700,7 @@ async function insertImageFile(f){
     const im=[...editor.querySelectorAll("img")].find(x=>x.src===rd.result&&!x.dataset.a);
     if(im){
       im.dataset.a="left";im.alt=im.alt||f.name.replace(/\.[^.]+$/,"");
-      homeTaskImages(editor);   /* before the frame is drawn, so it is drawn in the right place */
+      tidy();   /* before the frame is drawn, so it is drawn in the right place */
       markTallImages(editor);
       selectImg(im);
     }
@@ -2774,33 +2807,8 @@ function imgIsSelected(im){
    included - so an image dropped straight into a task row stopped being part
    of the sentence and became a third column, shoved out to the far edge by the
    words beside it. No stylesheet can undo that from the image's side: the
-   image has to be *inside* the words rather than next to them. So it gets
-   moved there, which is where a person putting a picture in a line of text
-   meant it to go anyway. */
-function homeTaskImages(root){
-  let moved=false;
-  root.querySelectorAll("ul.tasks > li > img").forEach(im=>{
-    const li=im.parentElement;
-    let txt=li.querySelector(":scope > .task-text");
-    if(!txt){
-      /* an older row, or one a paste built by hand, with no span at all */
-      txt=document.createElement("span");txt.className="task-text";
-      [...li.childNodes].forEach(n=>{
-        /* the checkbox stays a flex item - it is the one thing that should be
-           a column - and a nested list is a block in its own right */
-        if(n.nodeType===1&&(n.matches('input[type="checkbox"]')||n.matches("ul,ol")))return;
-        txt.appendChild(n);
-      });
-      li.insertBefore(txt,li.querySelector(":scope > ul,:scope > ol"));
-    }else if(im.compareDocumentPosition(txt)&Node.DOCUMENT_POSITION_FOLLOWING){
-      txt.insertBefore(im,txt.firstChild);   /* it was ahead of the words */
-    }else{
-      txt.appendChild(im);
-    }
-    moved=true;
-  });
-  return moved;
-}
+   image has to be *inside* the words rather than next to them, which is one of
+   the rules tidyTaskRow() keeps for every row. */
 /* ---------- a tall picture lines up by its top ----------
    Two lines high is the line. Below that a picture is word-sized and belongs
    sitting on the words; above it the words would otherwise hang off the very
@@ -2827,7 +2835,7 @@ function autoPlaceImg(im){
   const w=im.getBoundingClientRect().width,host=imgHostWidth(im);
   if(!w||!host)return;
   const small=w/host<=IMG_INLINE_AT;
-  if(small&&a!=="inline"){im.dataset.a="inline";homeTaskImages(editor);}
+  if(small&&a!=="inline"){im.dataset.a="inline";tidy();}
   else if(!small&&a==="inline")im.dataset.a="left";
   markTallImages(editor);
 }
@@ -2917,7 +2925,7 @@ imgTools.addEventListener("click",async e=>{
     selImg.dataset.fit="fixed";
     /* "Inline" has to mean inline even in a task row, where it would otherwise
        be quietly turned back into a block by the row's own layout */
-    if(b.dataset.a==="inline")homeTaskImages(editor);
+    if(b.dataset.a==="inline")tidy();
     markTallImages(editor);
     /* an inline picture the height of a paragraph is the point of inline; a
        full-width one is not, so the first switch to inline offers a size */
@@ -2997,20 +3005,68 @@ function isBlackish(v){
   const p=m[1].split(/[\s,/]+/).filter(Boolean).map(parseFloat);
   return p.length>2&&p[0]<=32&&p[1]<=32&&p[2]<=32;
 }
-function scrubPasted(){
-  editor.querySelectorAll("[style]").forEach(el=>{
-    if(!isWhiteish(el.style.backgroundColor))return;
-    el.style.removeProperty("background-color");
-    el.style.removeProperty("background");
-    if(isBlackish(el.style.color))el.style.removeProperty("color");
-    if(!el.getAttribute("style"))el.removeAttribute("style");
-  });
-  editor.querySelectorAll("[bgcolor]").forEach(el=>{
+/* The page a paste came from also sets its own font, its own size, its own
+   spacing - the room again, not the text - and pasted into a monospace note it
+   leaves a paragraph of 11pt Arial behind. Those go too, unless the paste came
+   out of Typewell itself, where a font or a size is one somebody picked. The
+   display rule is Chrome's own, written onto anything pasted into a checkbox
+   row to hold it inline in the row; the row's stylesheet already does that. */
+const SOURCE_LOOK=/^(list-style-type|font-family|font-size|line-height|letter-spacing|word-spacing|text-indent|text-align|white-space|margin.*|padding.*)$/;
+const OUR_CLASSES=new Set(["tasks","task-text","alert","done"]);
+let pasteFromTypewell=false;
+/* `pasted` is every element the paste made, or null when that is not known -
+   then the whole note is scrubbed for backgrounds only, as it always was */
+/* Google Docs and most web pages say "bold" with a style on a <span>, not
+   with <b>. It looks the same on screen, but the Markdown export - and so the
+   Drive backup - only sees tags, so the bold was lost there. A pasted style
+   that means bold, italic, underline or crossed out becomes that tag. */
+const LOOK_TAGS=[
+  ["font-weight",v=>/^(bold|bolder|[6-9]00)$/.test(v),"B"],
+  ["font-style",v=>v==="italic","I"],
+  ["text-decoration-line",v=>/underline/.test(v),"U"],
+  ["text-decoration-line",v=>/line-through/.test(v),"S"],
+];
+function lookToTags(el){
+  for(const [prop,means,tag] of LOOK_TAGS){
+    if(!means(el.style.getPropertyValue(prop)))continue;
+    const wrap=document.createElement(tag);
+    wrap.append(...el.childNodes);el.appendChild(wrap);
+  }
+  for(const prop of ["font-weight","font-style","text-decoration","text-decoration-line"])el.style.removeProperty(prop);
+}
+function scrubPasted(pasted=null){
+  const els=pasted||[...editor.querySelectorAll("[style],[bgcolor]")];
+  for(const el of els){
+    if(!el.isConnected)continue;
+    if(el.style){
+      if(isWhiteish(el.style.backgroundColor)){
+        el.style.removeProperty("background-color");
+        el.style.removeProperty("background");
+        if(isBlackish(el.style.color))el.style.removeProperty("color");
+      }
+      if(pasted){
+        el.style.removeProperty("display");
+        if(/^(SPAN|FONT)$/.test(el.tagName))lookToTags(el);
+        if(!pasteFromTypewell)for(const p of [...el.style])if(SOURCE_LOOK.test(p))el.style.removeProperty(p);
+      }
+      if(!el.getAttribute("style"))el.removeAttribute("style");
+    }
     if(isWhiteish(el.getAttribute("bgcolor")))el.removeAttribute("bgcolor");
+    if(!pasted)continue;
+    if(el.tagName==="FONT"&&!pasteFromTypewell){el.removeAttribute("face");el.removeAttribute("size");}
+    for(const a of ["id","dir","role"])el.removeAttribute(a);
+    if(el.classList.length){
+      [...el.classList].forEach(c=>{if(!OUR_CLASSES.has(c))el.classList.remove(c);});
+      if(!el.classList.length)el.removeAttribute("class");
+    }
+    /* Google Docs wraps a whole paste in <b style="font-weight:normal">, which
+       would otherwise export the lot as **bold** */
+    if(/^(B|STRONG)$/.test(el.tagName)&&/^(normal|400)$/.test(el.style.fontWeight))el.replaceWith(...el.childNodes);
+  }
+  /* a <span> or <font> that carried nothing but the page's look is now pure noise */
+  (pasted||[...editor.querySelectorAll("span")]).forEach(el=>{
+    if(el.isConnected&&/^(SPAN|FONT)$/.test(el.tagName)&&!el.attributes.length)el.replaceWith(...el.childNodes);
   });
-  /* a <span> that carried nothing but the background is now pure noise */
-  editor.querySelectorAll("span:not([style]):not([class])")
-    .forEach(el=>el.replaceWith(...el.childNodes));
 }
 /* ---------- copying out ----------
    The same problem as pasting in, pointing the other way. Left to itself the
@@ -3024,6 +3080,8 @@ function scrubPasted(){
    rendering. What travels is what is actually marked up: bold, italics, links,
    a highlight or a colour someone applied, a font someone picked. */
 const COPY_INLINE=/^(B|STRONG|I|EM|U|S|STRIKE|CODE|A|FONT|SPAN|SUB|SUP|MARK|SMALL)$/;
+/* how a paste knows it came from here: see scrubPasted */
+const COPY_MARK='<meta name="generator" content="Typewell">';
 function selectionMarkup(){
   const sel=window.getSelection();
   if(!sel.rangeCount||sel.isCollapsed||!editor.contains(sel.anchorNode))return null;
@@ -3056,7 +3114,7 @@ function writeClipboard(e){
   const m=selectionMarkup();
   if(!m||!e.clipboardData)return false;
   e.preventDefault();
-  e.clipboardData.setData("text/html",m.html);
+  e.clipboardData.setData("text/html",COPY_MARK+m.html);
   e.clipboardData.setData("text/plain",m.text);
   return true;
 }
@@ -3068,10 +3126,18 @@ editor.addEventListener("cut",e=>{
   scheduleSave();updateCounts();
 });
 /* after the browser has finished its own paste, whatever it built */
-editor.addEventListener("paste",()=>{
-  setTimeout(()=>{ if(homeTaskImages(editor))scheduleSave(); markTallImages(editor); },0);
+editor.addEventListener("paste",()=>{setTimeout(()=>markTallImages(editor),0);});
+/* Ctrl+Shift+V is "exactly these characters", so it is the one paste that is
+   never read as Markdown */
+let pasteAsText=false;
+editor.addEventListener("keydown",e=>{
+  if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==="v")pasteAsText=e.shiftKey;
 });
+/* several lines where at least one starts the way a Markdown block does */
+const looksLikeMarkdown=t=>/\n/.test(t.trim())&&/^ {0,3}(#{1,6} |[-*+] |\d+[.)] |> ?|```)/m.test(t);
 editor.addEventListener("paste",e=>{
+  const asText=pasteAsText;pasteAsText=false;
+  pasteFromTypewell=(e.clipboardData?.getData("text/html")||"").includes(COPY_MARK);
   const f=[...(e.clipboardData?.files||[])].find(x=>x.type.startsWith("image/"));
   if(f){e.preventDefault();insertImageFile(f);return;}
   /* inside a code block, always paste as plain text */
@@ -3102,12 +3168,17 @@ editor.addEventListener("paste",e=>{
 
      insertText puts the characters exactly where typing them would put them,
      so they inherit the bold, the colour and the size already at the caret,
-     and one undo takes the whole paste back out. */
+     and one undo takes the whole paste back out.
+
+     Text copied out of another Markdown editor, a README or a chat is the
+     exception: its "# " and "- [ ] " are formatting, and pasting them as
+     characters is what "pasting formatted things does not work" meant. */
   if(![...(e.clipboardData.types||[])].includes("text/html")){
     const txt=e.clipboardData.getData("text/plain");
     if(!txt)return;
     e.preventDefault();histPush();
-    document.execCommand("insertText",false,txt);
+    if(!asText&&looksLikeMarkdown(txt))document.execCommand("insertHTML",false,mdToHtml(txt));
+    else document.execCommand("insertText",false,txt);
     scheduleSave();updateCounts();
   }
 });
@@ -3177,6 +3248,42 @@ function outerTaskUl(el){
   for(let n=el;n&&n!==editor;n=n.parentElement)if(isTaskUl(n))found=n;
   return found;
 }
+/* Bullets and numbers are indented by hand as well. Chrome's own "indent"
+   makes each press a new list of its own beside the item, so a line pressed
+   in twice came out as a list holding nothing but another list, under no
+   item at all. Here the item joins the sub-list of the item above it, with
+   whatever is nested under it coming along. */
+function listIndent(li){
+  const above=li.previousElementSibling;
+  if(above?.tagName!=="LI")return false;          /* the first item has nothing to go under */
+  const at=rememberCaret();
+  const tag=li.parentElement.tagName;
+  let sub=above.lastElementChild;
+  if(sub?.tagName!==tag){sub=document.createElement(tag);above.appendChild(sub);}
+  sub.appendChild(li);
+  restoreCaret(at);
+  return true;
+}
+/* A bullet or number one level out, by hand: Chrome's own "outdent" left
+   the item inside the item it came out of (<li>a<li>b</li></li>). The items
+   below it come along one level in, as its own sub-items, as they do in
+   every other editor - and as taskOutdent does for checkbox rows. */
+function listOutdent(li){
+  const list=li.parentElement,holder=list?.parentElement;
+  if(!/^(UL|OL)$/.test(list?.tagName||"")||!/^(UL|OL|LI)$/.test(holder?.tagName||""))return false;
+  const at=rememberCaret();
+  const after=[];for(let n=li.nextSibling;n;n=n.nextSibling)after.push(n);
+  if(after.length){
+    const tail=document.createElement(list.tagName);
+    tail.append(...after);li.appendChild(tail);
+  }
+  /* inside an item (<li>a<ul>…</ul></li>) it goes after that item; in the
+     sibling shape (<ul><li>a</li><ul>…</ul></ul>) after the sub-list itself */
+  (holder.tagName==="LI"?holder:list).after(li);
+  if(!list.children.length)list.remove();
+  restoreCaret(at);
+  return true;
+}
 /* How deep in lists a block sits. A Tab-indented sublist is a sibling <ul>
    inside its parent <ul>; an imported one lives inside the <li>. Counting
    list ancestors gets the same answer from both shapes. */
@@ -3210,13 +3317,17 @@ function blockLines(b){
    select just the sub-bullets and they become a list in their own right. */
 function taskLines(blocks){
   const seen=new Set(),out=[];
+  /* a list inside a list with no item between (an old note, pasted HTML)
+     still holds lines - walked through, not skipped, or they are lost */
+  const pushList=list=>{
+    for(const c of list.children)
+      if(c.tagName==="LI")push(c);else if(/^(UL|OL)$/.test(c.tagName))pushList(c);
+  };
   const push=b=>{
     if(seen.has(b))return;seen.add(b);
     const d=listDepth(b);
     for(const html of blockLines(b))out.push({depth:d,html});
-    for(const sub of b.children||[])
-      if(/^(UL|OL)$/.test(sub.tagName))
-        for(const li of sub.children)if(li.tagName==="LI")push(li);
+    for(const sub of b.children||[])if(/^(UL|OL)$/.test(sub.tagName))pushList(sub);
   };
   for(const b of blocks)push(b);
   let prev=-1;
@@ -3302,9 +3413,10 @@ function untaskUl(ul){
    the paragraph the bullets came from. Never a blockquote, though — a task list
    is welcome inside a quote and belongs where you made it. */
 const splitPast=el=>/^(UL|OL)$/.test(el.tagName)||(/^(P|DIV)$/.test(el.tagName)&&isWrapper(el));
-function splitListsAbove(el){
+function splitListsAbove(el,throughItems=false){
   let node=el;
-  while(node.parentElement&&node.parentElement!==editor&&splitPast(node.parentElement)){
+  const climbs=p=>splitPast(p)||(throughItems&&p.tagName==="LI");
+  while(node.parentElement&&node.parentElement!==editor&&climbs(node.parentElement)){
     const parent=node.parentElement,tail=parent.cloneNode(false);
     if(tail.tagName==="OL"){
       let kept=0;for(let n=parent.firstChild;n&&n!==node;n=n.nextSibling)if(n.tagName==="LI")kept++;
@@ -3437,6 +3549,215 @@ editor.addEventListener("change",e=>{
   }
 });
 
+/* ---------- keeping the document in one shape ----------
+   The browser's own editing commands build markup nobody would write by hand.
+   The bullet button leaves the new list inside the paragraph it came from,
+   Enter out of that list then puts a paragraph inside a paragraph, a paste into
+   a checkbox row drops whole paragraphs beside the words, and a row split by
+   the browser arrives without its box. Every feature used to cope with every
+   one of those shapes on its own, and each new feature met a shape nobody had
+   coped with yet - which is why anything past plain typing kept breaking.
+
+   So there is one shape, and tidy() puts the note back into it after every
+   edit, whoever made the edit:
+   - a paragraph or heading holds words, never blocks;
+   - a checkbox row is its box, then its words in .task-text, and nothing else;
+     its sub-rows sit beside it in the list, which is the shape Tab makes;
+   - a bullet's sub-list sits inside the bullet it belongs to;
+   - a quote, and the page itself, hold blocks rather than loose words;
+   - an empty line still has a <br>, or it has no height and takes no caret.
+   It moves nodes and never rewrites markup, so the text the caret sits in
+   survives, and the caret is put back exactly where it was. */
+const HOLDS_WORDS=":is(p,h1,h2,h3,h4,h5,h6,.task-text)";
+const BLOCK_TAGS=":is(p,div,h1,h2,h3,h4,h5,h6,ul,ol,pre,blockquote,table,hr)";
+/* blocks that are no kind of line, so a checkbox row cannot hold them as one */
+const NOT_A_ROW=/^(BLOCKQUOTE|PRE|TABLE|HR)$/;
+/* only a caret line, nothing a person would call content */
+const isBlank=el=>!el.textContent.trim()&&!el.querySelector("img,input,hr,table");
+/* A caret as something that survives its node moving house: a text node and an
+   offset, or "just before this node", or "at the end of this element". A live
+   Range cannot do this - moving a node drags every boundary inside it out to
+   wherever the node used to be. */
+function rememberCaret(){
+  const s=window.getSelection();
+  if(!s.rangeCount||!editor.contains(s.anchorNode))return null;
+  const pin=(node,off)=>{
+    if(node.nodeType===3)return {node,off};
+    /* a text node beside the caret is the safest pin: it survives its
+       wrapper being taken apart, where the wrapper itself does not */
+    const ch=node.childNodes[off],prev=node.childNodes[off-1];
+    if(ch?.nodeType===3)return {node:ch,off:0};
+    if(prev?.nodeType===3)return {node:prev,off:prev.length};
+    return ch?{before:ch}:{end:node,empty:!node.firstChild};
+  };
+  const r=s.getRangeAt(0);
+  return {a:pin(r.startContainer,r.startOffset),b:pin(r.endContainer,r.endOffset),collapsed:r.collapsed};
+}
+function restoreCaret(m){
+  if(!m)return;
+  const at=p=>{
+    if(p.node)return editor.contains(p.node)?[p.node,Math.min(p.off,p.node.length)]:null;
+    if(p.before)return editor.contains(p.before)?[p.before.parentNode,[...p.before.parentNode.childNodes].indexOf(p.before)]:null;
+    /* an element that was empty and has since been given its <br>: before it,
+       not after it, or the caret lands on a line that is not there */
+    return editor.contains(p.end)?[p.end,p.empty?0:p.end.childNodes.length]:null;
+  };
+  const a=at(m.a),b=m.collapsed?a:at(m.b);
+  if(!a||!b)return;
+  try{
+    const r=document.createRange();r.setStart(...a);r.setEnd(...b);
+    const s=window.getSelection();s.removeAllRanges();s.addRange(r);
+  }catch(_){}
+}
+/* take a block out of the line it landed in, splitting the line around it */
+function hoistOut(block){
+  const line=block.parentElement,tail=line.cloneNode(false);
+  while(block.nextSibling)tail.appendChild(block.nextSibling);
+  line.after(block);block.after(tail);
+  for(const part of [line,tail])if(isBlank(part))part.remove();
+}
+/* Put a block that has no business in a list - a quote, a code block, a
+   table - out beside the list, splitting it (and every list it is nested in)
+   at the row it came from. That is how a callout typed between two checkboxes
+   ends up between them rather than inside one. */
+function liftOutOfLists(block){
+  const top=splitListsAbove(block,true);
+  if(top===block)return;
+  top.before(block);
+  /* the far side of the cut: an item split below its words is only the lists
+     it held, and a list the cut emptied is nothing */
+  for(const li of [...top.querySelectorAll("li")].reverse())
+    if(![...li.childNodes].some(n=>!/^(UL|OL)$/.test(n.nodeName)&&(n.nodeType===1||n.data.trim())))
+      li.replaceWith(...li.childNodes);
+  for(const l of [...top.querySelectorAll("ul,ol")].reverse())if(!l.children.length)l.remove();
+  if(top.matches("li")?!top.childNodes.length:!top.children.length)top.remove();
+}
+function newTaskRow(){
+  const li=document.createElement("li");
+  li.innerHTML=CHECK+'<span class="task-text"></span>';
+  return li;
+}
+/* a plain list turned into checkbox rows, moving the nodes rather than copying them */
+function listToTasks(list){
+  const ul=document.createElement("ul");ul.className="tasks";
+  for(const ch of [...list.children]){
+    if(/^(UL|OL)$/.test(ch.tagName)){ul.appendChild(isTaskUl(ch)?ch:listToTasks(ch));continue;}
+    const li=document.createElement("li");ul.appendChild(li);
+    if(ch.tagName==="LI")li.append(...ch.childNodes);else li.append(ch);
+    tidyTaskRow(li);
+  }
+  return ul;
+}
+/* One checkbox row into its one shape. Returns whether anything moved. */
+function tidyTaskRow(li){
+  let moved=false;
+  let box=li.querySelector(':scope > input[type="checkbox"]');
+  if(!box){li.insertAdjacentHTML("afterbegin",CHECK);box=li.firstChild;moved=true;}
+  else if(li.firstChild!==box){li.prepend(box);moved=true;}
+  /* a box pasted from a web page arrives switched off, and a box that can be
+     typed into takes the caret with it */
+  if(box.getAttribute("contenteditable")!=="false")box.setAttribute("contenteditable","false");
+  if(box.hasAttribute("disabled"))box.removeAttribute("disabled");
+  li.classList.toggle("done",box.checked||box.hasAttribute("checked"));
+  let words=taskOwnText(li);
+  if(!words){words=document.createElement("span");words.className="task-text";box.after(words);moved=true;}
+  const front=words.firstChild;   /* loose words ahead of the span go in ahead of its own */
+  let seenWords=false,cur=words,last=li;
+  const later=[],spans=[words];
+  for(const n of [...li.childNodes]){
+    if(n===box)continue;
+    if(n===words){seenWords=true;continue;}
+    moved=true;
+    if(n.nodeType===1&&n.matches('input[type="checkbox"]')){n.remove();continue;}
+    if(n.nodeType===1&&/^(UL|OL)$/.test(n.tagName)){
+      const sub=isTaskUl(n)?n:listToTasks(n);
+      if(sub!==n)n.remove();
+      last.after(sub);last=sub;continue;
+    }
+    if(n.nodeType===1&&NOT_A_ROW.test(n.tagName)){later.push(n);continue;}
+    if(n.nodeType===1&&BLOCKISH.test(n.tagName)){
+      /* a pasted paragraph is a row of its own - unless the row it landed in
+         has no words yet, and then it is that row's words */
+      if(isBlank(cur))cur.replaceChildren(...n.childNodes);
+      else{const row=newTaskRow();cur=taskOwnText(row);spans.push(cur);cur.append(...n.childNodes);last.after(row);last=row;}
+      n.remove();continue;
+    }
+    /* a lone <br> is only there to hold an empty row open */
+    if(cur.childNodes.length===1&&cur.firstChild.nodeName==="BR"&&(n.nodeType===1||n.data.trim()))cur.firstChild.remove();
+    if(!seenWords&&front&&front.isConnected)words.insertBefore(n,front);else cur.appendChild(n);
+  }
+  for(const t of spans)if(!t.firstChild)t.innerHTML="<br>";
+  for(const b of later){last.after(b);last=b;liftOutOfLists(b);}
+  return moved;
+}
+/* runs of loose words straight inside the page or a quote become paragraphs */
+function wrapLooseWords(box){
+  let run=[],wrapped=false;
+  const flush=()=>{
+    if(run.some(n=>n.nodeType!==3||n.data.trim())){
+      const p=document.createElement("p");run[0].before(p);p.append(...run);wrapped=true;
+    }
+    run=[];
+  };
+  for(const n of [...box.childNodes]){
+    if(n.nodeType===1&&BLOCKISH.test(n.tagName))flush();
+    else if(n.nodeType===1||n.nodeType===3)run.push(n);
+  }
+  flush();
+  return wrapped;
+}
+/* Cheap enough to run on every keystroke: each rule is one selector that
+   matches nothing in a note already in shape, and the note is never
+   serialised to find out - a note with a photo in it is megabytes of text. */
+function tidy(root=editor){
+  const mark=rememberCaret();
+  let changed=false,el;
+  /* blocks out of lines, innermost first so each split sees a plain line */
+  while((el=root.querySelector(HOLDS_WORDS+" > "+BLOCK_TAGS))){hoistOut(el);changed=true;}
+  /* a list pasted from GitHub is a checkbox list that does not know it yet */
+  root.querySelectorAll('ul:not(.tasks):has(> li > input[type="checkbox"])').forEach(ul=>{ul.classList.add("tasks");changed=true;});
+  /* anything standing straight in a checkbox list that is not a row becomes one */
+  root.querySelectorAll("ul.tasks").forEach(ul=>{
+    for(const n of [...ul.childNodes]){
+      if(n.nodeType===3){
+        if(n.data.trim()){const row=newTaskRow();n.replaceWith(row);taskOwnText(row).append(n);changed=true;}
+        continue;
+      }
+      if(n.nodeType!==1||n.tagName==="LI"||isTaskUl(n))continue;
+      changed=true;
+      if(/^(UL|OL)$/.test(n.tagName)){n.replaceWith(listToTasks(n));continue;}
+      if(NOT_A_ROW.test(n.tagName)){liftOutOfLists(n);continue;}
+      const row=newTaskRow();n.replaceWith(row);taskOwnText(row).append(...n.childNodes);
+    }
+  });
+  root.querySelectorAll("ul.tasks > li").forEach(li=>{if(tidyTaskRow(li))changed=true;});
+  /* a bullet's sub-list inside the bullet above it - the valid shape, and the
+     one every list-walking function here reads - rather than the sibling the
+     browser's own Tab makes */
+  root.querySelectorAll(":is(ul:not(.tasks),ol) > :is(ul,ol):not(.tasks)").forEach(sub=>{
+    const above=sub.previousElementSibling;
+    if(above&&above.tagName==="LI"){above.appendChild(sub);changed=true;}
+  });
+  /* Google Docs wraps each bullet's words in a paragraph of their own */
+  root.querySelectorAll(":is(ul:not(.tasks),ol) > li > p").forEach(p=>{
+    const next=p.nextSibling;
+    p.replaceWith(...p.childNodes);
+    if(next&&!/^(UL|OL)$/.test(next.nodeName))next.before(document.createElement("br"));
+    changed=true;
+  });
+  /* two checkbox lists touching are one list */
+  root.querySelectorAll("ul.tasks + ul.tasks").forEach(ul=>{
+    const above=ul.previousElementSibling;
+    if(ul.isConnected&&isTaskUl(above)){above.append(...ul.childNodes);ul.remove();changed=true;}
+  });
+  if(wrapLooseWords(root))changed=true;
+  root.querySelectorAll("blockquote").forEach(bq=>{if(wrapLooseWords(bq))changed=true;});
+  root.querySelectorAll("p:empty,h1:empty,h2:empty,h3:empty,h4:empty,h5:empty,h6:empty,li:empty,blockquote:empty,.task-text:empty")
+    .forEach(e=>{e.innerHTML=e.tagName==="BLOCKQUOTE"?"<p><br></p>":"<br>";changed=true;});
+  if(changed)restoreCaret(mark);
+  return changed;
+}
+
 /* ---------- markdown-as-you-type ---------- */
 function getBlock(){
   const sel=window.getSelection();if(!sel.rangeCount)return null;
@@ -3498,6 +3819,44 @@ function makeAlertHere(b,e){
   bq.classList.add("alert");bq.setAttribute("data-alert",ak);
   placeCaret(bq.querySelector(":scope>p")||bq,true);
   scheduleSave();syncToolbar();return true;
+}
+/* a list row's own words, without the rows nested under it */
+const ownWords=line=>[...line.childNodes].filter(n=>!/^(UL|OL)$/.test(n.nodeName)).map(n=>n.textContent).join("");
+/* nothing but an empty line's <br> between the caret and the end of `el` -
+   the mirror of caretAtStartOf, and not caretAtEndOf, which a caret at the end
+   of the last text node does not satisfy: that is a different boundary point */
+function caretAtEndOfWords(el){
+  const sel=window.getSelection();if(!sel.rangeCount||!sel.isCollapsed)return false;
+  const r=sel.getRangeAt(0),post=document.createRange();
+  try{post.setStart(r.endContainer,r.endOffset);post.setEnd(el,el.childNodes.length);}catch(_){return false;}
+  return !post.toString()&&!post.cloneContents().querySelector("img,input,table,hr");
+}
+/* one element swapped for another tag, words moved rather than copied */
+function retag(b,tag){
+  const nb=document.createElement(tag);
+  nb.append(...b.childNodes);
+  if(!nb.firstChild)nb.innerHTML="<br>";
+  b.replaceWith(nb);
+  return nb;
+}
+/* A line made into the first item of a list - or the next item of the list
+   right above it, which is what the browser's own command did as well. */
+function makeList(b,tag){
+  const li=document.createElement("li");
+  li.append(...b.childNodes);
+  if(!li.firstChild)li.innerHTML="<br>";
+  const above=b.previousElementSibling;
+  if(above&&above.tagName===tag.toUpperCase()&&!isTaskUl(above)){above.appendChild(li);b.remove();}
+  else{const list=document.createElement(tag);list.appendChild(li);b.replaceWith(list);}
+  placeCaret(li,true);
+  return li;
+}
+/* "[x] " makes a row that is already ticked */
+function tickRowAtCaret(){
+  const row=getBlock()?.closest("ul.tasks li"),box=row?.querySelector(':scope > input[type="checkbox"]');
+  if(!box)return;
+  box.checked=true;box.setAttribute("checked","");row.classList.add("done");
+  scheduleSave();
 }
 /* delete the marker between block start and the caret, keep the rest */
 function eatMarker(b){
@@ -3576,12 +3935,15 @@ editor.addEventListener("keydown",e=>{
   }
   const sel=window.getSelection();if(!sel.rangeCount)return;
   let anchorEl=sel.anchorNode;if(anchorEl&&anchorEl.nodeType===3)anchorEl=anchorEl.parentElement;
-  const taskLi=anchorEl&&anchorEl.closest("ul.tasks li");
+  let taskLi=anchorEl&&anchorEl.closest("ul.tasks li");
 
   /* Ctrl/Cmd+Enter exits code block / quote / task list into a fresh paragraph */
   if(e.key==="Enter"&&(e.ctrlKey||e.metaKey)){
-    const b=anchorEl&&anchorEl.closest("pre,blockquote,ul,ol,table");
-    if(b){e.preventDefault();
+    let b=anchorEl&&anchorEl.closest("pre,blockquote,ul,ol,table");
+    /* out of the whole list, not just the sub-list - a paragraph cannot stand in a list */
+    while(b&&/^(UL|OL)$/.test(b.tagName)&&/^(UL|OL|LI)$/.test(b.parentElement.tagName))
+      b=b.parentElement.closest("ul,ol");
+    if(b){e.preventDefault();histPush();
       const p=document.createElement("p");p.innerHTML="<br>";
       b.after(p);placeCaret(p,true);scheduleSave();return;}
   }
@@ -3669,19 +4031,52 @@ editor.addEventListener("keydown",e=>{
       }
       return;
     }
-    if(li){e.preventDefault();
-      document.execCommand(e.shiftKey?"outdent":"indent");scheduleSave();return;}
+    if(li){
+      e.preventDefault();histPush();
+      /* every item whose own words are selected, top to bottom; one inside an
+         item that has just moved went along with it and is not moved again */
+      const r=sel.getRangeAt(0);
+      const items=sel.isCollapsed?[li]:[...editor.querySelectorAll("li")].filter(item=>
+        [...item.childNodes].some(n=>!/^(UL|OL)$/.test(n.nodeName)&&r.intersectsNode(n)));
+      const insideBefore=new Map(items.map(item=>[item,items.filter(other=>other!==item&&other.contains(item))]));
+      const moved=[];
+      for(const item of items)
+        if(!insideBefore.get(item).some(m=>moved.includes(m))&&(e.shiftKey?listOutdent:listIndent)(item))moved.push(item);
+      scheduleSave();return;
+    }
   }
 
   /* ----- auto-link typed URLs (space types normally after) ----- */
   if(e.key===" "&&autoLink())return;
   if(e.key==="Enter"&&!e.ctrlKey&&!e.metaKey)autoLink();
 
-  /* ----- task list Enter / Backspace ----- */
-  if(taskLi&&e.key==="Enter"&&!e.shiftKey&&!e.ctrlKey&&!e.metaKey){
-    e.preventDefault();
+  const noMods=!e.shiftKey&&!e.ctrlKey&&!e.metaKey&&!e.altKey;
+  /* inline **bold** and friends work on every kind of line, a checkbox row included */
+  if(e.key===" "&&noMods&&!preEl&&inlineMd()){e.preventDefault();return;}
+  if(e.key==="Enter"&&noMods&&!preEl)inlineMd();
+
+  /* the words of the list row the caret is in, if it is in one */
+  let plainLi=!taskLi&&!preEl&&anchorEl&&anchorEl.closest("li");
+  let listLine=taskLi?taskOwnText(taskLi):plainLi;
+
+  /* ----- a list row typed into a heading, quote, callout, code block or
+     divider leaves the list first, and then becomes one - those do not live
+     inside a list, and a callout typed between two checkboxes belongs
+     between them, not inside one ----- */
+  if(listLine&&noMods&&sel.isCollapsed&&(e.key===" "||e.key==="Enter")){
+    const t=e.key===" "?markerBeforeCaret(listLine):ownWords(listLine).trim();
+    if(alertMarkerBeforeCaret(listLine)||(e.key===" "?/^(#{1,6}|>|---|\*\*\*)$/:/^(```[\w+#-]*|---|\*\*\*)$/).test(t||"")){
+      liftItem(taskLi||plainLi);
+      taskLi=plainLi=listLine=null;
+    }
+  }
+
+  /* ----- checkbox rows: Enter, Backspace and Delete ----- */
+  if(taskLi&&e.key==="Enter"&&noMods){
+    e.preventDefault();histPush();
+    if(!sel.isCollapsed)sel.getRangeAt(0).deleteContents();
     const txt=taskOwnText(taskLi);
-    if(!txt||!txt.textContent.trim()){
+    if(!txt||isBlank(txt)){
       /* an empty indented item steps back out a level first; only at the far
          left does Enter leave the list altogether */
       if(taskOutdent(taskLi)){placeCaret(taskOwnText(taskLi),true);scheduleSave();return;}
@@ -3689,19 +4084,27 @@ editor.addEventListener("keydown",e=>{
       const ul=taskLi.parentElement;ul.after(p);taskLi.remove();
       pruneTaskUl(ul);
       placeCaret(p,true);
+    }else if(caretAtStartOf(txt)){
+      /* at the very start: a new empty row above, and the words stay put -
+         ticked or not, they are still the same task */
+      const nl=newTaskRow();taskOwnText(nl).innerHTML="<br>";taskLi.before(nl);
     }else{
-      const nl=document.createElement("li");
-      nl.innerHTML=CHECK+'<span class="task-text"><br></span>';
+      /* anywhere else the words after the caret move down into the new row,
+         formatting and all, the way a line splits everywhere else */
+      const cut=sel.getRangeAt(0).cloneRange();cut.setEnd(txt,txt.childNodes.length);
+      const nl=newTaskRow(),nt=taskOwnText(nl);
+      nt.append(cut.extractContents());
+      for(const t of [txt,nt])if(isBlank(t)&&!t.querySelector("br"))t.innerHTML="<br>";
       /* past its own sub-items: the new line is its sibling, not its child */
       let at=taskLi;while(isTaskUl(at.nextElementSibling))at=at.nextElementSibling;
-      at.after(nl);placeCaret(taskOwnText(nl),true);
+      at.after(nl);placeCaret(nt,true);
     }
     scheduleSave();return;
   }
-  if(taskLi&&e.key==="Backspace"){
+  if(taskLi&&e.key==="Backspace"&&sel.isCollapsed&&!e.ctrlKey&&!e.altKey&&!e.metaKey){
     const txt=taskOwnText(taskLi);
-    if(txt&&!txt.textContent.length){
-      e.preventDefault();
+    if(txt&&!txt.textContent.length&&!txt.querySelector("img")){
+      e.preventDefault();histPush();
       const prev=taskLi.previousElementSibling,ul=taskLi.parentElement;
       const above=ul.previousElementSibling;                 /* only matters once ul is gone */
       taskLi.remove();
@@ -3713,10 +4116,57 @@ editor.addEventListener("keydown",e=>{
       pruneTaskUl(ul);
       scheduleSave();return;
     }
+    /* At the start of a row's words the checkbox is what is "before" the
+       caret, and the browser will not delete it - it is not editable - so the
+       key used to do nothing at all. It goes one level out first, then out of
+       the list: the box goes, the words stay, as in every other editor. */
+    if(txt&&caretAtStartOf(txt)){
+      e.preventDefault();histPush();
+      const at=rememberCaret();
+      if(taskOutdent(taskLi))restoreCaret(at);else liftItem(taskLi);
+      scheduleSave();return;
+    }
+  }
+  /* Delete at the end of a row pulls the next row's words up into it. Left to
+     the browser it merged the words and left the next row's checkbox standing
+     in the middle of them. */
+  if(taskLi&&e.key==="Delete"&&sel.isCollapsed&&noMods){
+    const txt=taskOwnText(taskLi);
+    if(txt&&caretAtEndOfWords(txt)){
+      e.preventDefault();
+      const all=[...outerTaskUl(taskLi).querySelectorAll(".task-text")];
+      let from=all[all.indexOf(txt)+1];
+      if(!from){
+        const after=outerTaskUl(taskLi).nextElementSibling;
+        if(after&&/^(P|DIV|H[1-6])$/.test(after.tagName))from=after;
+      }
+      if(!from)return;
+      histPush();
+      if(isBlank(txt))txt.replaceChildren();
+      if(isBlank(from))from.replaceChildren();
+      const first=from.firstChild;
+      txt.append(...from.childNodes);
+      if(from.classList.contains("task-text")){const row=from.parentElement,ul=row.parentElement;row.remove();pruneTaskUl(ul);}
+      else from.remove();
+      if(!txt.firstChild)txt.innerHTML="<br>";
+      const r=document.createRange();
+      if(first)r.setStartBefore(first);else{r.selectNodeContents(txt);r.collapse(false);}
+      r.collapse(true);sel.removeAllRanges();sel.addRange(r);
+      scheduleSave();return;
+    }
+  }
+
+  /* ----- bullets and numbers: Backspace at the start of an item takes its
+     marker off - one level out first, then out of the list - rather than
+     gluing its words onto the end of the item above ----- */
+  if(plainLi&&e.key==="Backspace"&&sel.isCollapsed&&!e.ctrlKey&&!e.altKey&&!e.metaKey&&caretAtStartOf(plainLi)){
+    e.preventDefault();histPush();
+    if(!listOutdent(plainLi))liftItem(plainLi);
+    scheduleSave();return;
   }
 
   /* ----- Enter on an empty final paragraph of a quote/callout exits one level ----- */
-  if(e.key==="Enter"&&!e.shiftKey&&!e.ctrlKey&&!e.metaKey&&!taskLi){
+  if(e.key==="Enter"&&noMods&&!listLine){
     const bq=anchorEl&&anchorEl.closest("blockquote");
     const p=anchorEl&&anchorEl.closest("p");
     if(bq&&p&&p.parentElement===bq&&p===bq.lastElementChild&&!p.textContent.trim()){
@@ -3730,15 +4180,25 @@ editor.addEventListener("keydown",e=>{
   }
 
   /* ----- markdown triggers ----- */
-  if(e.key===" "&&!taskLi){
-    if(inlineMd()){e.preventDefault();return;}
+  if(e.key===" "&&noMods){
+    /* in a list the markers are spent - except "[ ] " on a bullet, which makes
+       it a checkbox, and is also how GitHub's "- [ ] " arrives */
+    if(listLine){
+      const box=!taskLi&&/^\[( |x|X)?\]$/.exec(markerBeforeCaret(listLine)||"");
+      if(!box)return;
+      e.preventDefault();eatMarker(listLine);toggleTaskList();
+      if(/x/i.test(box[1]||""))tickRowAtCaret();
+      return;
+    }
     const b=ensureBlock();
     if(!b||b.tagName==="PRE"||b.tagName==="LI")return;
     if(makeAlertHere(b,e))return;                /* [!note] etc — tested first, it's the long marker */
     const t=markerBeforeCaret(b);if(t===null)return;
     const run=fn=>{e.preventDefault();histPush();eatMarker(b);fn();scheduleSave();};
     const H={"#":"H1","##":"H2","###":"H3","####":"H4","#####":"H5","######":"H6"};
-    if(H[t])return run(()=>{document.execCommand("formatBlock",false,H[t]);stripHeadingSizes(getBlock());});
+    /* built by hand, not with formatBlock: inside a callout formatBlock ate
+       the "## " and then made no heading at all */
+    if(H[t])return run(()=>{const h=retag(b,H[t]);stripHeadingSizes(h);placeCaret(h,true);});
     /* divider on space as well as Enter — every other marker fires on space, so
        "--- " silently doing nothing reads as the trigger being broken */
     if((t==="---"||t==="***")&&b.textContent.trim()===t){
@@ -3746,42 +4206,39 @@ editor.addEventListener("keydown",e=>{
       const hr=document.createElement("hr"),p=document.createElement("p");p.innerHTML="<br>";
       b.replaceWith(hr);hr.after(p);placeCaret(p,true);scheduleSave();return;
     }
-    if(t==="-"||t==="*"||t==="+")return run(()=>document.execCommand("insertUnorderedList"));
-    if(t==="1."||t==="1)")return run(()=>document.execCommand("insertOrderedList"));
+    /* lists by hand too: the browser's command leaves the list inside the
+       paragraph, and inside a callout inside a paragraph inside the callout */
+    if(t==="-"||t==="*"||t==="+")return run(()=>makeList(b,"ul"));
+    if(t==="1."||t==="1)")return run(()=>makeList(b,"ol"));
     if(t===">"){
-      /* inside a quote/callout "> " nests one level; Chrome's formatBlock is
-         unreliable there, so build the inner blockquote by hand */
-      const par=b.tagName==="BLOCKQUOTE"?null:b.closest("blockquote");
-      if(par){
-        if(bqDepth(par)>=3){e.preventDefault();eatMarker(b);toast("Callouts nest 3 deep");return;}
-        return run(()=>{
-          const nb=document.createElement("blockquote");
-          b.replaceWith(nb);nb.appendChild(b);placeCaret(b,true);
-        });
-      }
+      /* inside a quote/callout "> " nests one level */
+      const par=b.closest("blockquote");
+      if(par&&bqDepth(par)>=3){e.preventDefault();eatMarker(b);toast("Callouts nest 3 deep");return;}
       return run(()=>{
-        document.execCommand("formatBlock",false,"BLOCKQUOTE");
-        /* block-structure it straight away so Enter behaves; see the Enter handler */
-        const nb=ensureBlock(),bq2=nb&&(nb.tagName==="BLOCKQUOTE"?nb:nb.closest("blockquote"));
-        if(bq2)blockifyQuote(bq2);
+        const nb=document.createElement("blockquote");
+        b.replaceWith(nb);nb.appendChild(b);placeCaret(b,true);
       });
     }
-    if(t==="[]"||t==="[ ]"||t==="-[]"||t==="- []"){
-      e.preventDefault();eatMarker(b);
+    const box=/^-? ?\[( |x|X)?\]$/.exec(t);
+    if(box){
+      e.preventDefault();histPush();eatMarker(b);
       const rest=b.innerHTML.replace(/^<br>$/,"");
       const ul=makeTaskUl(rest);b.replaceWith(ul);
-      placeCaret(ul.querySelector(".task-text"),true);scheduleSave();return;
+      placeCaret(ul.querySelector(".task-text"),true);
+      if(/x/i.test(box[1]||""))tickRowAtCaret();
+      scheduleSave();return;
     }
   }
-  if(e.key==="Enter"&&!e.shiftKey&&!e.ctrlKey&&!e.metaKey&&!taskLi){
-    inlineMd();
+  if(e.key==="Enter"&&noMods&&!listLine){
     const b=ensureBlock();if(!b||b.tagName==="PRE")return;
     if(makeAlertHere(b,e))return;            /* Enter after [!note] — GitHub muscle memory */
     const t=b.textContent.trim();
-    if(t==="```"){e.preventDefault();
+    const fence=/^```([\w+#-]*)$/.exec(t);        /* "```js" keeps its language */
+    if(fence){e.preventDefault();histPush();
       const pre=document.createElement("pre");pre.innerHTML="<br>";
+      if(fence[1])pre.setAttribute("data-lang",fence[1]);
       b.replaceWith(pre);placeCaret(pre,true);scheduleSave();return;}
-    if(t==="---"||t==="***"){e.preventDefault();
+    if(t==="---"||t==="***"){e.preventDefault();histPush();
       const hr=document.createElement("hr"),p=document.createElement("p");p.innerHTML="<br>";
       b.replaceWith(hr);hr.after(p);placeCaret(p,true);scheduleSave();return;}
   }
@@ -3840,15 +4297,19 @@ $("#findClose").addEventListener("click",closeFind);
 /* Sub-items indent two spaces a level, the same column a "- " bullet's children
    sit in, so anything that reads markdown sees the nesting we meant. The sublist
    may sit beside its item (Tab indents it there) or inside it (an import puts it
-   there); both shapes have to serialize. */
-function tasksMd(ul,pad){
+   there); both shapes have to serialize. The words go through the same
+   `walk` as every other line - bold, links and code in a checkbox row were
+   lost from the export when only their text was written. A row is one line,
+   so a line break inside it becomes a space. */
+function tasksMd(ul,pad,walk){
   let s="";
   for(const li of ul.children){
-    if(li.tagName==="UL"){s+=tasksMd(li,pad+"  ");continue;}
+    if(li.tagName==="UL"){s+=tasksMd(li,pad+"  ",walk);continue;}
     if(li.tagName!=="LI")continue;
     const done=li.querySelector(":scope > input")?.hasAttribute("checked");
-    s+=pad+"- ["+(done?"x":" ")+"] "+(li.querySelector(":scope > .task-text")?.textContent||"").trim()+"\n";
-    for(const sub of li.children)if(sub.tagName==="UL")s+=tasksMd(sub,pad+"  ");
+    const words=li.querySelector(":scope > .task-text");
+    s+=pad+"- ["+(done?"x":" ")+"] "+(words?walk(words).replace(/\s*\n\s*/g," ").trim():"")+"\n";
+    for(const sub of li.children)if(sub.tagName==="UL")s+=tasksMd(sub,pad+"  ",walk);
   }
   return s;
 }
@@ -3906,7 +4367,7 @@ function htmlToMd(root){
           out+="!["+(ch.getAttribute("alt")||"")+"]("+(ch.getAttribute("src")||"")+
                (bits.length?' "'+bits.join(" ")+'"':"")+")";break;}
         case "ul":case "ol":{
-          if(tag==="ul"&&ch.classList.contains("tasks")){out+=tasksMd(ch,"")+"\n";break;}
+          if(tag==="ul"&&ch.classList.contains("tasks")){out+=tasksMd(ch,"",walk)+"\n";break;}
           /* clone-based: an exporter must never mutate the live DOM.
              2-space indent under "- ", 3 under "1. " — the CommonMark content column */
           const ord=tag==="ol",pad=ord?"   ":"  ";
@@ -6005,7 +6466,7 @@ editor.addEventListener("keydown",e=>{
 window.__typewell={WELCOME_HTML,FONTS,BLOCKS,drive,LS_DTOK,LS_DREF,AUTH_ENDPOINT,settings,version:"2026-08-26",
   notes:()=>notes,setNotes:v=>{notes=v;},LS_NOTES,
   pageWidth,setPageWidth,LS_LAST,openLastNote,shareMarkdown,shrinkForShare,SHARE_MAX,
-  homeTaskImages,markTallImages,IMG_TALL_LINES,
+  tidy,tidyTaskRow,markTallImages,IMG_TALL_LINES,
   sharePack,shareUnpack,sharePartial,b64urlTrim,inflatePartial,unescapePartialJson,tidyCutMarkdown,
   selectImg,clearImgSel,imgIsSelected,autoPlaceImg,caretAtImg,placeCaretMark,
   IMG_INLINE_AT,selImg:()=>selImg};

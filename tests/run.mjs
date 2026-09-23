@@ -14,6 +14,7 @@ import { createServer } from "node:http";
 import { readFile } from "node:fs/promises";
 import { extname, join, normalize } from "node:path";
 import { fileURLToPath } from "node:url";
+import { runTyping } from "./typing.mjs";
 
 const ROOT = fileURLToPath(new URL("..", import.meta.url));
 const PORT = 8732;
@@ -153,13 +154,16 @@ async function main() {
     const v = r.result?.result?.value;
     if (v && v !== "null") results = JSON.parse(v);
   }
-
-  ws.close(); chrome.kill(); server?.close();
-
   if (!results) {
+    ws.close(); chrome.kill(); server?.close();
     console.error("The suite never reported. Is tests/index.html reachable at " + base + "?");
     process.exit(2);
   }
+
+  /* then real key presses into the app itself - see typing.mjs for why */
+  results.push(...await runTyping(send, `${base}/`));
+
+  ws.close(); chrome.kill(); server?.close();
 
   let failed = 0;
   for (const r of results) {

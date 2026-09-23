@@ -589,13 +589,12 @@ export async function suite(win) {
     mouse($(`[data-cmd="${cmd}"]`), "mousedown");
   };
 
-  test("the bullet button really does leave the list inside a paragraph", () => {
+  test("the bullet button leaves a clean list, not one inside a paragraph", () => {
     listFromButton("insertUnorderedList", ["alpha", "beta"]);
-    /* Not a wish — a guard. If a future Chrome stops doing this, the checks
-       below quietly stop testing the case they were written for, and this one
-       goes red to say so. */
-    eq(shape(), "P[UL(alpha|beta)]",
-      "the browser no longer wraps a new list in a <p> — re-read the checkbox tests, they were written for that shape");
+    /* Chrome's own command leaves <p><ul>…</ul></p>; the tidy pass after every
+       edit takes the list back out. The checkbox tests below still cope with
+       the raw shape - a note saved before the tidy pass existed has it. */
+    eq(shape(), "UL(alpha|beta)", "the list was left inside the paragraph it was made from");
   });
 
   test("a bullet list made with the toolbar becomes checkboxes, one per bullet", () => {
@@ -626,7 +625,7 @@ export async function suite(win) {
     const li = ed.querySelectorAll("li")[1];
     caret(li.firstChild, 1);
     taskBtn();
-    eq(shape(), "P[UL(a)] TASKS([ ]b) P[UL(c)]");
+    eq(shape(), "UL(a) TASKS([ ]b) UL(c)");
   });
 
   test("a bullet list becomes checkboxes, one per bullet", () => {
@@ -735,7 +734,7 @@ export async function suite(win) {
     const li = ed.querySelectorAll("li");
     caret(li[1].firstChild, 0); press(ed, "Tab");
     caret(ed.querySelectorAll("li")[2].firstChild, 0); press(ed, "Tab"); press(ed, "Tab");
-    eq(shape(), "P[UL(one|>two|>>three|four)]", "Tab did not indent the bullets as expected");
+    eq(shape(), "UL(one|>two|>>three|four)", "Tab did not indent the bullets as expected");
     selectAll(ed);
     taskBtn();
     eq(shape(), "TASKS([ ]one|>[ ]two|>>[ ]three|[ ]four)");
@@ -913,6 +912,41 @@ export async function suite(win) {
     setHTML(back.innerHTML);
     eq(shape(), "TASKS([ ]outer|>[ ]inner|>>[ ]deeper|[ ]last)",
       "the indent did not survive coming back in");
+  });
+
+  test("bold, links and code in a checkbox row survive the trip to markdown and back", () => {
+    /* the words of a row were written out with .textContent, so the export -
+       and the Drive backup made from it - quietly dropped every mark in them */
+    const holder = doc.createElement("div");
+    holder.innerHTML = '<ul class="tasks"><li><input type="checkbox"><span class="task-text">'
+      + '<b>bold</b> <a href="https://example.com/">link</a> <code>c</code></span></li></ul>';
+    const md = win.htmlToMd(holder).trim();
+    eq(md, "- [ ] **bold** [link](https://example.com/) `c`", "the row's formatting did not reach the .md file");
+    const back = doc.createElement("div");
+    back.innerHTML = win.mdToHtml(md);
+    ok(back.querySelector(".task-text strong, .task-text b"), "the bold did not come back in");
+    ok(back.querySelector(".task-text a"), "the link did not come back in");
+  });
+
+  test("a list inside a list with no item between still converts every line", () => {
+    /* what Chrome's own Tab used to leave behind; old notes still hold it */
+    setHTML("<ul><li>one<ul><li>two</li></ul><ul><ul><li>three</li></ul></ul></li><li>four</li></ul>");
+    selectAll(ed);
+    taskBtn();
+    has(ed.textContent, "three", "the line nested two lists deep was lost");
+  });
+
+  test("opening a note puts old broken shapes right", () => {
+    /* a list left inside a paragraph by the bullet button, and a row whose
+       words are loose beside the checkbox */
+    ed.innerHTML = '<p></p><ul class="tasks"><li><input type="checkbox">loose</li></ul>';
+    /* built, not parsed: the HTML parser itself closes a <p> before a <ul> */
+    const list = doc.createElement("ul");
+    list.innerHTML = "<li>a</li>";
+    ed.firstChild.appendChild(list);
+    win.__typewell.tidy(ed);
+    eq(shape(), "UL(a) TASKS([ ]loose)");
+    ok(ed.querySelector(".task-text"), "the loose words were not given a home");
   });
 
   /* ═════════ things that were fixed before and must stay fixed ═════════ */
@@ -1756,7 +1790,7 @@ export async function suite(win) {
     const im = ed.querySelector("img");
     eq(win.getComputedStyle(im).display, "block",
       "this check is testing nothing — the row is no longer a flex container");
-    ok(win.__typewell.homeTaskImages(ed), "the stray picture was not picked up");
+    ok(win.__typewell.tidy(ed), "the stray picture was not picked up");
     ok(im.closest(".task-text"), "the picture is still a column of its own beside the words");
     eq(win.getComputedStyle(im).display, "inline-block",
       "the picture is inside the words and still not inline");
@@ -1764,7 +1798,7 @@ export async function suite(win) {
 
   test("a task row with no text span at all still gets one", () => {
     setHTML(`<ul class="tasks"><li><input type="checkbox">bare words<img src="${PX}" alt="x"></li></ul>`);
-    win.__typewell.homeTaskImages(ed);
+    win.__typewell.tidy(ed);
     const txt = ed.querySelector(".task-text");
     ok(txt, "no span was made for a row that never had one");
     ok(txt.querySelector("img"), "the picture was left outside the span that was just made for it");
@@ -1775,9 +1809,10 @@ export async function suite(win) {
   test("collecting a row's words does not swallow the list nested under it", () => {
     setHTML(`<ul class="tasks"><li><input type="checkbox">outer<img src="${PX}" alt="x">`
       + `<ul class="tasks"><li><input type="checkbox"><span class="task-text">inner</span></li></ul></li></ul>`);
-    win.__typewell.homeTaskImages(ed);
+    win.__typewell.tidy(ed);
     const outer = ed.querySelector("li");
-    ok(outer.querySelector(":scope > ul.tasks"), "the nested list was pulled inside the words");
+    ok(!outer.querySelector(".task-text ul"), "the nested list was pulled inside the words");
+    ok(outer.nextElementSibling?.matches("ul.tasks"), "the nested list did not end up right under its row");
     ok(outer.querySelector(":scope > .task-text > img"), "the picture never made it into the words");
   });
 
@@ -1794,7 +1829,7 @@ export async function suite(win) {
 
   test("a picture already inside the words is left exactly where it is", () => {
     setHTML(`<ul class="tasks"><li><input type="checkbox"><span class="task-text">a <img src="${PX}" alt="x"> b</span></li></ul>`);
-    eq(win.__typewell.homeTaskImages(ed), false, "a picture that was already home was moved anyway");
+    eq(win.__typewell.tidy(ed), false, "a picture that was already home was moved anyway");
     eq(ed.querySelector(".task-text").textContent, "a  b", "the words around the picture were rearranged");
   });
 

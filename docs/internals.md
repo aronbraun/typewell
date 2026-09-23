@@ -15,6 +15,47 @@ The install icons in `icons/` are the same artwork as the inline SVG favicon,
 rasterised once. The throwaway script that made them is not kept in the tree —
 it is in the history if the artwork ever changes.
 
+## One shape for the note, kept after every edit
+
+`contenteditable` lets the browser decide what the document looks like after
+each key press, and Chrome's decisions do not survive anything but plain
+typing: its bullet button leaves `<p><ul>…</ul></p>`, its Tab makes a list
+holding nothing but another list, a Backspace that joins two lines copies the
+old look into a `<span style>`, and a paste drops paragraphs, headings or whole
+lists into the middle of a checkbox row. Each of those used to need its own fix
+in its own handler, and every handler that forgot one was a bug.
+
+So there is one rule book instead, `tidy()`, and `scheduleSave()` runs it after
+every edit - typing, pasting, dropping, and every toolbar command, because they
+all end there. It only moves what is out of place, puts the caret back where it
+was, and never re-reads the whole note as a string, so it costs next to nothing
+on a note full of pictures. The shape it keeps:
+
+- A paragraph or heading never holds a block. One that does is split around it.
+- A checkbox row is `<li>` + checkbox + `<span class="task-text">`, and nothing
+  else. Loose words and pictures go into the span, a paragraph or heading
+  becomes a row of its own, a list becomes rows nested under this one, and a
+  quote, code block, table or line is lifted out of the list altogether.
+- Sub-rows of a checkbox list sit beside their row (`ul.tasks > ul.tasks`), the
+  shape Tab has always made there. Sub-items of a bullet or numbered list sit
+  inside their item (`li > ul`), which is what every other program writes.
+- A quote holds blocks, never loose words.
+- An empty line keeps its `<br>`, or the caret has nowhere to stand.
+
+Tab, Shift+Tab, Enter, Backspace and Delete in lists and checkbox rows are done
+by hand rather than by the browser, for the same reason; so are the Markdown
+triggers, which lift a row out of its list first when what was typed (`## `,
+`> `, `[!note]`, ` ``` `) cannot live inside a list.
+
+Pasting is left to the browser - its markup is better than anything rebuilt
+from the HTML string - and then cleaned: only the elements the paste added
+lose the source's fonts, sizes, spacing and classes, a style meaning bold,
+italic, underline or crossed out becomes the tag (the Markdown export only
+sees tags), and `tidy()` fits the result into the line it landed in. A copy
+from Typewell itself is marked, so its own fonts survive a paste back in.
+Plain text that looks like Markdown is pasted as Markdown; `Ctrl+Shift+V`
+pastes the characters as they are.
+
 ## Where things are stored
 
 All in `localStorage`, which gives roughly 5 MB. Settings shows how much is used.
@@ -353,6 +394,13 @@ headless Chrome over the DevTools Protocol, prints each check, and exits
 non-zero on any red. No dependencies and no `node_modules`: Node 22+ ships a
 global `WebSocket`, and that is the whole runner
 ([tests/run.mjs](../tests/run.mjs), about 150 lines).
+
+Then it presses real keys in the real app
+([tests/typing.mjs](../tests/typing.mjs)). The suite sends its own keydown
+events, which reach the app's handlers but make the browser do nothing - no
+character typed, no line split, no paste - and that is exactly where the bugs
+with checkboxes, sub-bullets, callouts and pasting lived. Each case there is
+the note before, what was typed, and the note after.
 
 You can also just open `tests/index.html` in a browser — same suite
 ([tests/suite.js](../tests/suite.js)), same results, listed down the left with
