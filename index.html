@@ -3831,6 +3831,21 @@ function caretAtEndOfWords(el){
   try{post.setStart(r.endContainer,r.endOffset);post.setEnd(el,el.childNodes.length);}catch(_){return false;}
   return !post.toString()&&!post.cloneContents().querySelector("img,input,table,hr");
 }
+/* A line split off at the very end of bold (or italic, or a colour) text is
+   empty, but the next word typed there should still be bold, as it is on
+   every other line. So the empty line keeps those marks, around its <br>,
+   and the caret goes inside them. A link does not carry over: nobody wants
+   the next line to be part of the link above. */
+const CARRIED_MARKS=/^(B|STRONG|I|EM|U|S|STRIKE|DEL|MARK|CODE|SPAN|FONT|SUB|SUP)$/;
+function emptyLineKeepingMarks(line){
+  const marks=[];
+  for(let n=line.lastElementChild;n&&CARRIED_MARKS.test(n.tagName);n=n.lastElementChild)marks.push(n.cloneNode(false));
+  line.replaceChildren();
+  let inside=line;
+  for(const mark of marks){inside.appendChild(mark);inside=mark;}
+  inside.appendChild(document.createElement("br"));
+  return inside;
+}
 /* one element swapped for another tag, words moved rather than copied */
 function retag(b,tag){
   const nb=document.createElement(tag);
@@ -4094,10 +4109,11 @@ editor.addEventListener("keydown",e=>{
       const cut=sel.getRangeAt(0).cloneRange();cut.setEnd(txt,txt.childNodes.length);
       const nl=newTaskRow(),nt=taskOwnText(nl);
       nt.append(cut.extractContents());
-      for(const t of [txt,nt])if(isBlank(t)&&!t.querySelector("br"))t.innerHTML="<br>";
+      if(isBlank(txt)&&!txt.querySelector("br"))txt.innerHTML="<br>";
       /* past its own sub-items: the new line is its sibling, not its child */
       let at=taskLi;while(isTaskUl(at.nextElementSibling))at=at.nextElementSibling;
-      at.after(nl);placeCaret(nt,true);
+      at.after(nl);
+      placeCaret(isBlank(nt)?emptyLineKeepingMarks(nt):nt,true);
     }
     scheduleSave();return;
   }

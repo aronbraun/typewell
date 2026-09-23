@@ -61,6 +61,10 @@ export const cases = [
   /* ── checkbox rows ── */
   ["Enter in the middle of a checkbox row splits it", TASKS("ab|cd"),
     [["key", "Enter"], ["type", "X"]], '<ul class="tasks"><li>[ ]<span.t>ab</span></li><li>[ ]<span.t>X|cd</span></li></ul>'],
+  ["Enter at the end of bold words keeps typing bold on the new row", TASKS("a <i><b>bi|</b></i>"),
+    [["key", "Enter"], ["type", "X"]], '<ul class="tasks"><li>[ ]<span.t>a <i><b>bi</b></i></span></li><li>[ ]<span.t><i><b>X|</b></i></span></li></ul>'],
+  ["Enter at the end of a link does not carry the link to the new row", TASKS('<a href="https://example.com/">l|</a>'),
+    [["key", "Enter"], ["type", "X"]], '<ul class="tasks"><li>[ ]<span.t><a href="https://example.com/">l</a></span></li><li>[ ]<span.t>X|</span></li></ul>'],
   ["Enter at the start of a checkbox row adds an empty row above", TASKS("|abc"),
     [["key", "Enter"]], '<ul class="tasks"><li>[ ]<span.t><br></span></li><li>[ ]<span.t>|abc</span></li></ul>'],
   ["Backspace at the start of a checkbox row takes the box off", TASKS("a", "|b"),
